@@ -1,0 +1,23 @@
+# Exclude local node_modules and builds
+node_modules
+**/node_modules
+dist
+**/dist
+build
+**/build
+
+# Exclude git repository data
+.git
+.github
+.gitignore
+
+# Exclude desktop application files and logs (unnecessary for cloud build)
+apps/desktop
+*.log
+.env*
+docker-compose.yml
+nginx.conf
+backups
+tests
+scripts
+README.md

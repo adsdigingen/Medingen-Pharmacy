@@ -7,7 +7,15 @@ WORKDIR /usr/src/app
 
 # Copy root monorepo files for workspaces configuration
 COPY package*.json ./
-COPY tsconfig.json ./
+
+# Prune workspaces in package.json to only include apps/cloud and packages/db.
+# This prevents npm ci from failing due to missing desktop workspaces.
+RUN node -e " \
+  const fs = require('fs'); \
+  const pkg = JSON.parse(fs.readFileSync('package.json')); \
+  pkg.workspaces = ['packages/db', 'apps/cloud']; \
+  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); \
+"
 
 # Copy packages/db source configurations
 COPY packages/db/package*.json ./packages/db/
@@ -19,7 +27,7 @@ COPY apps/cloud/package*.json ./apps/cloud/
 COPY apps/cloud/tsconfig*.json ./apps/cloud/
 COPY apps/cloud/nest-cli.json ./apps/cloud/
 
-# Install dependencies for workspaces
+# Install dependencies for the pruned workspaces
 RUN npm ci
 
 # Copy full packages/db and apps/cloud source files
@@ -39,18 +47,20 @@ WORKDIR /usr/src/app
 
 ENV NODE_ENV=production
 
-# Copy root configurations and workspaces configurations
-COPY package*.json ./
-COPY packages/db/package*.json ./packages/db/
-COPY apps/cloud/package*.json ./apps/cloud/
+# Copy pruned root configurations and workspaces configurations from builder stage
+COPY --from=builder /usr/src/app/package*.json ./
+COPY --from=builder /usr/src/app/packages/db/package*.json ./packages/db/
+COPY --from=builder /usr/src/app/apps/cloud/package*.json ./apps/cloud/
 
-# Install only production dependencies
+# Install only production dependencies for the pruned workspaces
 RUN npm ci --omit=dev
 
-# Copy generated prisma client and build artifacts from builder stage
+# Copy generated prisma client and build artifacts from builder stage.
+# Note: npm workspaces hoists @prisma/client to the root node_modules.
 COPY --from=builder /usr/src/app/packages/db/dist ./packages/db/dist
-COPY --from=builder /usr/src/app/packages/db/node_modules/@prisma/client ./node_modules/@prisma/client
-COPY --from=builder /usr/src/app/apps/cloud/dist /usr/src/app/apps/cloud/dist
+COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /usr/src/app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /usr/src/app/apps/cloud/dist ./apps/cloud/dist
 
 EXPOSE 3002
 

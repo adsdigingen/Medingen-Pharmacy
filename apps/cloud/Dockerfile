@@ -34,8 +34,9 @@ RUN npm ci
 COPY packages/db ./packages/db
 COPY apps/cloud ./apps/cloud
 
-# Generate Prisma Client & compile workspaces
+# Generate Prisma Client, build database workspace, & compile cloud app
 RUN npm run db:generate
+RUN npm run -w @medingen/db build
 RUN npm run cloud:build
 
 # ==========================================

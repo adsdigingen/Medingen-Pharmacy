@@ -43,7 +43,9 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma DB Bindings
-        run: npm run db:generate
+        run: |
+          npm run db:generate
+          npm run -w @medingen/db build
         env:
           DATABASE_URL: "postgresql://postgres:SecureTestPassword123@localhost:5432/medingen_test?schema=public"
 

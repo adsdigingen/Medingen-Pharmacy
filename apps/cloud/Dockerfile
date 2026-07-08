@@ -3,6 +3,9 @@
 # ==========================================
 FROM node:20-alpine AS builder
 
+# Install system dependencies needed for Prisma
+RUN apk add --no-cache openssl
+
 WORKDIR /usr/src/app
 
 # Copy root monorepo files for workspaces configuration
@@ -43,6 +46,9 @@ RUN npm run cloud:build
 # Stage 2: Production Execution Phase
 # ==========================================
 FROM node:20-alpine AS runner
+
+# Install runtime system dependencies needed for Prisma
+RUN apk add --no-cache openssl
 
 WORKDIR /usr/src/app
 

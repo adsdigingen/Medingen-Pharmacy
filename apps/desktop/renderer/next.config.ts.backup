@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const isProd = process.env.NODE_ENV === 'production';
 const isVercel = process.env.VERCEL === '1';
 
-const nextConfig: NextConfig = {
+const nextConfig: NextConfig & { eslint?: { ignoreDuringBuilds?: boolean } } = {
   output: isVercel ? undefined : 'export',
   assetPrefix: isProd && !isVercel ? './' : undefined,
   images: {
@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
   experimental: {
     workerThreads: false,

@@ -7,8 +7,7 @@ export class AppController {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  @Get('health')
-  @Get()
+  @Get(['', 'health'])
   async getHealth() {
     let dbStatus = 'CONNECTED';
     try {

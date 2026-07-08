@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 interface SetupWizardModalProps {
   settingsForm: any;
   setSettingsForm: (val: any) => void;
@@ -88,7 +90,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
       // DB password is always the seeded default, so we can silently re-login.
       let activeToken = currentUser.token;
       try {
-        const reAuthRes = await fetch('http://localhost:3001/users-management/login', {
+        const reAuthRes = await fetch(`${API_BASE}/users-management/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: currentUser.username, password: 'Admin@123' }),
@@ -111,7 +113,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
       }
 
       // 1. Update Admin Password
-      const passwordRes = await fetch(`http://localhost:3001/users-management/${currentUser.id}`, {
+      const passwordRes = await fetch(`${API_BASE}/users-management/${currentUser.id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -131,7 +133,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
       const formattedAddress = `${address.trim()} (Drug Lic: ${drugLicense.trim()})`;
 
       // 3. Save Settings to Backend
-      const settingsRes = await fetch(`http://localhost:3001/system-settings`, {
+      const settingsRes = await fetch(`${API_BASE}/system-settings`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -155,7 +157,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
       const settingsData = (await settingsRes.json()).data;
       
       // 4. Update local Sync settings to cloudUrl
-      await fetch(`http://localhost:3001/sync/force`, {
+      await fetch(`${API_BASE}/sync/force`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

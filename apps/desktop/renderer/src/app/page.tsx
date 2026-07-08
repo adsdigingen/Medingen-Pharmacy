@@ -22,7 +22,7 @@ import InventoryTab from '../components/features/InventoryTab';
 import ProductsTab from '../components/features/ProductsTab';
 import SuppliersTab from '../components/features/SuppliersTab';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 type Tab = 'dashboard' | 'pos' | 'history' | 'reports' | 'settings' | 'admin' | 'purchases' | 'inventory' | 'products' | 'suppliers' | 'sync' | 'owner';
 

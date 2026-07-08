@@ -37,9 +37,10 @@ RUN npm ci
 COPY packages/db ./packages/db
 COPY apps/cloud ./apps/cloud
 
-# Generate Prisma Client, build database workspace, & compile cloud app
+# Generate Prisma Client, build database workspace, compile seed file, & compile cloud app
 RUN npm run db:generate
 RUN npm run -w @medingen/db build
+RUN npx tsc packages/db/prisma/seed.ts --outDir packages/db/prisma/dist --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop
 RUN npm run cloud:build
 
 # ==========================================
@@ -72,5 +73,5 @@ COPY --from=builder /usr/src/app/apps/cloud/dist ./apps/cloud/dist
 
 EXPOSE 3002
 
-# Run database migrations and then start the NestJS application
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma && node apps/cloud/dist/main"]
+# Run database migrations, run seed script, and then start the NestJS application
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma && node packages/db/prisma/dist/seed.js && node apps/cloud/dist/main"]

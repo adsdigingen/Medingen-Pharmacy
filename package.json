@@ -17,7 +17,7 @@
     "desktop:dist": "npm run -w @medingen/desktop dist",
     "cloud:dev": "npm run -w @medingen/cloud dev",
     "cloud:build": "npm run -w @medingen/cloud build",
-    "build": "npm run db:generate && npm run cloud:build && npm run -w @medingen/desktop dist",
+    "build": "npm run db:generate && npm run -w @medingen/db build && npm run cloud:build && npm run -w @medingen/desktop dist",
     "dev": "npm run -w @medingen/desktop dev"
   },
   "devDependencies": {

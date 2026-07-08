@@ -65,10 +65,12 @@ RUN npm ci --omit=dev
 # Copy generated prisma client and build artifacts from builder stage.
 # Note: npm workspaces hoists @prisma/client to the root node_modules.
 COPY --from=builder /usr/src/app/packages/db/dist ./packages/db/dist
+COPY --from=builder /usr/src/app/packages/db/prisma ./packages/db/prisma
 COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /usr/src/app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=builder /usr/src/app/apps/cloud/dist ./apps/cloud/dist
 
 EXPOSE 3002
 
-CMD ["node", "apps/cloud/dist/main"]
+# Run database migrations and then start the NestJS application
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma && node apps/cloud/dist/main"]

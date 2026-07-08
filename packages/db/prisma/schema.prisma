@@ -1,0 +1,607 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  PHARMACIST
+  CASHIER
+  STORE_MANAGER
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  CONFLICT
+  FAILED
+  PROCESSING
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  username     String     @unique
+  passwordHash String     @map("password_hash")
+  role         Role
+  status       Boolean    @default(true)
+  
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  syncedAt     DateTime?  @map("synced_at")
+  syncStatus   SyncStatus @default(PENDING) @map("sync_status")
+
+  @@map("users")
+}
+
+model Category {
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String     @unique
+  status      Boolean    @default(true)
+  deletedAt   DateTime?  @map("deleted_at")
+  
+  products    Product[]
+  
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  syncedAt    DateTime?  @map("synced_at")
+  syncStatus  SyncStatus @default(PENDING) @map("sync_status")
+
+  @@map("categories")
+}
+
+model Manufacturer {
+  id            String     @id @default(uuid()) @db.Uuid
+  name          String     @unique
+  contactPerson String?    @map("contact_person")
+  phone         String?
+  email         String?
+  address       String?
+  gstNumber     String?    @map("gst_number")
+  status        Boolean    @default(true)
+  deletedAt     DateTime?  @map("deleted_at")
+  
+  products      Product[]
+  
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  syncedAt      DateTime?  @map("synced_at")
+  syncStatus    SyncStatus @default(PENDING) @map("sync_status")
+
+  @@map("manufacturers")
+}
+
+model Supplier {
+  id                 String            @id @default(uuid()) @db.Uuid
+  name               String
+  gstin              String?
+  contactPerson      String?           @map("contact_person")
+  phone              String?
+  email              String?
+  address            String?
+  city               String?
+  state              String?
+  pincode            String?
+  creditDays         Int?              @map("credit_days")
+  openingBalance     Float             @default(0.0) @map("opening_balance")
+  outstandingBalance Float             @default(0.0) @map("outstanding_balance")
+  notes              String?
+  status             Boolean           @default(true)
+  deletedAt          DateTime?         @map("deleted_at")
+  
+  products           Product[]
+  purchaseOrders     PurchaseOrder[]
+  purchaseReturns    PurchaseReturn[]
+  
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  syncedAt           DateTime?         @map("synced_at")
+  syncStatus         SyncStatus        @default(PENDING) @map("sync_status")
+
+  @@map("suppliers")
+}
+
+model Customer {
+  id            String     @id @default(uuid()) @db.Uuid
+  name          String
+  mobile        String     @unique
+  creditBalance Float      @default(0.0) @map("credit_balance")
+  
+  bills         Bill[]
+  
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  syncedAt      DateTime?  @map("synced_at")
+  syncStatus    SyncStatus @default(PENDING) @map("sync_status")
+
+  @@index([name])
+  @@map("customers")
+}
+
+model Product {
+  id             String     @id @default(uuid()) @db.Uuid
+  name           String
+  genericName    String?    @map("generic_name")
+  brandName      String?    @map("brand_name")
+  barcode        String?    @unique
+  sku            String?    @unique
+  categoryId     String?    @map("category_id") @db.Uuid
+  category       Category?  @relation(fields: [categoryId], references: [id])
+  manufacturerId String?    @map("manufacturer_id") @db.Uuid
+  manufacturer   Manufacturer? @relation(fields: [manufacturerId], references: [id])
+  supplierId     String?    @map("supplier_id") @db.Uuid
+  supplier       Supplier?  @relation(fields: [supplierId], references: [id])
+  hsnCode        String?    @map("hsn_code")
+  gstPercentage  Float      @default(0.0) @map("gst_percentage")
+  purchasePrice  Float      @default(0.0) @map("purchase_price")
+  sellingPrice   Float      @default(0.0) @map("selling_price")
+  mrp            Float      @default(0.0)
+  minStockLevel  Int        @default(0) @map("min_stock_level")
+  rackLocation   String?    @map("rack_location")
+  description    String?
+  status         Boolean    @default(true)
+  deletedAt      DateTime?  @map("deleted_at")
+  
+  batches            Batch[]
+  inventory          Inventory?
+  ledgerEntries      StockLedger[]
+  purchaseOrderItems PurchaseOrderItem[]
+  purchaseReturnItems PurchaseReturnItem[]
+  holdBillItems      HoldBillItem[]
+  
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  syncedAt       DateTime?  @map("synced_at")
+  syncStatus     SyncStatus @default(PENDING) @map("sync_status")
+
+  @@index([name])
+  @@index([categoryId])
+  @@index([manufacturerId])
+  @@index([supplierId])
+  @@index([status, deletedAt])
+  @@map("products")
+}
+
+model Batch {
+  id                String            @id @default(uuid()) @db.Uuid
+  productId         String            @map("product_id") @db.Uuid
+  product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  batchNumber       String            @map("batch_number")
+  expiryDate        DateTime          @map("expiry_date")
+  manufacturingDate DateTime?         @map("manufacturing_date")
+  purchasePrice     Float             @map("purchase_price")
+  sellingPrice      Float             @map("selling_price")
+  mrp               Float
+  gstPercentage     Float             @default(0.0) @map("gst_percentage")
+  availableQty      Int               @default(0) @map("available_qty")
+  reservedQty       Int               @default(0) @map("reserved_qty")
+  damagedQty        Int               @default(0) @map("damaged_qty")
+  status            String            @default("ACTIVE") // ACTIVE, EXPIRED, EXHAUSTED, DAMAGED
+  
+  billItems          BillItem[]
+  purchaseOrderItems PurchaseOrderItem[]
+  purchaseReturnItems PurchaseReturnItem[]
+  stockAdjustments   StockAdjustment[]
+  ledgerEntries      StockLedger[]
+  deletedAt          DateTime?         @map("deleted_at")
+
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  syncedAt          DateTime?         @map("synced_at")
+  syncStatus        SyncStatus        @default(PENDING) @map("sync_status")
+
+  @@unique([productId, batchNumber])
+  @@index([productId, status])
+  @@index([expiryDate])
+  @@index([status])
+  @@map("batches")
+}
+
+model Inventory {
+  id           String     @id @default(uuid()) @db.Uuid
+  productId    String     @unique @map("product_id") @db.Uuid
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  availableQty Int        @default(0) @map("available_qty")
+  reservedQty  Int        @default(0) @map("reserved_qty")
+  damagedQty   Int        @default(0) @map("damaged_qty")
+  expiredQty   Int        @default(0) @map("expired_qty")
+  deletedAt    DateTime?  @map("deleted_at")
+
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  syncedAt     DateTime?  @map("synced_at")
+  syncStatus   SyncStatus @default(PENDING) @map("sync_status")
+
+  @@map("inventories")
+}
+
+model StockLedger {
+  id              String     @id @default(uuid()) @db.Uuid
+  productId       String     @map("product_id") @db.Uuid
+  product         Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  batchId         String     @map("batch_id") @db.Uuid
+  batch           Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  transactionType String     @map("transaction_type") // PURCHASE, SALES, PURCHASE_RETURN, SALES_RETURN, ADJUSTMENT, DAMAGE, EXPIRY
+  quantity        Int
+  balanceQty      Int        @map("balance_qty")
+  referenceNumber String     @map("reference_number")
+  remarks         String?
+  createdBy       String     @map("created_by")
+  timestamp       DateTime   @default(now())
+
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  syncedAt        DateTime?  @map("synced_at")
+  syncStatus      SyncStatus @default(PENDING) @map("sync_status")
+
+  @@index([productId])
+  @@index([batchId])
+  @@index([transactionType])
+  @@index([timestamp])
+  @@map("stock_ledgers")
+}
+
+model StockAdjustment {
+  id        String    @id @default(uuid()) @db.Uuid
+  batchId   String    @map("batch_id") @db.Uuid
+  batch     Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  type      String    // INCREASE, DECREASE
+  quantity  Int
+  reason    String    // PHYSICAL_COUNT, DAMAGED, LOST, EXPIRED, CORRECTION
+  remarks   String?
+  createdBy String    @map("created_by")
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  syncedAt  DateTime?  @map("synced_at")
+  syncStatus SyncStatus @default(PENDING) @map("sync_status")
+
+  @@index([batchId])
+  @@index([createdAt])
+  @@map("stock_adjustments")
+}
+
+model PurchaseOrder {
+  id                    String              @id @default(uuid()) @db.Uuid
+  poNumber              String              @unique @map("po_number")
+  supplierId            String              @map("supplier_id") @db.Uuid
+  supplier              Supplier            @relation(fields: [supplierId], references: [id])
+  purchaseDate          DateTime            @map("purchase_date")
+  supplierInvoiceNumber String?             @map("supplier_invoice_number")
+  invoiceDate           DateTime?           @map("invoice_date")
+  paymentStatus         String              @map("payment_status") // PAID, PENDING
+  paymentMethod         String              @map("payment_method") // CASH, UPI, CARD, CREDIT
+  expectedDeliveryDate  DateTime?           @map("expected_delivery_date")
+  notes                 String?
+  status                String              @default("DRAFT") // DRAFT, ORDERED, PARTIALLY_RECEIVED, FULLY_RECEIVED, CANCELLED
+  
+  items                 PurchaseOrderItem[]
+  returns               PurchaseReturn[]
+  deletedAt             DateTime?           @map("deleted_at")
+
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+  syncedAt              DateTime?           @map("synced_at")
+  syncStatus            SyncStatus          @default(PENDING) @map("sync_status")
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([purchaseDate])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id                String         @id @default(uuid()) @db.Uuid
+  purchaseOrderId   String         @map("purchase_order_id") @db.Uuid
+  purchaseOrder     PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId         String         @map("product_id") @db.Uuid
+  product           Product        @relation(fields: [productId], references: [id])
+  batchId           String?        @map("batch_id") @db.Uuid // Linked once received
+  batch             Batch?         @relation(fields: [batchId], references: [id])
+  batchNumber       String         @map("batch_number")
+  manufacturingDate DateTime?      @map("manufacturing_date")
+  expiryDate        DateTime       @map("expiry_date")
+  purchasePrice     Float          @map("purchase_price")
+  sellingPrice      Float          @map("selling_price")
+  mrp               Float
+  gstPercentage     Float          @default(0.0) @map("gst_percentage")
+  discountPercentage Float         @default(0.0) @map("discount_percentage")
+  quantity          Int
+  freeQuantity      Int            @default(0) @map("free_quantity")
+  totalAmount       Float          @map("total_amount")
+  deletedAt         DateTime?      @map("deleted_at")
+
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  syncedAt          DateTime?      @map("synced_at")
+  syncStatus        SyncStatus     @default(PENDING) @map("sync_status")
+
+  @@map("purchase_order_items")
+}
+
+model PurchaseReturn {
+  id              String               @id @default(uuid()) @db.Uuid
+  purchaseOrderId String               @map("purchase_order_id") @db.Uuid
+  purchaseOrder   PurchaseOrder        @relation(fields: [purchaseOrderId], references: [id])
+  supplierId      String               @map("supplier_id") @db.Uuid
+  supplier        Supplier             @relation(fields: [supplierId], references: [id])
+  creditNoteNumber String?             @map("credit_note_number")
+  returnDate      DateTime             @map("return_date")
+  remarks         String?
+  items           PurchaseReturnItem[]
+  deletedAt       DateTime?            @map("deleted_at")
+
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  syncedAt        DateTime?            @map("synced_at")
+  syncStatus      SyncStatus           @default(PENDING) @map("sync_status")
+
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnItem {
+  id               String         @id @default(uuid()) @db.Uuid
+  purchaseReturnId String         @map("purchase_return_id") @db.Uuid
+  purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  productId        String         @map("product_id") @db.Uuid
+  product           Product        @relation(fields: [productId], references: [id])
+  batchId          String         @map("batch_id") @db.Uuid
+  batch            Batch          @relation(fields: [batchId], references: [id])
+  quantity         Int
+  reason           String?
+  deletedAt        DateTime?      @map("deleted_at")
+
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  syncedAt         DateTime?      @map("synced_at")
+  syncStatus       SyncStatus     @default(PENDING) @map("sync_status")
+
+  @@map("purchase_return_items")
+}
+
+model Bill {
+  id             String      @id @default(uuid()) @db.Uuid
+  billNumber     String      @unique @map("bill_number")
+  customerId     String?     @map("customer_id") @db.Uuid
+  customer       Customer?   @relation(fields: [customerId], references: [id])
+  totalAmount    Float       @map("total_amount")
+  discountAmount Float       @default(0.0) @map("discount_amount")
+  gstAmount      Float       @default(0.0) @map("gst_amount")
+  netAmount      Float       @map("net_amount")
+  profitAmount   Float       @default(0.0) @map("profit_amount")
+  paymentMethod  String      @map("payment_method") // CASH, UPI, CARD, MIXED, CREDIT
+  paymentStatus  String      @map("payment_status") // PAID, PARTIAL, UNPAID
+  amountPaid     Float       @default(0.0) @map("amount_paid")
+  cashierId      String      @map("cashier_id") @db.Uuid // UUID of the user who billed it
+  status         String      @default("COMPLETED") // COMPLETED, CANCELLED
+  cancelReason   String?     @map("cancel_reason")
+  invoiceType    String      @default("TAX") @map("invoice_type") // TAX, RETAIL
+  
+  billItems      BillItem[]
+  payments       Payment[]
+  deletedAt      DateTime?   @map("deleted_at")
+  
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  syncedAt       DateTime?   @map("synced_at")
+  syncStatus     SyncStatus  @default(PENDING) @map("sync_status")
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([paymentMethod])
+  @@map("bills")
+}
+
+model BillItem {
+  id             String     @id @default(uuid()) @db.Uuid
+  billId         String     @map("bill_id") @db.Uuid
+  bill           Bill       @relation(fields: [billId], references: [id], onDelete: Cascade)
+  batchId        String     @map("batch_id") @db.Uuid
+  batch          Batch      @relation(fields: [batchId], references: [id])
+  quantity       Int
+  sellingPrice   Float      @map("selling_price")
+  mrp            Float
+  discountAmount Float      @default(0.0) @map("discount_amount")
+  gstPercentage  Float      @map("gst_percentage")
+  gstAmount      Float      @map("gst_amount")
+  totalAmount    Float      @map("total_amount")
+  returnedQty    Int        @default(0) @map("returned_qty")
+  deletedAt      DateTime?  @map("deleted_at")
+  
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  syncedAt       DateTime?  @map("synced_at")
+  syncStatus     SyncStatus @default(PENDING) @map("sync_status")
+
+  @@map("bill_items")
+}
+
+model Payment {
+  id              String     @id @default(uuid()) @db.Uuid
+  billId          String     @map("bill_id") @db.Uuid
+  bill            Bill       @relation(fields: [billId], references: [id], onDelete: Cascade)
+  method          String     // CASH, UPI, CARD
+  amount          Float
+  referenceNumber String?    @map("reference_number")
+  deletedAt       DateTime?  @map("deleted_at")
+
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  syncedAt        DateTime?  @map("synced_at")
+  syncStatus      SyncStatus @default(PENDING) @map("sync_status")
+
+  @@map("payments")
+}
+
+model HoldBill {
+  id             String         @id @default(uuid()) @db.Uuid
+  customerId     String?        @map("customer_id") @db.Uuid
+  customerName   String?        @map("customer_name")
+  customerMobile String?        @map("customer_mobile")
+  notes          String?
+  holdLabel      String?        @map("hold_label")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  items          HoldBillItem[]
+
+  @@map("hold_bills")
+}
+
+model HoldBillItem {
+  id                 String   @id @default(uuid()) @db.Uuid
+  holdBillId         String   @map("hold_bill_id") @db.Uuid
+  holdBill           HoldBill @relation(fields: [holdBillId], references: [id], onDelete: Cascade)
+  productId          String   @map("product_id") @db.Uuid
+  product            Product  @relation(fields: [productId], references: [id])
+  quantity           Int
+  discountPercentage Float    @default(0.0) @map("discount_percentage")
+  customPrice        Float?   @map("custom_price")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("hold_bill_items")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  username  String?
+  module    String   // PRODUCTS, PURCHASES, BILLING, SETTINGS, USERS, DB
+  action    String   // CREATE, UPDATE, DELETE, LOGIN, BACKUP, VACUUM
+  device    String?  // Desktop Terminal
+  details   String?
+  timestamp DateTime @default(now())
+
+  @@index([module])
+  @@index([action])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+model SystemSettings {
+  id            String   @id @default("singleton")
+  storeName     String   @default("Medingen Pharmacy") @map("store_name")
+  gstin         String?
+  phone         String?
+  email         String?
+  address       String?
+  invoicePrefix String   @default("INV-") @map("invoice_prefix")
+  poPrefix      String   @default("PO-") @map("po_prefix")
+  printerType   String   @default("80mm") @map("printer_type") // 58mm, 80mm
+  backupInterval String  @default("DAILY") @map("backup_interval") // DAILY, WEEKLY, MONTHLY
+  lastBackupAt  DateTime? @map("last_backup_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model LicenseInfo {
+  id          String    @id @default("license")
+  licenseKey  String    @map("license_key")
+  status      String    @default("INACTIVE") // ACTIVE, EXPIRED, INACTIVE
+  activatedAt DateTime? @map("activated_at")
+  expiresAt   DateTime? @map("expires_at")
+  features    String?
+
+  @@map("license_info")
+}
+
+model ErrorLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  errorType  String   @map("error_type") // API_CRASH, PRINTER_FAIL, DB_ERR, UNHANDLED
+  message    String
+  stackTrace String?  @map("stack_trace")
+  module     String?
+  timestamp  DateTime @default(now())
+
+  @@map("error_logs")
+}
+
+model SyncQueue {
+  id            String     @id @default(uuid()) @db.Uuid
+  entityName    String     @map("entity_name") // CATEGORY, PRODUCT, BILL, etc.
+  entityId      String     @map("entity_id")
+  operation     String     // CREATE, UPDATE, DELETE
+  payload       String     // JSON serialized object
+  retryCount    Int        @default(0) @map("retry_count")
+  syncStatus    SyncStatus @default(PENDING) @map("sync_status")
+  lastError     String?    @map("last_error")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  syncedAt      DateTime?  @map("synced_at")
+
+  @@index([entityName])
+  @@index([syncStatus])
+  @@index([createdAt])
+  @@map("sync_queues")
+}
+
+model SyncConflict {
+  id            String    @id @default(uuid()) @db.Uuid
+  entityName    String    @map("entity_name")
+  entityId      String    @map("entity_id")
+  localPayload  String    @map("local_payload")
+  cloudPayload  String    @map("cloud_payload")
+  resolvedAt    DateTime? @map("resolved_at")
+  resolution    String?   // LOCAL_WINS, CLOUD_WINS, MANUAL
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@map("sync_conflicts")
+}
+
+model SyncHistory {
+  id           String   @id @default(uuid()) @db.Uuid
+  batchSize    Int      @map("batch_size")
+  status       String   // SUCCESS, FAILED
+  errorMessage String?  @map("error_message")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("sync_histories")
+}
+
+model DeviceRegistration {
+  id           String   @id @default(uuid()) @db.Uuid
+  storeName    String   @map("store_name")
+  deviceUuid   String   @unique @map("device_uuid")
+  apiKey       String   @map("api_key")
+  registeredAt DateTime @default(now()) @map("registered_at")
+
+  @@map("device_registrations")
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  type      String   // LOW_STOCK, EXPIRY, SYNC_FAIL, BACKUP_FAIL, LARGE_SALE, LICENSE_EXPIRY
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model SyncSettings {
+  id                 String    @id @default("sync_singleton")
+  cloudApiUrl        String    @default("http://localhost:3002") @map("cloud_api_url")
+  syncIntervalMs     Int       @default(30000) @map("sync_interval_ms")
+  syncEnabled        Boolean   @default(true) @map("sync_enabled")
+  lastSuccessfulSync DateTime? @map("last_successful_sync")
+
+  @@map("sync_settings")
+}
+
+model SupplierMapping {
+  id           String   @id @default(uuid()) @db.Uuid
+  supplierName String   @unique @map("supplier_name")
+  mapping      Json
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("supplier_mappings")
+}

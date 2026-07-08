@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # Database Service (PostgreSQL)
+  # ==========================================
+  db:
+    image: postgres:16-alpine
+    container_name: medingen_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: SecureProductionPassword123
+      POSTGRES_DB: medingen_cloud
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d medingen_cloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medingen_network
+
+  # ==========================================
+  # Cloud Sync API Service (NestJS Backend)
+  # ==========================================
+  cloud-api:
+    build:
+      context: .
+      dockerfile: apps/cloud/Dockerfile
+    container_name: medingen_cloud_api
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DATABASE_URL: postgresql://postgres:SecureProductionPassword123@db:5432/medingen_cloud?schema=public
+      CORS_ORIGIN: "http://localhost:3000"
+    ports:
+      - "3002:3002"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3002/sync/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - medingen_network
+
+volumes:
+  pg_data:
+    driver: local
+
+networks:
+  medingen_network:
+    driver: bridge

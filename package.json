@@ -1,0 +1,26 @@
+{
+  "name": "medingen-pharmacy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Medingen Pharmacy ERP & Billing System - Offline-First Desktop & Cloud Monorepo",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "apps/desktop/server",
+    "apps/desktop/renderer"
+  ],
+  "scripts": {
+    "db:generate": "npm run -w @medingen/db generate",
+    "db:migrate": "npm run -w @medingen/db migrate",
+    "desktop:dev": "npm run -w @medingen/desktop dev",
+    "desktop:build": "npm run -w @medingen/desktop build",
+    "desktop:dist": "npm run -w @medingen/desktop dist",
+    "cloud:dev": "npm run -w @medingen/cloud dev",
+    "cloud:build": "npm run -w @medingen/cloud build",
+    "build": "npm run db:generate && npm run cloud:build && npm run -w @medingen/desktop dist",
+    "dev": "npm run -w @medingen/desktop dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

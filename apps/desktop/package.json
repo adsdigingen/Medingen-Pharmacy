@@ -1,0 +1,41 @@
+{
+  "name": "@medingen/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "npm run -w @medingen/desktop-ui build",
+    "build:server": "npm run -w @medingen/desktop-server build",
+    "build": "npm run build:main && npm run build:renderer && npm run build:server",
+    "dist": "npm run build && electron-builder",
+    "dev:renderer": "npm run -w @medingen/desktop-ui dev",
+    "dev:server": "npm run -w @medingen/desktop-server start:dev",
+    "dev:main": "tsc -p tsconfig.main.json && electron dist/main.js",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:renderer\" \"wait-on http://localhost:3000 && npm run dev:main\""
+  },
+  "dependencies": {
+    "@medingen/db": "*",
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/event-emitter": "^3.1.0",
+    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/schedule": "^6.1.3",
+    "@prisma/client": "^5.10.0",
+    "bcryptjs": "^2.4.3",
+    "prisma": "^5.10.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.4",
+    "concurrently": "^8.2.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "uuid": "^14.0.1",
+    "wait-on": "^7.2.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "electron": "30.0.0",
+    "electron-builder": "24.13.3",
+    "typescript": "^5.0.0"
+  }
+}

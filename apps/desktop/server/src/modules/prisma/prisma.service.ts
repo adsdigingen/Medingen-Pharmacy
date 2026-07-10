@@ -95,7 +95,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           data: {
             id: 'singleton',
             storeName: 'Medingen Pharmacy',
-            invoicePrefix: 'INV-',
+            invoicePrefix: 'BILL-',
             poPrefix: 'PO-',
             printerType: '80mm',
             backupInterval: 'DAILY',

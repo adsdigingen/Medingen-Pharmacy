@@ -31,6 +31,15 @@ interface ProductsTabProps {
   setActiveTab: (tab: any) => void;
   setInventorySubTab: (tab: 'stock' | 'batches' | 'ledger' | 'adjustments') => void;
   setLedgerProductFilter: (productId: string) => void;
+  currentUser: any;
+  productDrugScheduleFilter: string;
+  setProductDrugScheduleFilter: (val: string) => void;
+  productMedicineClassificationFilter: string;
+  setProductMedicineClassificationFilter: (val: string) => void;
+  productPrescriptionRequiredFilter: string;
+  setProductPrescriptionRequiredFilter: (val: string) => void;
+  productControlledDrugFilter: string;
+  setProductControlledDrugFilter: (val: string) => void;
 }
 
 export const ProductsTab: React.FC<ProductsTabProps> = ({
@@ -54,10 +63,43 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   setActiveTab,
   setInventorySubTab,
   setLedgerProductFilter,
+  currentUser,
+  productDrugScheduleFilter,
+  setProductDrugScheduleFilter,
+  productMedicineClassificationFilter,
+  setProductMedicineClassificationFilter,
+  productPrescriptionRequiredFilter,
+  setProductPrescriptionRequiredFilter,
+  productControlledDrugFilter,
+  setProductControlledDrugFilter,
 }) => {
   // Modes: 'list' | 'create' | 'edit' | 'detail'
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit' | 'detail'>('list');
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+
+  // System settings default state
+  const [pricingDefaults, setPricingDefaults] = useState({
+    defaultOfflineMarkup: 50,
+    defaultOnlineMarkup: 85,
+    defaultGst: 12,
+    defaultRetailDiscount: 0,
+  });
+
+  useEffect(() => {
+    fetch(`${API_BASE}/system-settings`)
+      .then(res => res.ok ? res.json() : null)
+      .then(settings => {
+        if (settings) {
+          setPricingDefaults({
+            defaultOfflineMarkup: settings.defaultOfflineMarkup ?? 50,
+            defaultOnlineMarkup: settings.defaultOnlineMarkup ?? 85,
+            defaultGst: settings.defaultGst ?? 12,
+            defaultRetailDiscount: settings.defaultRetailDiscount ?? 0,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [API_BASE]);
 
   // Form State
   const [formProduct, setFormProduct] = useState({
@@ -84,7 +126,140 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     defaultUnit: 'Strip',
     packSize: '10s',
     status: true,
+    drugSchedule: 'OTC',
+    medicineClassification: 'Other',
+    prescriptionRequired: false,
+    coldChainRequired: false,
+    controlledDrug: false,
+    highValueMedicine: false,
+    storageCondition: 'Room Temperature',
+    // New Pricing Fields
+    offlineMarkup: 50,
+    offlineSellingPrice: 0,
+    offlineAutoCalculate: true,
+    onlineMarkup: 85,
+    onlineSellingPrice: 0,
+    onlineAutoCalculate: true,
+    wholesalePrice: 0,
+    hospitalPrice: 0,
+    memberPrice: 0,
+    specialOfferPrice: 0,
+    retailDiscount: 0,
+    roundOff: true,
   });
+
+  const isPharmacist = currentUser?.role === 'PHARMACIST';
+  const isStoreManager = currentUser?.role === 'STORE_MANAGER';
+  const isAdmin = currentUser?.role === 'ADMIN';
+
+  const renderScheduleBadge = (schedule: string) => {
+    if (!schedule) return null;
+    let label = schedule;
+    let dot = '⚪';
+    let badgeClass = 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
+    
+    switch(schedule) {
+      case 'OTC':
+        dot = '🟢';
+        badgeClass = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        break;
+      case 'Schedule G':
+        dot = '🔵';
+        badgeClass = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+        break;
+      case 'Schedule H':
+        dot = '🟠';
+        label = 'H';
+        badgeClass = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+        break;
+      case 'Schedule H1':
+        dot = '🔴';
+        label = 'H1';
+        badgeClass = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        break;
+      case 'Schedule X':
+        dot = '🟣';
+        label = 'X';
+        badgeClass = 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
+        break;
+      case 'NDPS':
+      case 'NDPS / Narcotic':
+        dot = '🔴';
+        label = 'NDPS';
+        badgeClass = 'bg-red-950/40 text-red-500 border border-red-500/30';
+        break;
+      case 'Medical Device':
+        dot = '⚪';
+        label = 'Medical Device';
+        badgeClass = 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
+        break;
+      default:
+        dot = '⚪';
+        badgeClass = 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
+    }
+    
+    return (
+      <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md ml-2 select-none uppercase tracking-wide leading-none ${badgeClass}`}>
+        <span className="text-[7px] leading-none">{dot}</span>
+        {label}
+      </span>
+    );
+  };
+
+  const getScheduleRegulatoryNotice = (schedule: string) => {
+    switch(schedule) {
+      case 'Schedule H':
+        return {
+          text: '⚠️ Prescription Required',
+          color: 'text-amber-400 font-bold',
+        };
+      case 'Schedule H1':
+        return {
+          text: '🔴 Register maintenance required | Prescription mandatory',
+          color: 'text-rose-400 font-bold',
+        };
+      case 'Schedule X':
+        return {
+          text: '🔴 Controlled Medicine | Strict dispensing regulations apply',
+          color: 'text-purple-400 font-bold',
+        };
+      case 'NDPS':
+      case 'NDPS / Narcotic':
+        return {
+          text: '🚨 Narcotic Drug | Authorized pharmacist only',
+          color: 'text-red-500 font-extrabold',
+        };
+      case 'OTC':
+        return {
+          text: '🟢 Can be sold without prescription',
+          color: 'text-emerald-400 font-bold',
+        };
+      default:
+        return null;
+    }
+  };
+
+  const handleDrugScheduleChange = (schedule: string) => {
+    let prescriptionRequired = formProduct.prescriptionRequired;
+    let controlledDrug = formProduct.controlledDrug;
+    
+    if (['Schedule H', 'Schedule H1', 'Schedule X', 'NDPS', 'NDPS / Narcotic'].includes(schedule)) {
+      prescriptionRequired = true;
+    } else if (['OTC', 'Medical Device', 'Surgical Item'].includes(schedule)) {
+      prescriptionRequired = false;
+    }
+    
+    if (['Schedule H1', 'Schedule X', 'NDPS', 'NDPS / Narcotic'].includes(schedule)) {
+      controlledDrug = true;
+    }
+    
+    setFormProduct(prev => ({
+      ...prev,
+      drugSchedule: schedule,
+      prescriptionRequired,
+      controlledDrug,
+    }));
+  };
 
   // Bulk Import State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -177,17 +352,99 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     };
   };
 
-  // Dynamically calculate profit margin percent
+  // Dynamically calculate profit margin percent for offline, online, and advanced tiers
   const marginSummary = useMemo(() => {
     const cost = parseFloat(formProduct.purchasePrice as any) || 0;
-    const sell = parseFloat(formProduct.sellingPrice as any) || 0;
-    const diff = sell - cost;
-    const marginPercent = sell > 0 ? parseFloat(((diff / sell) * 100).toFixed(2)) : 0;
+
+    const offlineSell = parseFloat(formProduct.offlineSellingPrice as any) || 0;
+    const offlineDiff = offlineSell - cost;
+    const offlineMargin = offlineSell > 0 ? parseFloat(((offlineDiff / offlineSell) * 100).toFixed(2)) : 0;
+
+    const onlineSell = parseFloat(formProduct.onlineSellingPrice as any) || 0;
+    const onlineDiff = onlineSell - cost;
+    const onlineMargin = onlineSell > 0 ? parseFloat(((onlineDiff / onlineSell) * 100).toFixed(2)) : 0;
+
+    const wholesaleSell = parseFloat(formProduct.wholesalePrice as any) || 0;
+    const wholesaleDiff = wholesaleSell - cost;
+    const wholesaleMargin = wholesaleSell > 0 ? parseFloat(((wholesaleDiff / wholesaleSell) * 100).toFixed(2)) : 0;
+
+    const hospitalSell = parseFloat(formProduct.hospitalPrice as any) || 0;
+    const hospitalDiff = hospitalSell - cost;
+    const hospitalMargin = hospitalSell > 0 ? parseFloat(((hospitalDiff / hospitalSell) * 100).toFixed(2)) : 0;
+
+    const memberSell = parseFloat(formProduct.memberPrice as any) || 0;
+    const memberDiff = memberSell - cost;
+    const memberMargin = memberSell > 0 ? parseFloat(((memberDiff / memberSell) * 100).toFixed(2)) : 0;
+
+    const specialSell = parseFloat(formProduct.specialOfferPrice as any) || 0;
+    const specialDiff = specialSell - cost;
+    const specialMargin = specialSell > 0 ? parseFloat(((specialDiff / specialSell) * 100).toFixed(2)) : 0;
+
     return {
-      absolute: diff,
-      percentage: marginPercent,
+      offline: { absolute: offlineDiff, percentage: offlineMargin },
+      online: { absolute: onlineDiff, percentage: onlineMargin },
+      wholesale: { absolute: wholesaleDiff, percentage: wholesaleMargin },
+      hospital: { absolute: hospitalDiff, percentage: hospitalMargin },
+      member: { absolute: memberDiff, percentage: memberMargin },
+      special: { absolute: specialDiff, percentage: specialMargin },
     };
-  }, [formProduct.purchasePrice, formProduct.sellingPrice]);
+  }, [
+    formProduct.purchasePrice,
+    formProduct.offlineSellingPrice,
+    formProduct.onlineSellingPrice,
+    formProduct.wholesalePrice,
+    formProduct.hospitalPrice,
+    formProduct.memberPrice,
+    formProduct.specialOfferPrice
+  ]);
+
+  // Real-time auto-calculation of channel selling prices when markup or cost changes
+  useEffect(() => {
+    const cost = parseFloat(formProduct.purchasePrice as any) || 0;
+    const mrpVal = parseFloat(formProduct.mrp as any) || 0;
+    const offMarkup = parseFloat(formProduct.offlineMarkup as any) || 0;
+    const onMarkup = parseFloat(formProduct.onlineMarkup as any) || 0;
+    
+    let updated = false;
+    const nextState = { ...formProduct };
+
+    if (formProduct.offlineAutoCalculate) {
+      const computedOffline = cost * (1 + offMarkup / 100);
+      let roundedOffline = formProduct.roundOff ? Math.round(computedOffline) : parseFloat(computedOffline.toFixed(2));
+      if (roundedOffline > mrpVal && mrpVal > 0) {
+        roundedOffline = mrpVal;
+      }
+      if (roundedOffline !== formProduct.offlineSellingPrice) {
+        nextState.offlineSellingPrice = roundedOffline;
+        nextState.sellingPrice = roundedOffline; // Sync base sellingPrice
+        updated = true;
+      }
+    }
+
+    if (formProduct.onlineAutoCalculate) {
+      const computedOnline = cost * (1 + onMarkup / 100);
+      let roundedOnline = formProduct.roundOff ? Math.round(computedOnline) : parseFloat(computedOnline.toFixed(2));
+      if (roundedOnline > mrpVal && mrpVal > 0) {
+        roundedOnline = mrpVal;
+      }
+      if (roundedOnline !== formProduct.onlineSellingPrice) {
+        nextState.onlineSellingPrice = roundedOnline;
+        updated = true;
+      }
+    }
+
+    if (updated) {
+      setFormProduct(nextState);
+    }
+  }, [
+    formProduct.purchasePrice,
+    formProduct.mrp,
+    formProduct.offlineMarkup,
+    formProduct.offlineAutoCalculate,
+    formProduct.onlineMarkup,
+    formProduct.onlineAutoCalculate,
+    formProduct.roundOff,
+  ]);
 
   // General Create / Update triggers
   const handleOpenCreateMode = () => {
@@ -203,7 +460,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       sku: '',
       barcode: '',
       hsnCode: '',
-      gstPercentage: 12,
+      gstPercentage: pricingDefaults.defaultGst,
       rackLocation: '',
       purchasePrice: 0,
       sellingPrice: 0,
@@ -215,6 +472,26 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       defaultUnit: 'Strip',
       packSize: '10s',
       status: true,
+      drugSchedule: 'OTC',
+      medicineClassification: 'Other',
+      prescriptionRequired: false,
+      coldChainRequired: false,
+      controlledDrug: false,
+      highValueMedicine: false,
+      storageCondition: 'Room Temperature',
+      // New Pricing Fields
+      offlineMarkup: pricingDefaults.defaultOfflineMarkup,
+      offlineSellingPrice: 0,
+      offlineAutoCalculate: true,
+      onlineMarkup: pricingDefaults.defaultOnlineMarkup,
+      onlineSellingPrice: 0,
+      onlineAutoCalculate: true,
+      wholesalePrice: 0,
+      hospitalPrice: 0,
+      memberPrice: 0,
+      specialOfferPrice: 0,
+      retailDiscount: pricingDefaults.defaultRetailDiscount,
+      roundOff: true,
     });
     setViewMode('create');
   };
@@ -245,6 +522,26 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       defaultUnit: meta.defaultUnit,
       packSize: meta.packSize,
       status: prod.status,
+      drugSchedule: prod.drugSchedule || 'OTC',
+      medicineClassification: prod.medicineClassification || 'Other',
+      prescriptionRequired: !!prod.prescriptionRequired,
+      coldChainRequired: !!prod.coldChainRequired,
+      controlledDrug: !!prod.controlledDrug,
+      highValueMedicine: !!prod.highValueMedicine,
+      storageCondition: prod.storageCondition || 'Room Temperature',
+      // New Pricing Fields
+      offlineMarkup: prod.offlineMarkup !== undefined && prod.offlineMarkup !== null ? prod.offlineMarkup : pricingDefaults.defaultOfflineMarkup,
+      offlineSellingPrice: prod.offlineSellingPrice || 0,
+      offlineAutoCalculate: prod.offlineAutoCalculate !== undefined && prod.offlineAutoCalculate !== null ? !!prod.offlineAutoCalculate : true,
+      onlineMarkup: prod.onlineMarkup !== undefined && prod.onlineMarkup !== null ? prod.onlineMarkup : pricingDefaults.defaultOnlineMarkup,
+      onlineSellingPrice: prod.onlineSellingPrice || 0,
+      onlineAutoCalculate: prod.onlineAutoCalculate !== undefined && prod.onlineAutoCalculate !== null ? !!prod.onlineAutoCalculate : true,
+      wholesalePrice: prod.wholesalePrice || 0,
+      hospitalPrice: prod.hospitalPrice || 0,
+      memberPrice: prod.memberPrice || 0,
+      specialOfferPrice: prod.specialOfferPrice || 0,
+      retailDiscount: prod.retailDiscount !== undefined && prod.retailDiscount !== null ? prod.retailDiscount : pricingDefaults.defaultRetailDiscount,
+      roundOff: prod.roundOff !== undefined && prod.roundOff !== null ? !!prod.roundOff : true,
     });
     setSelectedProduct(prod);
     setViewMode('edit');
@@ -257,12 +554,25 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       return;
     }
 
-    if (parseFloat(formProduct.sellingPrice as any) > parseFloat(formProduct.mrp as any)) {
-      alert("Selling Price cannot exceed MRP.");
+    const purchaseCost = parseFloat(formProduct.purchasePrice as any) || 0;
+    const maxMrp = parseFloat(formProduct.mrp as any) || 0;
+    const offlinePrice = parseFloat(formProduct.offlineSellingPrice as any) || 0;
+    const onlinePrice = parseFloat(formProduct.onlineSellingPrice as any) || 0;
+
+    if (offlinePrice < purchaseCost) {
+      alert("Offline Selling Price cannot be lower than Purchase Cost.");
       return;
     }
-    if (parseFloat(formProduct.sellingPrice as any) < parseFloat(formProduct.purchasePrice as any)) {
-      alert("Selling Price cannot be lower than Purchase Cost.");
+    if (offlinePrice > maxMrp) {
+      alert("Offline Selling Price cannot exceed MRP.");
+      return;
+    }
+    if (onlinePrice < purchaseCost) {
+      alert("Online Selling Price cannot be lower than Purchase Cost.");
+      return;
+    }
+    if (onlinePrice > maxMrp) {
+      alert("Online Selling Price cannot exceed MRP.");
       return;
     }
 
@@ -287,12 +597,32 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         hsnCode: formProduct.hsnCode.trim() || null,
         gstPercentage: parseFloat(formProduct.gstPercentage as any) || 0,
         rackLocation: formProduct.rackLocation.trim() || null,
-        purchasePrice: parseFloat(formProduct.purchasePrice as any) || 0,
-        sellingPrice: parseFloat(formProduct.sellingPrice as any) || 0,
-        mrp: parseFloat(formProduct.mrp as any) || 0,
+        purchasePrice: purchaseCost,
+        sellingPrice: offlinePrice, // Synced to offlineSellingPrice for reports compatibility
+        mrp: maxMrp,
         minStockLevel: parseInt(formProduct.minStockLevel as any, 10) || 0,
         description: descSerialized,
         status: formProduct.status,
+        drugSchedule: formProduct.drugSchedule,
+        medicineClassification: formProduct.medicineClassification,
+        prescriptionRequired: formProduct.prescriptionRequired,
+        coldChainRequired: formProduct.coldChainRequired,
+        controlledDrug: formProduct.controlledDrug,
+        highValueMedicine: formProduct.highValueMedicine,
+        storageCondition: formProduct.storageCondition,
+        // Multi-channel pricing payload
+        offlineMarkup: parseFloat(formProduct.offlineMarkup as any) || 0,
+        offlineSellingPrice: offlinePrice,
+        offlineAutoCalculate: formProduct.offlineAutoCalculate,
+        onlineMarkup: parseFloat(formProduct.onlineMarkup as any) || 0,
+        onlineSellingPrice: onlinePrice,
+        onlineAutoCalculate: formProduct.onlineAutoCalculate,
+        wholesalePrice: parseFloat(formProduct.wholesalePrice as any) || 0,
+        hospitalPrice: parseFloat(formProduct.hospitalPrice as any) || 0,
+        memberPrice: parseFloat(formProduct.memberPrice as any) || 0,
+        specialOfferPrice: parseFloat(formProduct.specialOfferPrice as any) || 0,
+        retailDiscount: parseFloat(formProduct.retailDiscount as any) || 0,
+        roundOff: formProduct.roundOff,
       };
 
       const url = viewMode === 'edit' ? `${API_BASE}/products/${selectedProduct.id}` : `${API_BASE}/products`;
@@ -510,7 +840,10 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       header: 'Product Name',
       accessor: (row) => (
         <div onClick={() => { setSelectedProduct(row); setDetailTab('info'); setViewMode('detail'); }} className="cursor-pointer group">
-          <span className="font-bold text-slate-100 block group-hover:text-teal-400 transition-colors">{row.name}</span>
+          <div className="flex items-center flex-wrap gap-1">
+            <span className="font-bold text-slate-100 group-hover:text-teal-400 transition-colors">{row.name}</span>
+            {row.drugSchedule && renderScheduleBadge(row.drugSchedule)}
+          </div>
           {row.genericName && <span className="text-[10px] text-slate-500 block font-semibold">{row.genericName}</span>}
         </div>
       ),
@@ -626,6 +959,84 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
               <Button onClick={handleOpenCreateMode} variant="primary" className="flex items-center gap-1 font-bold cursor-pointer">
                 <FiPlus /> Create Product
               </Button>
+            </div>
+          </div>
+
+          {/* Regulatory Search Filters */}
+          <div className="bg-slate-900/60 border border-slate-850 p-3 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] font-semibold mb-4">
+            <div>
+              <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Drug Schedule</label>
+              <select
+                value={productDrugScheduleFilter}
+                onChange={(e) => { setProductDrugScheduleFilter(e.target.value); setProductPage(1); }}
+                className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-teal-500 focus:outline-none cursor-pointer"
+              >
+                <option value="">All Schedules</option>
+                <option value="OTC">OTC (Over The Counter)</option>
+                <option value="Schedule G">Schedule G</option>
+                <option value="Schedule H">Schedule H</option>
+                <option value="Schedule H1">Schedule H1</option>
+                <option value="Schedule X">Schedule X</option>
+                <option value="NDPS">NDPS / Narcotic</option>
+                <option value="Medical Device">Medical Device</option>
+                <option value="Surgical Item">Surgical Item</option>
+                <option value="Vaccine">Vaccine</option>
+                <option value="Ayurvedic">Ayurvedic</option>
+                <option value="Homeopathy">Homeopathy</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Classification</label>
+              <select
+                value={productMedicineClassificationFilter}
+                onChange={(e) => { setProductMedicineClassificationFilter(e.target.value); setProductPage(1); }}
+                className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-teal-500 focus:outline-none cursor-pointer"
+              >
+                <option value="">All Classifications</option>
+                <option value="Antibiotic">Antibiotic</option>
+                <option value="Analgesic">Analgesic</option>
+                <option value="Antipyretic">Antipyretic</option>
+                <option value="Antihistamine">Antihistamine</option>
+                <option value="Cardiac">Cardiac</option>
+                <option value="Diabetic">Diabetic</option>
+                <option value="Vitamin">Vitamin</option>
+                <option value="Hormonal">Hormonal</option>
+                <option value="Dermatology">Dermatology</option>
+                <option value="Ophthalmology">Ophthalmology</option>
+                <option value="Respiratory">Respiratory</option>
+                <option value="Psychiatric">Psychiatric</option>
+                <option value="Neurology">Neurology</option>
+                <option value="Gastro">Gastro</option>
+                <option value="Orthopedic">Orthopedic</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Prescription Req. (Rx)</label>
+              <select
+                value={productPrescriptionRequiredFilter}
+                onChange={(e) => { setProductPrescriptionRequiredFilter(e.target.value); setProductPage(1); }}
+                className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-teal-500 focus:outline-none cursor-pointer"
+              >
+                <option value="">All Rules</option>
+                <option value="true">Prescription Mandatory</option>
+                <option value="false">Non-Prescription</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Controlled Drug</label>
+              <select
+                value={productControlledDrugFilter}
+                onChange={(e) => { setProductControlledDrugFilter(e.target.value); setProductPage(1); }}
+                className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-300 text-xs focus:border-teal-500 focus:outline-none cursor-pointer"
+              >
+                <option value="">All Types</option>
+                <option value="true">Controlled Only</option>
+                <option value="false">Standard Only</option>
+              </select>
             </div>
           </div>
 
@@ -868,65 +1279,406 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
               </div>
             </div>
 
-            {/* Section 3: Pricing Matrix */}
-            <div className="bg-slate-950/45 p-4 rounded-xl border border-slate-850/80 space-y-4">
-              <h4 className="text-[10px] font-bold text-teal-400 uppercase tracking-widest border-b border-slate-850 pb-1.5">Pricing Matrix</h4>
+            {/* Section 2.5: Drug Regulatory Information */}
+            <div className="bg-slate-950/45 p-4 rounded-xl border border-slate-850/80 space-y-4 col-span-1 md:col-span-2 text-slate-405 font-semibold text-xs">
+              <h4 className="text-[10px] font-bold text-teal-400 uppercase tracking-widest border-b border-slate-850 pb-1.5 flex items-center gap-2">
+                <span>🧪 Drug Regulatory Information</span>
+              </h4>
               
-              <div className="grid grid-cols-2 gap-3 text-slate-405 font-semibold">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {/* Drug Schedule */}
                 <div>
-                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Purchase Price (₹) *</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    value={formProduct.purchasePrice} 
-                    onChange={(e) => setFormProduct({ ...formProduct, purchasePrice: parseFloat(e.target.value) || 0 })} 
-                    className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono font-bold"
-                  />
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Drug Schedule *</label>
+                  <select 
+                    value={formProduct.drugSchedule} 
+                    disabled={isPharmacist}
+                    onChange={(e) => handleDrugScheduleChange(e.target.value)} 
+                    className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs focus:border-teal-500 focus:outline-none cursor-pointer font-bold"
+                  >
+                    <option value="OTC">OTC (Over The Counter)</option>
+                    <option value="Schedule G">Schedule G</option>
+                    <option value="Schedule H">Schedule H</option>
+                    <option value="Schedule H1">Schedule H1</option>
+                    <option value="Schedule X">Schedule X</option>
+                    <option value="NDPS">NDPS / Narcotic</option>
+                    <option value="Medical Device">Medical Device</option>
+                    <option value="Surgical Item">Surgical Item</option>
+                    <option value="Vaccine">Vaccine</option>
+                    <option value="Ayurvedic">Ayurvedic</option>
+                    <option value="Homeopathy">Homeopathy</option>
+                  </select>
+                  
+                  <div className="mt-1.5 flex flex-wrap gap-1.5 items-center">
+                    {renderScheduleBadge(formProduct.drugSchedule)}
+                    {getScheduleRegulatoryNotice(formProduct.drugSchedule) && (
+                      <span className={`text-[10px] ${getScheduleRegulatoryNotice(formProduct.drugSchedule)?.color}`}>
+                        {getScheduleRegulatoryNotice(formProduct.drugSchedule)?.text}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
+                {/* Storage Condition */}
                 <div>
-                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Selling Price (₹) *</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    value={formProduct.sellingPrice} 
-                    onChange={(e) => setFormProduct({ ...formProduct, sellingPrice: parseFloat(e.target.value) || 0 })} 
-                    className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono font-bold"
-                  />
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Storage Condition *</label>
+                  <select 
+                    value={formProduct.storageCondition} 
+                    onChange={(e) => setFormProduct({ ...formProduct, storageCondition: e.target.value })} 
+                    className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs focus:border-teal-500 focus:outline-none cursor-pointer"
+                  >
+                    <option value="Room Temperature">Room Temperature</option>
+                    <option value="2°C–8°C">2°C–8°C</option>
+                    <option value="Frozen">Frozen</option>
+                    <option value="Protect From Light">Protect From Light</option>
+                    <option value="Keep Dry">Keep Dry</option>
+                    <option value="Controlled Storage">Controlled Storage</option>
+                  </select>
                 </div>
 
+                {/* Medicine Classification */}
                 <div>
-                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">MRP Max Retail Price (₹) *</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    value={formProduct.mrp} 
-                    onChange={(e) => setFormProduct({ ...formProduct, mrp: parseFloat(e.target.value) || 0 })} 
-                    className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono"
-                  />
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Medicine Classification *</label>
+                  <select 
+                    value={formProduct.medicineClassification} 
+                    onChange={(e) => setFormProduct({ ...formProduct, medicineClassification: e.target.value })} 
+                    className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs focus:border-teal-500 focus:outline-none cursor-pointer"
+                  >
+                    <option value="Antibiotic">Antibiotic</option>
+                    <option value="Analgesic">Analgesic</option>
+                    <option value="Antipyretic">Antipyretic</option>
+                    <option value="Antihistamine">Antihistamine</option>
+                    <option value="Cardiac">Cardiac</option>
+                    <option value="Diabetic">Diabetic</option>
+                    <option value="Vitamin">Vitamin</option>
+                    <option value="Hormonal">Hormonal</option>
+                    <option value="Dermatology">Dermatology</option>
+                    <option value="Ophthalmology">Ophthalmology</option>
+                    <option value="Respiratory">Respiratory</option>
+                    <option value="Psychiatric">Psychiatric</option>
+                    <option value="Neurology">Neurology</option>
+                    <option value="Gastro">Gastro</option>
+                    <option value="Orthopedic">Orthopedic</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
 
-                <div>
-                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Retail Discount %</label>
-                  <input 
-                    type="number" 
-                    value={formProduct.discountPercentage} 
-                    onChange={(e) => setFormProduct({ ...formProduct, discountPercentage: parseFloat(e.target.value) || 0 })} 
-                    className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono"
-                  />
-                </div>
-
-                {/* Profit calculations display */}
-                <div className="col-span-2 bg-slate-950/65 p-3 rounded-xl border border-slate-850 flex justify-between font-bold text-[11px] select-none">
+                {/* Prescription Required */}
+                <div className="flex items-center justify-between p-2.5 bg-slate-955/40 border border-slate-800/80 rounded-xl">
                   <div>
-                    <span className="text-slate-500 block text-[9px] uppercase">Net Profit Margin</span>
-                    <span className="font-mono text-emerald-400">₹{marginSummary.absolute.toFixed(2)} / unit</span>
+                    <span className="text-white block text-[11px] font-bold">Prescription Required</span>
+                    <span className="text-slate-500 block text-[9px] font-medium uppercase mt-0.5">Override requires admin role</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-slate-500 block text-[9px] uppercase">Margin Percentage</span>
-                    <span className="font-mono text-emerald-400">{marginSummary.percentage}%</span>
+                  <input 
+                    type="checkbox"
+                    checked={formProduct.prescriptionRequired}
+                    disabled={!isAdmin || isPharmacist}
+                    onChange={(e) => setFormProduct({ ...formProduct, prescriptionRequired: e.target.checked })}
+                    className="w-5 h-5 accent-teal-500 rounded cursor-pointer"
+                  />
+                </div>
+
+                {/* Controlled Drug */}
+                <div className="flex items-center justify-between p-2.5 bg-slate-955/40 border border-slate-800/80 rounded-xl">
+                  <div>
+                    <span className="text-white block text-[11px] font-bold">Controlled Drug</span>
+                    <span className="text-slate-500 block text-[9px] font-medium uppercase mt-0.5">Subject to double lock storage</span>
+                  </div>
+                  <input 
+                    type="checkbox"
+                    checked={formProduct.controlledDrug}
+                    disabled={isPharmacist}
+                    onChange={(e) => setFormProduct({ ...formProduct, controlledDrug: e.target.checked })}
+                    className="w-5 h-5 accent-teal-500 rounded cursor-pointer"
+                  />
+                </div>
+
+                {/* Cold Chain Required */}
+                <div className="flex items-center justify-between p-2.5 bg-slate-955/40 border border-slate-800/80 rounded-xl">
+                  <div>
+                    <span className="text-white block text-[11px] font-bold">Cold Chain Required</span>
+                    <span className="text-slate-500 block text-[9px] font-medium uppercase mt-0.5">Requires refrigerated logistics</span>
+                  </div>
+                  <input 
+                    type="checkbox"
+                    checked={formProduct.coldChainRequired}
+                    disabled={isPharmacist}
+                    onChange={(e) => setFormProduct({ ...formProduct, coldChainRequired: e.target.checked })}
+                    className="w-5 h-5 accent-teal-500 rounded cursor-pointer"
+                  />
+                </div>
+
+                {/* High Value Medicine */}
+                <div className="flex items-center justify-between p-2.5 bg-slate-955/40 border border-slate-800/80 rounded-xl">
+                  <div>
+                    <span className="text-white block text-[11px] font-bold">High Value Medicine</span>
+                    <span className="text-slate-555 block text-[9px] font-medium uppercase mt-0.5">High financial asset tracking</span>
+                  </div>
+                  <input 
+                    type="checkbox"
+                    checked={formProduct.highValueMedicine}
+                    disabled={isPharmacist}
+                    onChange={(e) => setFormProduct({ ...formProduct, highValueMedicine: e.target.checked })}
+                    className="w-5 h-5 accent-teal-500 rounded cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Pricing Matrix */}
+            <div className="bg-slate-955/25 p-4 rounded-xl border border-slate-850/80 space-y-4 col-span-1 md:col-span-2">
+              <div className="flex justify-between items-center border-b border-slate-850 pb-2">
+                <h4 className="text-[10px] font-bold text-teal-400 uppercase tracking-widest">
+                  💰 Multi-Channel Pricing Module
+                </h4>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-semibold text-slate-500 uppercase">Round Off Final Price:</span>
+                  <input
+                    type="checkbox"
+                    checked={formProduct.roundOff}
+                    disabled={isPharmacist}
+                    onChange={(e) => setFormProduct({ ...formProduct, roundOff: e.target.checked })}
+                    className="w-4 h-4 accent-teal-500 rounded cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-slate-405 font-semibold">
+                
+                {/* Panel 1: Base Pricing */}
+                <div className="bg-slate-900/40 p-3.5 rounded-xl border border-slate-800/80 space-y-3">
+                  <h5 className="text-[9px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/60 pb-1">
+                    Base Cost & Tax
+                  </h5>
+                  <div>
+                    <label className="block text-[8px] font-bold text-slate-550 uppercase mb-1">Purchase Price (₹) *</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      disabled={isPharmacist}
+                      value={formProduct.purchasePrice} 
+                      onChange={(e) => setFormProduct({ ...formProduct, purchasePrice: parseFloat(e.target.value) || 0 })} 
+                      className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono font-bold disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-bold text-slate-550 uppercase mb-1">Max Retail Price / MRP (₹) *</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      disabled={isPharmacist}
+                      value={formProduct.mrp} 
+                      onChange={(e) => setFormProduct({ ...formProduct, mrp: parseFloat(e.target.value) || 0 })} 
+                      className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono font-bold disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-bold text-slate-550 uppercase mb-1">GST Tax Percentage (%) *</label>
+                    <input 
+                      type="number" 
+                      disabled={isPharmacist}
+                      value={formProduct.gstPercentage} 
+                      onChange={(e) => setFormProduct({ ...formProduct, gstPercentage: parseFloat(e.target.value) || 0 })} 
+                      className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono disabled:opacity-50"
+                    />
                   </div>
                 </div>
+
+                {/* Panel 2: Offline Store Channel */}
+                <div className="bg-slate-900/40 p-3.5 rounded-xl border border-slate-800/80 space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-800/60 pb-1">
+                    <h5 className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      Offline Store
+                    </h5>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[8px] font-bold text-slate-500 uppercase">Auto</span>
+                      <input
+                        type="checkbox"
+                        checked={formProduct.offlineAutoCalculate}
+                        disabled={isPharmacist}
+                        onChange={(e) => setFormProduct({ ...formProduct, offlineAutoCalculate: e.target.checked })}
+                        className="w-3.5 h-3.5 accent-teal-500 rounded cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-bold text-slate-550 uppercase mb-1">Markup Percentage (%)</label>
+                    <input 
+                      type="number"
+                      step="0.1"
+                      disabled={isPharmacist || !formProduct.offlineAutoCalculate}
+                      value={formProduct.offlineMarkup} 
+                      onChange={(e) => setFormProduct({ ...formProduct, offlineMarkup: parseFloat(e.target.value) || 0 })} 
+                      className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono disabled:opacity-55"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-bold text-slate-550 uppercase mb-1">Selling Price (₹) *</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      disabled={formProduct.offlineAutoCalculate}
+                      value={formProduct.offlineSellingPrice} 
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        const cost = parseFloat(formProduct.purchasePrice as any) || 0;
+                        let markup = 0;
+                        if (cost > 0) {
+                          markup = parseFloat((((val - cost) / cost) * 100).toFixed(2));
+                        }
+                        setFormProduct({
+                          ...formProduct,
+                          offlineSellingPrice: val,
+                          sellingPrice: val,
+                          offlineMarkup: markup,
+                        });
+                      }}
+                      className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono font-bold focus:border-teal-500 focus:outline-none disabled:bg-slate-950/60 disabled:text-slate-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Panel 3: Online Store Channel */}
+                <div className="bg-slate-900/40 p-3.5 rounded-xl border border-slate-800/80 space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-800/60 pb-1">
+                    <h5 className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      Online Store
+                    </h5>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[8px] font-bold text-slate-500 uppercase">Auto</span>
+                      <input
+                        type="checkbox"
+                        checked={formProduct.onlineAutoCalculate}
+                        disabled={isPharmacist}
+                        onChange={(e) => setFormProduct({ ...formProduct, onlineAutoCalculate: e.target.checked })}
+                        className="w-3.5 h-3.5 accent-teal-500 rounded cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-bold text-slate-550 uppercase mb-1">Markup Percentage (%)</label>
+                    <input 
+                      type="number"
+                      step="0.1"
+                      disabled={isPharmacist || !formProduct.onlineAutoCalculate}
+                      value={formProduct.onlineMarkup} 
+                      onChange={(e) => setFormProduct({ ...formProduct, onlineMarkup: parseFloat(e.target.value) || 0 })} 
+                      className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono disabled:opacity-55"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-bold text-slate-550 uppercase mb-1">Selling Price (₹) *</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      disabled={formProduct.onlineAutoCalculate}
+                      value={formProduct.onlineSellingPrice} 
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        const cost = parseFloat(formProduct.purchasePrice as any) || 0;
+                        let markup = 0;
+                        if (cost > 0) {
+                          markup = parseFloat((((val - cost) / cost) * 100).toFixed(2));
+                        }
+                        setFormProduct({
+                          ...formProduct,
+                          onlineSellingPrice: val,
+                          onlineMarkup: markup,
+                        });
+                      }}
+                      className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono font-bold focus:border-teal-500 focus:outline-none disabled:bg-slate-955/60 disabled:text-slate-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Panel 4: Advanced Pricing Tiers */}
+                <div className="bg-slate-900/40 p-3.5 rounded-xl border border-slate-800/80 space-y-3">
+                  <h5 className="text-[9px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/60 pb-1">
+                    Advanced Tiers
+                  </h5>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[7px] font-bold text-slate-500 uppercase mb-0.5 font-sans">Wholesale (₹)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        disabled={isPharmacist}
+                        value={formProduct.wholesalePrice} 
+                        onChange={(e) => setFormProduct({ ...formProduct, wholesalePrice: parseFloat(e.target.value) || 0 })} 
+                        className="w-full px-2 py-1 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-[11px] font-mono disabled:opacity-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[7px] font-bold text-slate-500 uppercase mb-0.5 font-sans">Hospital (₹)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        disabled={isPharmacist}
+                        value={formProduct.hospitalPrice} 
+                        onChange={(e) => setFormProduct({ ...formProduct, hospitalPrice: parseFloat(e.target.value) || 0 })} 
+                        className="w-full px-2 py-1 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-[11px] font-mono disabled:opacity-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[7px] font-bold text-slate-500 uppercase mb-0.5 font-sans">Member (₹)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        disabled={isPharmacist}
+                        value={formProduct.memberPrice} 
+                        onChange={(e) => setFormProduct({ ...formProduct, memberPrice: parseFloat(e.target.value) || 0 })} 
+                        className="w-full px-2 py-1 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-[11px] font-mono disabled:opacity-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[7px] font-bold text-slate-500 uppercase mb-0.5 font-sans">Special (₹)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        disabled={isPharmacist}
+                        value={formProduct.specialOfferPrice} 
+                        onChange={(e) => setFormProduct({ ...formProduct, specialOfferPrice: parseFloat(e.target.value) || 0 })} 
+                        className="w-full px-2 py-1 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-[11px] font-mono disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[8px] font-bold text-slate-550 uppercase mb-1">Max Retail Discount (%)</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      value={formProduct.retailDiscount} 
+                      onChange={(e) => setFormProduct({ ...formProduct, retailDiscount: parseFloat(e.target.value) || 0 })} 
+                      className="w-full px-2.5 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono font-bold"
+                    />
+                  </div>
+                </div>
+
+                {/* Price Summary Panel */}
+                <div className="col-span-1 md:col-span-4 bg-slate-950/80 p-3.5 rounded-xl border border-slate-850 grid grid-cols-2 sm:grid-cols-4 gap-4 select-none font-bold text-[11px]">
+                  <div className="border-r border-slate-850/60 pr-2">
+                    <span className="text-slate-500 block text-[8px] uppercase tracking-wider font-sans">Offline Store Margin</span>
+                    <span className="font-mono text-emerald-400 block mt-0.5">₹{marginSummary.offline.absolute.toFixed(2)} / unit</span>
+                    <span className="text-[9px] text-slate-500 font-mono">Margin: {marginSummary.offline.percentage}%</span>
+                  </div>
+                  <div className="border-r border-slate-850/60 pr-2 sm:pl-2">
+                    <span className="text-slate-500 block text-[8px] uppercase tracking-wider font-sans">Online Store Margin</span>
+                    <span className="font-mono text-cyan-400 block mt-0.5">₹{marginSummary.online.absolute.toFixed(2)} / unit</span>
+                    <span className="text-[9px] text-slate-500 font-mono">Margin: {marginSummary.online.percentage}%</span>
+                  </div>
+                  <div className="border-r border-slate-850/60 pr-2 sm:pl-2">
+                    <span className="text-slate-500 block text-[8px] uppercase tracking-wider font-sans">Wholesale Margin</span>
+                    <span className="font-mono text-amber-400 block mt-0.5">₹{marginSummary.wholesale.absolute.toFixed(2)} / unit</span>
+                    <span className="text-[9px] text-slate-500 font-mono">Margin: {marginSummary.wholesale.percentage}%</span>
+                  </div>
+                  <div className="sm:pl-2">
+                    <span className="text-slate-500 block text-[8px] uppercase tracking-wider font-sans">Max Discount Price</span>
+                    <span className="font-mono text-rose-405 block mt-0.5">
+                      ₹{(formProduct.offlineSellingPrice * (1 - formProduct.retailDiscount / 100)).toFixed(2)}
+                    </span>
+                    <span className="text-[9px] text-slate-500 font-mono">Max disc allowable</span>
+                  </div>
+                </div>
+
               </div>
             </div>
 
@@ -1128,24 +1880,108 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
                   </div>
                 </div>
 
-                <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-850 leading-relaxed font-semibold">
-                  <h4 className="text-[10px] font-bold text-teal-400 uppercase tracking-widest border-b border-slate-850 pb-1.5 mb-3">Pricing details</h4>
-                  <div className="grid grid-cols-2 gap-3 text-slate-400 font-mono">
+                <div className="bg-slate-955/40 p-4 rounded-xl border border-slate-850 leading-relaxed font-semibold col-span-1 md:col-span-2">
+                  <h4 className="text-[10px] font-bold text-teal-400 uppercase tracking-widest border-b border-slate-850 pb-1.5 mb-3">Pricing Book & Channels</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-slate-400 font-mono text-xs">
                     <div>
-                      <span className="text-slate-500 block text-[9px] uppercase font-sans">Purchase Cost:</span>
+                      <span className="text-slate-550 block text-[8px] uppercase font-sans">Purchase Cost:</span>
                       <span className="text-slate-200 block">₹{selectedProduct.purchasePrice.toFixed(2)}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[9px] uppercase font-sans">Selling Price:</span>
-                      <span className="text-slate-200 block">₹{selectedProduct.sellingPrice.toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block text-[9px] uppercase font-sans">MRP Value:</span>
+                      <span className="text-slate-550 block text-[8px] uppercase font-sans">MRP Value:</span>
                       <span className="text-slate-200 block">₹{selectedProduct.mrp.toFixed(2)}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[9px] uppercase font-sans">Retail Profit:</span>
-                      <span className="text-emerald-400 block font-bold">₹{(selectedProduct.sellingPrice - selectedProduct.purchasePrice).toFixed(2)} ({selectedProduct.sellingPrice > 0 ? (((selectedProduct.sellingPrice - selectedProduct.purchasePrice) / selectedProduct.sellingPrice) * 100).toFixed(1) : 0}%)</span>
+                      <span className="text-slate-550 block text-[8px] uppercase font-sans">Offline Price:</span>
+                      <span className="text-slate-100 block font-bold">₹{(selectedProduct.offlineSellingPrice || selectedProduct.sellingPrice || 0).toFixed(2)} ({selectedProduct.offlineMarkup || 0}% markup)</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-555 block text-[8px] uppercase font-sans">Online Price:</span>
+                      <span className="text-slate-100 block font-bold">₹{(selectedProduct.onlineSellingPrice || 0).toFixed(2)} ({selectedProduct.onlineMarkup || 0}% markup)</span>
+                    </div>
+                    
+                    <div className="border-t border-slate-850/60 pt-2 col-span-2 sm:col-span-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div>
+                        <span className="text-slate-550 block text-[7px] uppercase font-sans">Wholesale Tier:</span>
+                        <span className="text-slate-300 block">₹{(selectedProduct.wholesalePrice || 0).toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-550 block text-[7px] uppercase font-sans">Hospital Tier:</span>
+                        <span className="text-slate-300 block">₹{(selectedProduct.hospitalPrice || 0).toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-550 block text-[7px] uppercase font-sans">Member Tier:</span>
+                        <span className="text-slate-300 block">₹{(selectedProduct.memberPrice || 0).toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-550 block text-[7px] uppercase font-sans">Special Offer:</span>
+                        <span className="text-slate-300 block">₹{(selectedProduct.specialOfferPrice || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-850/60 pt-2 col-span-2 sm:col-span-4 flex justify-between items-center text-[10px]">
+                      <div>
+                        <span className="text-slate-550 font-sans uppercase block text-[8px]">Max Retail Discount:</span>
+                        <span className="text-rose-400 font-bold block">{selectedProduct.retailDiscount || 0}% Allowed</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-550 font-sans uppercase block text-[8px]">Round Off Flag:</span>
+                        <span className="text-teal-400 font-bold block">{selectedProduct.roundOff ? 'Enabled' : 'Disabled'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-850 leading-relaxed font-semibold col-span-1 md:col-span-2">
+                  <h4 className="text-[10px] font-bold text-teal-400 uppercase tracking-widest border-b border-slate-850 pb-1.5 mb-3 flex items-center gap-2">
+                    <span>🧪 Drug Regulatory Information</span>
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-slate-405">
+                    <div>
+                      <span className="text-slate-500 block text-[9px] uppercase font-sans font-bold">Drug Schedule:</span>
+                      <div className="mt-1 flex items-center">
+                        {selectedProduct.drugSchedule ? renderScheduleBadge(selectedProduct.drugSchedule) : <span className="text-slate-350">-</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-555 block text-[9px] uppercase font-sans font-bold">Classification:</span>
+                      <span className="text-slate-200 block font-bold mt-1 text-[11px]">{selectedProduct.medicineClassification || 'Other'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-555 block text-[9px] uppercase font-sans font-bold">Storage Condition:</span>
+                      <span className="text-slate-200 block font-bold mt-1 text-[11px]">{selectedProduct.storageCondition || 'Room Temperature'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-555 block text-[9px] uppercase font-sans font-bold">Prescription Req. (Rx):</span>
+                      <span className="block mt-1">
+                        <Badge variant={selectedProduct.prescriptionRequired ? 'danger' : 'success'}>
+                          {selectedProduct.prescriptionRequired ? 'YES (Rx REQUIRED)' : 'NO (FREE SELL)'}
+                        </Badge>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-555 block text-[9px] uppercase font-sans font-bold">Controlled Drug:</span>
+                      <span className="block mt-1">
+                        <Badge variant={selectedProduct.controlledDrug ? 'danger' : 'gray'}>
+                          {selectedProduct.controlledDrug ? 'YES (CONTROLLED)' : 'NO'}
+                        </Badge>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-555 block text-[9px] uppercase font-sans font-bold">Cold Chain Required:</span>
+                      <span className="block mt-1">
+                        <Badge variant={selectedProduct.coldChainRequired ? 'info' : 'gray'}>
+                          {selectedProduct.coldChainRequired ? 'YES (REFRIGERATED)' : 'NO'}
+                        </Badge>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-555 block text-[9px] uppercase font-sans font-bold">High Value Medicine:</span>
+                      <span className="block mt-1">
+                        <Badge variant={selectedProduct.highValueMedicine ? 'warning' : 'gray'}>
+                          {selectedProduct.highValueMedicine ? 'YES (HIGH VALUE)' : 'NO'}
+                        </Badge>
+                      </span>
                     </div>
                   </div>
                 </div>

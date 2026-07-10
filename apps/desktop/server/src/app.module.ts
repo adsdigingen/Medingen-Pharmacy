@@ -20,6 +20,7 @@ import { LicenseModule } from './modules/license/license.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { SyncModule } from './modules/sync/sync.module';
+import { DrugScheduleRegisterModule } from './modules/drug-schedule-register/drug-schedule-register.module';
 import { PrismaService } from './modules/prisma/prisma.service';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
@@ -56,6 +57,7 @@ import { DiagnosticsModule } from './modules/diagnostics/diagnostics.module';
     MaintenanceModule,
     ReportsModule,
     SyncModule,
+    DrugScheduleRegisterModule,
   ],
   controllers: [AppController],
   providers: [AppService],

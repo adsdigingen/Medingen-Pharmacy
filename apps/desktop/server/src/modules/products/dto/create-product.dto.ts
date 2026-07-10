@@ -54,6 +54,54 @@ export class CreateProductDto {
   @IsOptional()
   mrp?: number;
 
+  @IsNumber()
+  @IsOptional()
+  offlineMarkup?: number;
+
+  @IsNumber()
+  @IsOptional()
+  offlineSellingPrice?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  offlineAutoCalculate?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  onlineMarkup?: number;
+
+  @IsNumber()
+  @IsOptional()
+  onlineSellingPrice?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  onlineAutoCalculate?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  wholesalePrice?: number;
+
+  @IsNumber()
+  @IsOptional()
+  hospitalPrice?: number;
+
+  @IsNumber()
+  @IsOptional()
+  memberPrice?: number;
+
+  @IsNumber()
+  @IsOptional()
+  specialOfferPrice?: number;
+
+  @IsNumber()
+  @IsOptional()
+  retailDiscount?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  roundOff?: boolean;
+
   @IsInt()
   @IsOptional()
   minStockLevel?: number;
@@ -69,4 +117,32 @@ export class CreateProductDto {
   @IsBoolean()
   @IsOptional()
   status?: boolean;
+
+  @IsString()
+  @IsOptional()
+  drugSchedule?: string;
+
+  @IsString()
+  @IsOptional()
+  medicineClassification?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  prescriptionRequired?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  coldChainRequired?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  controlledDrug?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  highValueMedicine?: boolean;
+
+  @IsString()
+  @IsOptional()
+  storageCondition?: string;
 }

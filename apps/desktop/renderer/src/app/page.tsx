@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FiGrid, FiPackage, FiTruck, FiUsers, FiBarChart2, FiRefreshCw, FiMonitor, FiActivity, FiDatabase, FiSettings, FiShield, FiUserCheck, FiBell, FiSearch, FiLogOut } from 'react-icons/fi';
+import { FiGrid, FiPackage, FiTruck, FiUsers, FiBarChart2, FiRefreshCw, FiMonitor, FiActivity, FiDatabase, FiSettings, FiShield, FiUserCheck, FiBell, FiSearch, FiLogOut, FiClipboard } from 'react-icons/fi';
 import { HiOutlineShoppingCart, HiOutlineBuildingStorefront } from 'react-icons/hi2';
 import { TbReceipt2 } from 'react-icons/tb';
 import { LuBoxes } from 'react-icons/lu';
@@ -21,10 +21,11 @@ import PurchasesTab from '../components/features/PurchasesTab';
 import InventoryTab from '../components/features/InventoryTab';
 import ProductsTab from '../components/features/ProductsTab';
 import SuppliersTab from '../components/features/SuppliersTab';
+import DrugRegisterTab from '../components/features/DrugRegisterTab';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-type Tab = 'dashboard' | 'pos' | 'history' | 'reports' | 'settings' | 'admin' | 'purchases' | 'inventory' | 'products' | 'suppliers' | 'sync' | 'owner';
+type Tab = 'dashboard' | 'pos' | 'history' | 'reports' | 'settings' | 'admin' | 'purchases' | 'inventory' | 'products' | 'suppliers' | 'sync' | 'owner' | 'drugRegister';
 
 const logTrace = (msg: string) => {
   if (typeof window !== 'undefined') {
@@ -245,6 +246,10 @@ export default function Home() {
   const [productSearch, setProductSearch] = useState<string>('');
   const [productLimit, setProductLimit] = useState<number>(50);
   const [productTotal, setProductTotal] = useState<number>(0);
+  const [productDrugScheduleFilter, setProductDrugScheduleFilter] = useState<string>('');
+  const [productMedicineClassificationFilter, setProductMedicineClassificationFilter] = useState<string>('');
+  const [productPrescriptionRequiredFilter, setProductPrescriptionRequiredFilter] = useState<string>('');
+  const [productControlledDrugFilter, setProductControlledDrugFilter] = useState<string>('');
 
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [purchasePage, setPurchasePage] = useState<number>(1);
@@ -331,6 +336,13 @@ export default function Home() {
       category: 'Stocks & Items',
       roles: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST'],
       icon: LuBoxes
+    },
+    {
+      id: 'drugRegister' as Tab,
+      title: 'Drug Schedule Register',
+      category: 'Stocks & Items',
+      roles: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
+      icon: FiClipboard
     },
     {
       id: 'purchases' as Tab,
@@ -441,7 +453,11 @@ export default function Home() {
         } catch (error: any) {
           const endTime = Date.now();
           const duration = endTime - startTime;
-          console.error(`[API Request Failed] URL: ${url}, End Time: ${new Date(endTime).toLocaleTimeString()}, Duration: ${duration}ms, Error:`, error);
+          if (url.includes('/diagnostics/health')) {
+            console.warn(`[API Request Failed (Expected)] URL: ${url}, Duration: ${duration}ms`);
+          } else {
+            console.error(`[API Request Failed] URL: ${url}, End Time: ${new Date(endTime).toLocaleTimeString()}, Duration: ${duration}ms, Error:`, error);
+          }
           throw error;
         }
       };
@@ -607,13 +623,14 @@ ${startupReport.join("\n")}
           // Read tab parameter from URL query if logged in
           const params = new URLSearchParams(window.location.search);
           const tabParam = params.get('tab') as Tab;
-          if (tabParam && ['dashboard', 'pos', 'history', 'reports', 'settings', 'admin', 'purchases', 'inventory', 'products', 'suppliers', 'sync', 'owner'].includes(tabParam)) {
+          if (tabParam && ['dashboard', 'pos', 'history', 'reports', 'settings', 'admin', 'purchases', 'inventory', 'products', 'suppliers', 'sync', 'owner', 'drugRegister'].includes(tabParam)) {
             const tabRoleMap: Record<Tab, string[]> = {
               dashboard: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
               pos: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
               history: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
               products: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST'],
               inventory: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST'],
+              drugRegister: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
               purchases: ['ADMIN', 'STORE_MANAGER'],
               suppliers: ['ADMIN', 'STORE_MANAGER'],
               sync: ['ADMIN', 'STORE_MANAGER'],
@@ -661,6 +678,7 @@ ${startupReport.join("\n")}
         history: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
         products: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST'],
         inventory: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST'],
+        drugRegister: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
         purchases: ['ADMIN', 'STORE_MANAGER'],
         suppliers: ['ADMIN', 'STORE_MANAGER'],
         sync: ['ADMIN', 'STORE_MANAGER'],
@@ -828,6 +846,27 @@ ${startupReport.join("\n")}
     }
   }, [posSearch, allProducts]);
 
+  // Autocomplete Customers Search inside POS Billing (search on mobile number/name)
+  useEffect(() => {
+    if (!customerSearch.trim()) {
+      setCustomerResults([]);
+      return;
+    }
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/customers?search=${customerSearch}&limit=5`);
+        if (res.ok) {
+          const envelope = await res.json();
+          // ResponseTransformInterceptor wraps paginated responses in { success: true, data: customerObj[] }
+          setCustomerResults(envelope.data || []);
+        }
+      } catch (e) {
+        console.warn("Failed to search customers", e);
+      }
+    }, 200); // 200ms debounce to prevent spamming
+    return () => clearTimeout(delayDebounce);
+  }, [customerSearch]);
+
   // Fetch catalogs on mount (only when authenticated)
   useEffect(() => {
     if (!currentUser) return;
@@ -898,6 +937,8 @@ ${startupReport.join("\n")}
     inventorySubTab,
     invoicePage, invoiceSearch, invoiceStatusFilter,
     productPage, productSearch, productLimit,
+    productDrugScheduleFilter, productMedicineClassificationFilter,
+    productPrescriptionRequiredFilter, productControlledDrugFilter,
     purchasePage, purchaseSearch, purchaseStatusFilter,
     inventoryPage, inventorySearch, inventoryLowStockFilter,
     batchPage, batchSearch, batchStatusFilter,
@@ -1110,6 +1151,13 @@ ${startupReport.join("\n")}
 
   const handleCheckoutSubmit = async () => {
     if (cart.length === 0) return;
+    
+    // Enforce customer registration for all checkouts
+    if (!selectedCustomer) {
+      alert("A registered customer is required to checkout. Please search by mobile number and select a customer, or click '+ New Profile' to register the customer first.");
+      return;
+    }
+
     let splits: any[] = [];
     if (paymentMethod === 'MIXED') {
       const sum = mixedPayments.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
@@ -1576,7 +1624,12 @@ ${startupReport.join("\n")}
   // Minimal CRUD fetching for MDM components to maintain code dependencies
   const fetchProducts = async () => {
     try {
-      const res = await fetch(`${API_BASE}/products?page=${productPage}&limit=${productLimit}&search=${productSearch}`);
+      const q = `page=${productPage}&limit=${productLimit}&search=${productSearch}` +
+        `&drugSchedule=${productDrugScheduleFilter}` +
+        `&medicineClassification=${productMedicineClassificationFilter}` +
+        `&prescriptionRequired=${productPrescriptionRequiredFilter}` +
+        `&controlledDrug=${productControlledDrugFilter}`;
+      const res = await fetch(`${API_BASE}/products?${q}`);
       if (res.ok) {
         const envelope = await res.json();
         setProducts(envelope.data || []);
@@ -1962,6 +2015,8 @@ ${startupReport.join("\n")}
               setPosDiscount={setPosDiscount}
               customerSearch={customerSearch}
               setCustomerSearch={setCustomerSearch}
+              customerResults={customerResults}
+              setCustomerResults={setCustomerResults}
               selectedCustomer={selectedCustomer}
               setSelectedCustomer={setSelectedCustomer}
               paymentMethod={paymentMethod}
@@ -2130,6 +2185,15 @@ ${startupReport.join("\n")}
               setActiveTab={setActiveTab}
               setInventorySubTab={setInventorySubTab}
               setLedgerProductFilter={setLedgerProductFilter}
+              currentUser={currentUser}
+              productDrugScheduleFilter={productDrugScheduleFilter}
+              setProductDrugScheduleFilter={setProductDrugScheduleFilter}
+              productMedicineClassificationFilter={productMedicineClassificationFilter}
+              setProductMedicineClassificationFilter={setProductMedicineClassificationFilter}
+              productPrescriptionRequiredFilter={productPrescriptionRequiredFilter}
+              setProductPrescriptionRequiredFilter={setProductPrescriptionRequiredFilter}
+              productControlledDrugFilter={productControlledDrugFilter}
+              setProductControlledDrugFilter={setProductControlledDrugFilter}
             />
           )}
 
@@ -2138,6 +2202,13 @@ ${startupReport.join("\n")}
               suppliers={allSuppliers}
               fetchSuppliers={fetchCatalogs}
               API_BASE={API_BASE}
+            />
+          )}
+
+          {activeTab === 'drugRegister' && (
+            <DrugRegisterTab
+              currentUser={currentUser}
+              allUsers={allUsers}
             />
           )}
 
@@ -2417,7 +2488,8 @@ ${startupReport.join("\n")}
                     });
                     if (!res.ok) throw new Error("Registration failed.");
                     const added = await res.json();
-                    setSelectedCustomer(added);
+                    // ResponseTransformInterceptor wraps created customer in { success: true, data: customer }
+                    setSelectedCustomer(added.data || added);
                     setIsCustomerModalOpen(false);
                   } catch (e: any) { alert(e.message); }
                 }}

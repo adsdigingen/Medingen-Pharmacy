@@ -34,12 +34,12 @@ export class BillingService {
   private async executeCheckout(dto: CheckoutBillDto) {
     const now = new Date();
     
-    // Generate unique invoice number: INV-YYYYMMDD-XXXX
+    // Generate unique bill number: BILL-YYYYMMDD-XXXXX
     const todayStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const prefix = `INV-${todayStr}-`;
+    const prefix = `BILL-${todayStr}-`;
 
     const result = await this.prisma.$transaction(async (tx) => {
-      // Find latest invoice to compute sequence
+      // Find latest bill to compute sequence
       const lastInvoice = await tx.bill.findFirst({
         where: { billNumber: { startsWith: prefix } },
         orderBy: { billNumber: 'desc' },
@@ -53,7 +53,7 @@ export class BillingService {
           sequence = lastSeq + 1;
         }
       }
-      const billNumber = `${prefix}${sequence.toString().padStart(4, '0')}`;
+      const billNumber = `${prefix}${sequence.toString().padStart(5, '0')}`;
 
       // 1. Customer registration on-the-fly
       let customerId = dto.customerId || null;
@@ -307,6 +307,32 @@ export class BillingService {
               creditBalance: cust.creditBalance + netAmount,
               syncStatus: SyncStatus.PENDING,
               updatedAt: new Date(),
+            },
+          });
+        }
+      }
+
+      // 9. Drug Schedule Register — create PENDING entries for regulated medicines
+      //    inside this transaction so rows are guaranteed to exist when the bill commits.
+      const regulatedSchedules = ['Schedule G', 'Schedule H', 'Schedule H1', 'Schedule X', 'NDPS'];
+      const customer = customerId
+        ? await tx.customer.findUnique({ where: { id: customerId } })
+        : null;
+
+      for (const billItem of bill.billItems) {
+        const product = billItem.batch.product;
+        if (product.drugSchedule && regulatedSchedules.includes(product.drugSchedule)) {
+          await tx.drugScheduleRegister.create({
+            data: {
+              invoiceId: bill.id,
+              productId: product.id,
+              scheduleType: product.drugSchedule,
+              patientName: customer?.name || 'Walk-In Patient',
+              doctorName: '',
+              prescriptionNumber: '',
+              batchNumber: billItem.batch.batchNumber,
+              quantity: billItem.quantity,
+              status: 'PENDING',
             },
           });
         }

@@ -7,17 +7,18 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@medingen/db';
 
 @UseGuards(AuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('system-settings')
 export class SystemSettingsController {
   constructor(private readonly settingsService: SystemSettingsService) {}
 
   @Get()
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
   getSettings() {
     return this.settingsService.getSettings();
   }
 
   @Put()
+  @Roles(Role.ADMIN)
   update(@Body() dto: UpdateSettingsDto) {
     return this.settingsService.update(dto);
   }

@@ -1,4 +1,4 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsNumber } from 'class-validator';
 
 export class UpdateSettingsDto {
   @IsString()
@@ -36,4 +36,20 @@ export class UpdateSettingsDto {
   @IsString()
   @IsOptional()
   backupInterval?: string; // DAILY, WEEKLY, MONTHLY
+
+  @IsNumber()
+  @IsOptional()
+  defaultOfflineMarkup?: number;
+
+  @IsNumber()
+  @IsOptional()
+  defaultOnlineMarkup?: number;
+
+  @IsNumber()
+  @IsOptional()
+  defaultGst?: number;
+
+  @IsNumber()
+  @IsOptional()
+  defaultRetailDiscount?: number;
 }

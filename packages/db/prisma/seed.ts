@@ -52,6 +52,10 @@ async function main() {
         poPrefix: 'PO-',
         printerType: '80mm',
         backupInterval: 'DAILY',
+        defaultOfflineMarkup: 50.0,
+        defaultOnlineMarkup: 85.0,
+        defaultGst: 12.0,
+        defaultRetailDiscount: 0.0,
       },
     });
     console.log('✓ Default System Settings Created');

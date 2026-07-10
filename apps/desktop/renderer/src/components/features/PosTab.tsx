@@ -18,6 +18,8 @@ interface PosTabProps {
   setPosDiscount: (val: number) => void;
   customerSearch: string;
   setCustomerSearch: (val: string) => void;
+  customerResults: any[];
+  setCustomerResults: (val: any[]) => void;
   selectedCustomer: any;
   setSelectedCustomer: (val: any) => void;
   paymentMethod: string;
@@ -66,6 +68,8 @@ export const PosTab: React.FC<PosTabProps> = ({
   setPosDiscount,
   customerSearch,
   setCustomerSearch,
+  customerResults,
+  setCustomerResults,
   selectedCustomer,
   setSelectedCustomer,
   paymentMethod,
@@ -105,21 +109,6 @@ export const PosTab: React.FC<PosTabProps> = ({
   const handleRefocusSearch = () => {
     if (searchInputRef.current) {
       searchInputRef.current.focus();
-    }
-  };
-
-  // Recent/Frequent customers list for fast select
-  const frequentCustomers = [
-    { id: 'walk-in', name: 'Walk-In Cash Customer', mobile: 'N/A' },
-    { id: 'c-1', name: 'Anil Kumar', mobile: '9840123456' },
-    { id: 'c-2', name: 'Dr. Sarah Smith', mobile: '9940456789' }
-  ];
-
-  const handleSelectFrequentCustomer = (c: any) => {
-    if (c.id === 'walk-in') {
-      setSelectedCustomer(null);
-    } else {
-      setSelectedCustomer({ id: c.id, name: c.name, mobile: c.mobile });
     }
   };
 
@@ -340,36 +329,56 @@ export const PosTab: React.FC<PosTabProps> = ({
             </div>
             
             {selectedCustomer ? (
-              <div className="bg-slate-950 border border-teal-500/20 p-3 rounded-xl flex items-center justify-between text-xs animate-fadeIn">
+              <div className="bg-slate-955 border border-teal-500/20 p-3 rounded-xl flex items-center justify-between text-xs animate-fadeIn">
                 <div>
                   <div className="font-bold text-slate-200">{selectedCustomer.name}</div>
-                  <div className="text-[9px] text-slate-550 font-mono mt-0.5">Mobile: {selectedCustomer.mobile}</div>
+                  <div className="text-[9px] text-slate-555 font-mono mt-0.5">Mobile: {selectedCustomer.mobile}</div>
                 </div>
                 <button onClick={() => setSelectedCustomer(null)} className="text-[10px] text-rose-455 hover:underline font-semibold cursor-pointer">Remove</button>
               </div>
             ) : (
               <div className="space-y-2">
-                <input
-                  type="text"
-                  ref={customerInputRef}
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                  placeholder="Type mobile to search..."
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none"
-                />
-                
-                {/* Frequent quick buttons */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {frequentCustomers.map(fc => (
-                    <button
-                      key={fc.id}
-                      type="button"
-                      onClick={() => handleSelectFrequentCustomer(fc)}
-                      className="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-slate-400 rounded text-[9px] transition-all font-semibold"
-                    >
-                      {fc.name.split(' ')[0]}
-                    </button>
-                  ))}
+                <div className="relative">
+                  <input
+                    type="text"
+                    ref={customerInputRef}
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    placeholder="Type name or mobile to search..."
+                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-teal-500 transition-colors"
+                  />
+
+                  {/* Autocomplete query search results */}
+                  {customerSearch.trim() && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden text-xs max-h-56 overflow-y-auto">
+                      <div className="p-2 bg-slate-955 text-[10px] font-bold text-slate-500 border-b border-slate-855 uppercase tracking-wider">Matching Customers</div>
+                      {customerResults.length > 0 ? (
+                        customerResults.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCustomer(c);
+                              setCustomerSearch('');
+                              setCustomerResults([]);
+                            }}
+                            className="w-full text-left px-3.5 py-2.5 hover:bg-slate-800 transition-colors border-b border-slate-850/40 flex justify-between items-center"
+                          >
+                            <div>
+                              <span className="font-bold text-slate-200 block">{c.name}</span>
+                              <span className="text-[10px] text-slate-550">Mobile: {c.mobile}</span>
+                            </div>
+                            <span className="text-[10px] text-teal-400 font-bold">Select</span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-slate-550 space-y-2">
+                          <p className="font-bold text-rose-455">No registered customer matched</p>
+                          <p className="text-[10px] leading-normal text-slate-600">Mobile number not registered. Click "+ New Profile" above to register first.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -388,7 +397,7 @@ export const PosTab: React.FC<PosTabProps> = ({
                     : 'bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-900'
                 }`}
               >
-                Offline Sell (50% Margin)
+                Offline Mode
               </button>
               <button
                 type="button"
@@ -399,7 +408,7 @@ export const PosTab: React.FC<PosTabProps> = ({
                     : 'bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-900'
                 }`}
               >
-                Online Sell (85% Margin)
+                Online Mode
               </button>
             </div>
           </div>

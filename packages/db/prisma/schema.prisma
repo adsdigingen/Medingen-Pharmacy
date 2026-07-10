@@ -139,9 +139,28 @@ model Product {
   purchasePrice  Float      @default(0.0) @map("purchase_price")
   sellingPrice   Float      @default(0.0) @map("selling_price")
   mrp            Float      @default(0.0)
+  offlineMarkup        Float   @default(50.0) @map("offline_markup")
+  offlineSellingPrice  Float   @default(0.0) @map("offline_selling_price")
+  offlineAutoCalculate Boolean @default(true) @map("offline_auto_calculate")
+  onlineMarkup         Float   @default(85.0) @map("online_markup")
+  onlineSellingPrice   Float   @default(0.0) @map("online_selling_price")
+  onlineAutoCalculate  Boolean @default(true) @map("online_auto_calculate")
+  wholesalePrice       Float   @default(0.0) @map("wholesale_price")
+  hospitalPrice        Float   @default(0.0) @map("hospital_price")
+  memberPrice          Float   @default(0.0) @map("member_price")
+  specialOfferPrice    Float   @default(0.0) @map("special_offer_price")
+  retailDiscount       Float   @default(0.0) @map("retail_discount")
+  roundOff             Boolean @default(true) @map("round_off")
   minStockLevel  Int        @default(0) @map("min_stock_level")
   rackLocation   String?    @map("rack_location")
   description    String?
+  drugSchedule           String?    @map("drug_schedule")
+  medicineClassification String?    @map("medicine_classification")
+  prescriptionRequired   Boolean    @default(false) @map("prescription_required")
+  coldChainRequired      Boolean    @default(false) @map("cold_chain_required")
+  controlledDrug         Boolean    @default(false) @map("controlled_drug")
+  highValueMedicine      Boolean    @default(false) @map("high_value_medicine")
+  storageCondition       String?    @map("storage_condition")
   status         Boolean    @default(true)
   deletedAt      DateTime?  @map("deleted_at")
   
@@ -151,6 +170,7 @@ model Product {
   purchaseOrderItems PurchaseOrderItem[]
   purchaseReturnItems PurchaseReturnItem[]
   holdBillItems      HoldBillItem[]
+  drugScheduleEntries DrugScheduleRegister[]
   
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
@@ -383,6 +403,7 @@ model Bill {
   
   billItems      BillItem[]
   payments       Payment[]
+  drugScheduleEntries DrugScheduleRegister[]
   deletedAt      DateTime?   @map("deleted_at")
   
   createdAt      DateTime    @default(now()) @map("created_at")
@@ -495,6 +516,10 @@ model SystemSettings {
   printerType   String   @default("80mm") @map("printer_type") // 58mm, 80mm
   backupInterval String  @default("DAILY") @map("backup_interval") // DAILY, WEEKLY, MONTHLY
   lastBackupAt  DateTime? @map("last_backup_at")
+  defaultOfflineMarkup  Float @default(50.0) @map("default_offline_markup")
+  defaultOnlineMarkup   Float @default(85.0) @map("default_online_markup")
+  defaultGst            Float @default(12.0) @map("default_gst")
+  defaultRetailDiscount Float @default(0.0) @map("default_retail_discount")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("system_settings")
@@ -604,4 +629,28 @@ model SupplierMapping {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("supplier_mappings")
+}
+
+model DrugScheduleRegister {
+  id                 String     @id @default(uuid()) @db.Uuid
+  invoiceId          String     @map("invoice_id") @db.Uuid
+  bill               Bill       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId          String     @map("product_id") @db.Uuid
+  product            Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  scheduleType       String     @map("schedule_type") // Schedule G, Schedule H, Schedule H1, Schedule X, NDPS
+  patientName        String?    @map("patient_name")
+  doctorName         String?    @map("doctor_name")
+  prescriptionNumber String?    @map("prescription_number")
+  batchNumber        String     @map("batch_number")
+  quantity           Int
+  verifiedBy         String?    @map("verified_by")
+  verifiedAt         DateTime?  @map("verified_at")
+  signatureImage     String?    @map("signature_image") @db.Text
+  signatureType      String?    @map("signature_type") // DRAWN, UPLOADED, STORED
+  printedAt          DateTime?  @map("printed_at")
+  status             String     @default("PENDING") // PENDING, VERIFIED, PRINTED
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  @@map("drug_schedule_registers")
 }

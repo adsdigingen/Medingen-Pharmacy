@@ -13,6 +13,7 @@ import {
   Res,
   HttpStatus,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as express from 'express';
@@ -46,6 +47,10 @@ export class ProductsController {
     @Query('sortOrder') sortOrder?: 'asc' | 'desc',
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('drugSchedule') drugSchedule?: string,
+    @Query('medicineClassification') medicineClassification?: string,
+    @Query('prescriptionRequired') prescriptionRequired?: string,
+    @Query('controlledDrug') controlledDrug?: string,
   ) {
     return this.productsService.findAll({
       search,
@@ -57,6 +62,10 @@ export class ProductsController {
       sortOrder,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
+      drugSchedule,
+      medicineClassification,
+      prescriptionRequired,
+      controlledDrug,
     });
   }
 
@@ -161,8 +170,12 @@ export class ProductsController {
 
   @Put(':id')
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productsService.update(id, updateProductDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+    @Request() req: any,
+  ) {
+    return this.productsService.update(id, updateProductDto, req.user?.role);
   }
 
   @Delete(':id')

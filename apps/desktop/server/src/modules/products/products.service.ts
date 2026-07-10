@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -15,6 +15,80 @@ export class ProductsService {
     private readonly repo: ProductRepository,
     private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  private async getPricingDefaults() {
+    const settings = await this.prisma.systemSettings.findUnique({
+      where: { id: 'singleton' },
+    });
+    if (!settings) {
+      return {
+        defaultOfflineMarkup: 50.0,
+        defaultOnlineMarkup: 85.0,
+        defaultGst: 12.0,
+        defaultRetailDiscount: 0.0,
+      };
+    }
+    return settings;
+  }
+
+  private calculateProductPrices(
+    purchasePrice: number,
+    mrp: number,
+    offlineMarkup: number,
+    onlineMarkup: number,
+    offlineAutoCalculate: boolean,
+    onlineAutoCalculate: boolean,
+    roundOff: boolean,
+    inputOfflinePrice: number,
+    inputOnlinePrice: number,
+  ) {
+    let offlinePrice = inputOfflinePrice;
+    let onlinePrice = inputOnlinePrice;
+
+    if (offlineAutoCalculate) {
+      const calcPrice = purchasePrice * (1 + offlineMarkup / 100);
+      offlinePrice = roundOff ? Math.round(calcPrice) : parseFloat(calcPrice.toFixed(2));
+    }
+
+    if (onlineAutoCalculate) {
+      const calcPrice = purchasePrice * (1 + onlineMarkup / 100);
+      onlinePrice = roundOff ? Math.round(calcPrice) : parseFloat(calcPrice.toFixed(2));
+    }
+
+    let calculatedOfflineMarkup = offlineMarkup;
+    let calculatedOnlineMarkup = onlineMarkup;
+
+    if (!offlineAutoCalculate && purchasePrice > 0) {
+      calculatedOfflineMarkup = parseFloat((((offlinePrice - purchasePrice) / purchasePrice) * 100).toFixed(2));
+    }
+    if (!onlineAutoCalculate && purchasePrice > 0) {
+      calculatedOnlineMarkup = parseFloat((((onlinePrice - purchasePrice) / purchasePrice) * 100).toFixed(2));
+    }
+
+    if (purchasePrice > 0) {
+      if (offlinePrice < purchasePrice) {
+        throw new BadRequestException('Offline Selling Price cannot be lower than Purchase Price.');
+      }
+      if (onlinePrice < purchasePrice) {
+        throw new BadRequestException('Online Selling Price cannot be lower than Purchase Price.');
+      }
+    }
+    if (mrp > 0) {
+      if (offlinePrice > mrp) {
+        throw new BadRequestException('Offline Selling Price exceeds MRP.');
+      }
+      if (onlinePrice > mrp) {
+        throw new BadRequestException('Online Selling Price exceeds MRP.');
+      }
+    }
+
+    return {
+      offlineSellingPrice: offlinePrice,
+      onlineSellingPrice: onlinePrice,
+      offlineMarkup: calculatedOfflineMarkup,
+      onlineMarkup: calculatedOnlineMarkup,
+    };
+  }
 
   async create(createProductDto: CreateProductDto) {
     const name = createProductDto.name.trim();
@@ -47,6 +121,34 @@ export class ProductsService {
       }
     }
 
+    const defaults = await this.getPricingDefaults();
+    
+    const purchasePrice = createProductDto.purchasePrice ?? 0.0;
+    const mrp = createProductDto.mrp ?? 0.0;
+    const gstPercentage = createProductDto.gstPercentage ?? defaults.defaultGst;
+    
+    const offlineMarkup = createProductDto.offlineMarkup ?? defaults.defaultOfflineMarkup;
+    const onlineMarkup = createProductDto.onlineMarkup ?? defaults.defaultOnlineMarkup;
+    
+    const offlineAutoCalculate = createProductDto.offlineAutoCalculate ?? true;
+    const onlineAutoCalculate = createProductDto.onlineAutoCalculate ?? true;
+    const roundOff = createProductDto.roundOff ?? true;
+    
+    const inputOfflinePrice = createProductDto.offlineSellingPrice ?? 0.0;
+    const inputOnlinePrice = createProductDto.onlineSellingPrice ?? 0.0;
+
+    const calculated = this.calculateProductPrices(
+      purchasePrice,
+      mrp,
+      offlineMarkup,
+      onlineMarkup,
+      offlineAutoCalculate,
+      onlineAutoCalculate,
+      roundOff,
+      inputOfflinePrice,
+      inputOnlinePrice,
+    );
+
     const result = await this.repo.create({
       name,
       genericName: createProductDto.genericName,
@@ -57,13 +159,32 @@ export class ProductsService {
       manufacturerId: createProductDto.manufacturerId || null,
       supplierId: createProductDto.supplierId || null,
       hsnCode: createProductDto.hsnCode,
-      gstPercentage: createProductDto.gstPercentage ?? 0.0,
-      purchasePrice: createProductDto.purchasePrice ?? 0.0,
-      sellingPrice: createProductDto.sellingPrice ?? 0.0,
-      mrp: createProductDto.mrp ?? 0.0,
+      gstPercentage,
+      purchasePrice,
+      sellingPrice: calculated.offlineSellingPrice,
+      mrp,
+      offlineMarkup: calculated.offlineMarkup,
+      offlineSellingPrice: calculated.offlineSellingPrice,
+      offlineAutoCalculate,
+      onlineMarkup: calculated.onlineMarkup,
+      onlineSellingPrice: calculated.onlineSellingPrice,
+      onlineAutoCalculate,
+      wholesalePrice: createProductDto.wholesalePrice ?? 0.0,
+      hospitalPrice: createProductDto.hospitalPrice ?? 0.0,
+      memberPrice: createProductDto.memberPrice ?? 0.0,
+      specialOfferPrice: createProductDto.specialOfferPrice ?? 0.0,
+      retailDiscount: createProductDto.retailDiscount ?? defaults.defaultRetailDiscount,
+      roundOff,
       minStockLevel: createProductDto.minStockLevel ?? 0,
       rackLocation: createProductDto.rackLocation,
       description: createProductDto.description,
+      drugSchedule: createProductDto.drugSchedule || null,
+      medicineClassification: createProductDto.medicineClassification || null,
+      prescriptionRequired: createProductDto.prescriptionRequired ?? false,
+      coldChainRequired: createProductDto.coldChainRequired ?? false,
+      controlledDrug: createProductDto.controlledDrug ?? false,
+      highValueMedicine: createProductDto.highValueMedicine ?? false,
+      storageCondition: createProductDto.storageCondition || null,
       status: createProductDto.status ?? true,
       syncStatus: SyncStatus.PENDING,
     });
@@ -79,6 +200,34 @@ export class ProductsService {
   }
 
   private async restoreProduct(id: string, dto: CreateProductDto) {
+    const defaults = await this.getPricingDefaults();
+    
+    const purchasePrice = dto.purchasePrice ?? 0.0;
+    const mrp = dto.mrp ?? 0.0;
+    const gstPercentage = dto.gstPercentage ?? defaults.defaultGst;
+    
+    const offlineMarkup = dto.offlineMarkup ?? defaults.defaultOfflineMarkup;
+    const onlineMarkup = dto.onlineMarkup ?? defaults.defaultOnlineMarkup;
+    
+    const offlineAutoCalculate = dto.offlineAutoCalculate ?? true;
+    const onlineAutoCalculate = dto.onlineAutoCalculate ?? true;
+    const roundOff = dto.roundOff ?? true;
+    
+    const inputOfflinePrice = dto.offlineSellingPrice ?? 0.0;
+    const inputOnlinePrice = dto.onlineSellingPrice ?? 0.0;
+
+    const calculated = this.calculateProductPrices(
+      purchasePrice,
+      mrp,
+      offlineMarkup,
+      onlineMarkup,
+      offlineAutoCalculate,
+      onlineAutoCalculate,
+      roundOff,
+      inputOfflinePrice,
+      inputOnlinePrice,
+    );
+
     return this.repo.update(id, {
       deletedAt: null,
       name: dto.name,
@@ -90,13 +239,32 @@ export class ProductsService {
       manufacturerId: dto.manufacturerId || null,
       supplierId: dto.supplierId || null,
       hsnCode: dto.hsnCode,
-      gstPercentage: dto.gstPercentage ?? 0.0,
-      purchasePrice: dto.purchasePrice ?? 0.0,
-      sellingPrice: dto.sellingPrice ?? 0.0,
-      mrp: dto.mrp ?? 0.0,
+      gstPercentage,
+      purchasePrice,
+      sellingPrice: calculated.offlineSellingPrice,
+      mrp,
+      offlineMarkup: calculated.offlineMarkup,
+      offlineSellingPrice: calculated.offlineSellingPrice,
+      offlineAutoCalculate,
+      onlineMarkup: calculated.onlineMarkup,
+      onlineSellingPrice: calculated.onlineSellingPrice,
+      onlineAutoCalculate,
+      wholesalePrice: dto.wholesalePrice ?? 0.0,
+      hospitalPrice: dto.hospitalPrice ?? 0.0,
+      memberPrice: dto.memberPrice ?? 0.0,
+      specialOfferPrice: dto.specialOfferPrice ?? 0.0,
+      retailDiscount: dto.retailDiscount ?? defaults.defaultRetailDiscount,
+      roundOff,
       minStockLevel: dto.minStockLevel ?? 0,
       rackLocation: dto.rackLocation,
       description: dto.description,
+      drugSchedule: dto.drugSchedule || null,
+      medicineClassification: dto.medicineClassification || null,
+      prescriptionRequired: dto.prescriptionRequired ?? false,
+      coldChainRequired: dto.coldChainRequired ?? false,
+      controlledDrug: dto.controlledDrug ?? false,
+      highValueMedicine: dto.highValueMedicine ?? false,
+      storageCondition: dto.storageCondition || null,
       status: dto.status ?? true,
       syncStatus: SyncStatus.PENDING,
       updatedAt: new Date(),
@@ -113,6 +281,10 @@ export class ProductsService {
     sortOrder?: 'asc' | 'desc';
     page?: number;
     limit?: number;
+    drugSchedule?: string;
+    medicineClassification?: string;
+    prescriptionRequired?: string;
+    controlledDrug?: string;
   }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 10);
@@ -145,6 +317,19 @@ export class ProductsService {
 
     if (query.status !== undefined && query.status !== '') {
       where.status = query.status === 'true' || query.status === 'active';
+    }
+
+    if (query.drugSchedule) {
+      where.drugSchedule = query.drugSchedule;
+    }
+    if (query.medicineClassification) {
+      where.medicineClassification = query.medicineClassification;
+    }
+    if (query.prescriptionRequired !== undefined && query.prescriptionRequired !== '') {
+      where.prescriptionRequired = query.prescriptionRequired === 'true';
+    }
+    if (query.controlledDrug !== undefined && query.controlledDrug !== '') {
+      where.controlledDrug = query.controlledDrug === 'true';
     }
 
     const sortBy = query.sortBy || 'name';
@@ -183,7 +368,7 @@ export class ProductsService {
     return product;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto) {
+  async update(id: string, updateProductDto: UpdateProductDto, userRole?: string) {
     const product = await this.findOne(id);
 
     // Validate unique barcode
@@ -206,6 +391,52 @@ export class ProductsService {
       }
     }
 
+    // Pharmacist Role Constraint
+    if (userRole === 'PHARMACIST') {
+      const forbiddenFields = [
+        'purchasePrice',
+        'mrp',
+        'gstPercentage',
+        'offlineMarkup',
+        'onlineMarkup',
+        'offlineAutoCalculate',
+        'onlineAutoCalculate',
+        'roundOff',
+      ];
+      const dto = updateProductDto as any;
+      const prod = product as any;
+      for (const field of forbiddenFields) {
+        if (dto[field] !== undefined && dto[field] !== prod[field]) {
+          throw new ForbiddenException(`Pharmacists are not authorized to modify the pricing field: ${field}`);
+        }
+      }
+    }
+
+    const purchasePrice = updateProductDto.purchasePrice !== undefined ? updateProductDto.purchasePrice : product.purchasePrice;
+    const mrp = updateProductDto.mrp !== undefined ? updateProductDto.mrp : product.mrp;
+    
+    const offlineMarkup = updateProductDto.offlineMarkup !== undefined ? updateProductDto.offlineMarkup : product.offlineMarkup;
+    const onlineMarkup = updateProductDto.onlineMarkup !== undefined ? updateProductDto.onlineMarkup : product.onlineMarkup;
+    
+    const offlineAutoCalculate = updateProductDto.offlineAutoCalculate !== undefined ? updateProductDto.offlineAutoCalculate : product.offlineAutoCalculate;
+    const onlineAutoCalculate = updateProductDto.onlineAutoCalculate !== undefined ? updateProductDto.onlineAutoCalculate : product.onlineAutoCalculate;
+    const roundOff = updateProductDto.roundOff !== undefined ? updateProductDto.roundOff : product.roundOff;
+    
+    const inputOfflinePrice = updateProductDto.offlineSellingPrice !== undefined ? updateProductDto.offlineSellingPrice : product.offlineSellingPrice;
+    const inputOnlinePrice = updateProductDto.onlineSellingPrice !== undefined ? updateProductDto.onlineSellingPrice : product.onlineSellingPrice;
+
+    const calculated = this.calculateProductPrices(
+      purchasePrice,
+      mrp,
+      offlineMarkup,
+      onlineMarkup,
+      offlineAutoCalculate,
+      onlineAutoCalculate,
+      roundOff,
+      inputOfflinePrice,
+      inputOnlinePrice,
+    );
+
     const result = await this.repo.update(id, {
       name: updateProductDto.name !== undefined ? updateProductDto.name.trim() : product.name,
       genericName: updateProductDto.genericName !== undefined ? updateProductDto.genericName : product.genericName,
@@ -217,12 +448,31 @@ export class ProductsService {
       supplierId: updateProductDto.supplierId !== undefined ? (updateProductDto.supplierId || null) : product.supplierId,
       hsnCode: updateProductDto.hsnCode !== undefined ? updateProductDto.hsnCode : product.hsnCode,
       gstPercentage: updateProductDto.gstPercentage !== undefined ? updateProductDto.gstPercentage : product.gstPercentage,
-      purchasePrice: updateProductDto.purchasePrice !== undefined ? updateProductDto.purchasePrice : product.purchasePrice,
-      sellingPrice: updateProductDto.sellingPrice !== undefined ? updateProductDto.sellingPrice : product.sellingPrice,
-      mrp: updateProductDto.mrp !== undefined ? updateProductDto.mrp : product.mrp,
+      purchasePrice,
+      sellingPrice: calculated.offlineSellingPrice,
+      mrp,
+      offlineMarkup: calculated.offlineMarkup,
+      offlineSellingPrice: calculated.offlineSellingPrice,
+      offlineAutoCalculate,
+      onlineMarkup: calculated.onlineMarkup,
+      onlineSellingPrice: calculated.onlineSellingPrice,
+      onlineAutoCalculate,
+      wholesalePrice: updateProductDto.wholesalePrice !== undefined ? updateProductDto.wholesalePrice : product.wholesalePrice,
+      hospitalPrice: updateProductDto.hospitalPrice !== undefined ? updateProductDto.hospitalPrice : product.hospitalPrice,
+      memberPrice: updateProductDto.memberPrice !== undefined ? updateProductDto.memberPrice : product.memberPrice,
+      specialOfferPrice: updateProductDto.specialOfferPrice !== undefined ? updateProductDto.specialOfferPrice : product.specialOfferPrice,
+      retailDiscount: updateProductDto.retailDiscount !== undefined ? updateProductDto.retailDiscount : product.retailDiscount,
+      roundOff,
       minStockLevel: updateProductDto.minStockLevel !== undefined ? updateProductDto.minStockLevel : product.minStockLevel,
       rackLocation: updateProductDto.rackLocation !== undefined ? updateProductDto.rackLocation : product.rackLocation,
       description: updateProductDto.description !== undefined ? updateProductDto.description : product.description,
+      drugSchedule: updateProductDto.drugSchedule !== undefined ? updateProductDto.drugSchedule : product.drugSchedule,
+      medicineClassification: updateProductDto.medicineClassification !== undefined ? updateProductDto.medicineClassification : product.medicineClassification,
+      prescriptionRequired: updateProductDto.prescriptionRequired !== undefined ? updateProductDto.prescriptionRequired : product.prescriptionRequired,
+      coldChainRequired: updateProductDto.coldChainRequired !== undefined ? updateProductDto.coldChainRequired : product.coldChainRequired,
+      controlledDrug: updateProductDto.controlledDrug !== undefined ? updateProductDto.controlledDrug : product.controlledDrug,
+      highValueMedicine: updateProductDto.highValueMedicine !== undefined ? updateProductDto.highValueMedicine : product.highValueMedicine,
+      storageCondition: updateProductDto.storageCondition !== undefined ? updateProductDto.storageCondition : product.storageCondition,
       status: updateProductDto.status !== undefined ? updateProductDto.status : product.status,
       syncStatus: SyncStatus.PENDING,
       updatedAt: new Date(),
@@ -402,6 +652,37 @@ export class ProductsService {
           });
         }
 
+        const defaults = await this.getPricingDefaults();
+        
+        const offlineMarkup = row['Offline Markup'] !== undefined ? parseFloat(row['Offline Markup']) : defaults.defaultOfflineMarkup;
+        const onlineMarkup = row['Online Markup'] !== undefined ? parseFloat(row['Online Markup']) : defaults.defaultOnlineMarkup;
+        
+        const roundOff = row['Round Off'] !== undefined ? (String(row['Round Off']).toLowerCase() === 'yes' || String(row['Round Off']).toLowerCase() === 'true') : true;
+        
+        const inputOfflinePrice = row['Offline Selling Price'] !== undefined ? parseFloat(row['Offline Selling Price']) : (row['Selling Price'] !== undefined ? parseFloat(row['Selling Price']) : 0.0);
+        const inputOnlinePrice = row['Online Selling Price'] !== undefined ? parseFloat(row['Online Selling Price']) : 0.0;
+        
+        const offlineAutoCalculate = row['Offline Selling Price'] === undefined;
+        const onlineAutoCalculate = row['Online Selling Price'] === undefined;
+        
+        const calculated = this.calculateProductPrices(
+          purchasePrice,
+          mrp,
+          offlineMarkup,
+          onlineMarkup,
+          offlineAutoCalculate,
+          onlineAutoCalculate,
+          roundOff,
+          inputOfflinePrice,
+          inputOnlinePrice,
+        );
+        
+        const wholesalePrice = row['Wholesale Price'] !== undefined ? parseFloat(row['Wholesale Price']) : 0.0;
+        const hospitalPrice = row['Hospital Price'] !== undefined ? parseFloat(row['Hospital Price']) : 0.0;
+        const memberPrice = row['Member Price'] !== undefined ? parseFloat(row['Member Price']) : 0.0;
+        const specialOfferPrice = row['Special Offer Price'] !== undefined ? parseFloat(row['Special Offer Price']) : 0.0;
+        const retailDiscount = row['Retail Discount'] !== undefined ? parseFloat(row['Retail Discount']) : defaults.defaultRetailDiscount;
+
         if (existingProduct) {
           // Update Existing Product
           await this.repo.update(existingProduct.id, {
@@ -417,8 +698,20 @@ export class ProductsService {
             hsnCode: row['HSN Code'] ? String(row['HSN Code']).trim() : existingProduct.hsnCode,
             gstPercentage: row['GST Percentage'] !== undefined ? gstPercentage : existingProduct.gstPercentage,
             purchasePrice: row['Purchase Price'] !== undefined ? purchasePrice : existingProduct.purchasePrice,
-            sellingPrice: row['Selling Price'] !== undefined ? sellingPrice : existingProduct.sellingPrice,
+            sellingPrice: calculated.offlineSellingPrice,
             mrp: row['MRP'] !== undefined ? mrp : existingProduct.mrp,
+            offlineMarkup: calculated.offlineMarkup,
+            offlineSellingPrice: calculated.offlineSellingPrice,
+            offlineAutoCalculate,
+            onlineMarkup: calculated.onlineMarkup,
+            onlineSellingPrice: calculated.onlineSellingPrice,
+            onlineAutoCalculate,
+            wholesalePrice: row['Wholesale Price'] !== undefined ? wholesalePrice : existingProduct.wholesalePrice,
+            hospitalPrice: row['Hospital Price'] !== undefined ? hospitalPrice : existingProduct.hospitalPrice,
+            memberPrice: row['Member Price'] !== undefined ? memberPrice : existingProduct.memberPrice,
+            specialOfferPrice: row['Special Offer Price'] !== undefined ? specialOfferPrice : existingProduct.specialOfferPrice,
+            retailDiscount: row['Retail Discount'] !== undefined ? retailDiscount : existingProduct.retailDiscount,
+            roundOff,
             minStockLevel: row['Minimum Stock'] !== undefined ? minStockLevel : existingProduct.minStockLevel,
             rackLocation: row['Rack Location'] ? String(row['Rack Location']).trim() : existingProduct.rackLocation,
             description: row['Description'] ? String(row['Description']).trim() : existingProduct.description,
@@ -440,8 +733,20 @@ export class ProductsService {
             hsnCode: row['HSN Code'] ? String(row['HSN Code']).trim() : null,
             gstPercentage,
             purchasePrice,
-            sellingPrice,
+            sellingPrice: calculated.offlineSellingPrice,
             mrp,
+            offlineMarkup: calculated.offlineMarkup,
+            offlineSellingPrice: calculated.offlineSellingPrice,
+            offlineAutoCalculate,
+            onlineMarkup: calculated.onlineMarkup,
+            onlineSellingPrice: calculated.onlineSellingPrice,
+            onlineAutoCalculate,
+            wholesalePrice,
+            hospitalPrice,
+            memberPrice,
+            specialOfferPrice,
+            retailDiscount,
+            roundOff,
             minStockLevel,
             rackLocation: row['Rack Location'] ? String(row['Rack Location']).trim() : null,
             description: row['Description'] ? String(row['Description']).trim() : null,
@@ -512,9 +817,26 @@ export class ProductsService {
       'Purchase Price': p.purchasePrice,
       'Selling Price': p.sellingPrice,
       'MRP': p.mrp,
+      'Offline Markup': p.offlineMarkup,
+      'Offline Selling Price': p.offlineSellingPrice,
+      'Online Markup': p.onlineMarkup,
+      'Online Selling Price': p.onlineSellingPrice,
+      'Wholesale Price': p.wholesalePrice,
+      'Hospital Price': p.hospitalPrice,
+      'Member Price': p.memberPrice,
+      'Special Offer Price': p.specialOfferPrice,
+      'Retail Discount': p.retailDiscount,
+      'Round Off': p.roundOff ? 'Yes' : 'No',
       'Minimum Stock': p.minStockLevel,
       'Rack Location': p.rackLocation || '',
       'Description': p.description || '',
+      'Drug Schedule': p.drugSchedule || 'OTC',
+      'Prescription': p.prescriptionRequired ? 'Yes' : 'No',
+      'Storage': p.storageCondition || 'Room Temperature',
+      'Classification': p.medicineClassification || 'Other',
+      'Controlled Drug': p.controlledDrug ? 'Yes' : 'No',
+      'Cold Chain': p.coldChainRequired ? 'Yes' : 'No',
+      'High Value': p.highValueMedicine ? 'Yes' : 'No',
       'Status': p.status ? 'Active' : 'Inactive',
     }));
 
@@ -540,11 +862,28 @@ export class ProductsService {
         'HSN Code': '30049011',
         'GST Percentage': 12,
         'Purchase Price': 25.50,
-        'Selling Price': 28.20,
-        'MRP': 30.00,
+        'Selling Price': 38.25,
+        'MRP': 45.00,
+        'Offline Markup': 50,
+        'Offline Selling Price': 38.25,
+        'Online Markup': 85,
+        'Online Selling Price': 47.18,
+        'Wholesale Price': 35.00,
+        'Hospital Price': 34.00,
+        'Member Price': 33.00,
+        'Special Offer Price': 32.00,
+        'Retail Discount': 5.0,
+        'Round Off': 'Yes',
         'Minimum Stock': 100,
         'Rack Location': 'A-04',
         'Description': 'For fever and mild to moderate pain relief',
+        'Drug Schedule': 'OTC',
+        'Prescription': 'No',
+        'Storage': 'Room Temperature',
+        'Classification': 'Analgesic',
+        'Controlled Drug': 'No',
+        'Cold Chain': 'No',
+        'High Value': 'No',
         'Status': 'Active',
       },
     ];
@@ -590,6 +929,23 @@ export class ProductsService {
       minStockLevel: ['minimum stock', 'min stock', 'min stock level', 'reorder level', 'qty required'],
       rackLocation: ['rack', 'rack location', 'shelf', 'location', 'rack no'],
       description: ['description', 'notes', 'remarks', 'info'],
+      drugSchedule: ['drug schedule', 'schedule', 'drugschedule', 'sch'],
+      prescriptionRequired: ['prescription', 'prescription required', 'rx required', 'rx', 'prescriptionrequired'],
+      storageCondition: ['storage', 'storage condition', 'storage temp', 'storagecondition'],
+      medicineClassification: ['classification', 'medicine classification', 'med classification', 'class', 'medicineclassification'],
+      controlledDrug: ['controlled', 'controlled drug', 'controlled medication', 'controlleddrug'],
+      coldChainRequired: ['cold chain', 'cold chain required', 'coldchain', 'coldchainrequired'],
+      highValueMedicine: ['high value', 'high value medicine', 'highvalue', 'highvaluemedicine'],
+      offlineMarkup: ['offline markup', 'offline markup %', 'offline markup percent', 'offlinemarkup'],
+      offlineSellingPrice: ['offline selling price', 'offline selling rate', 'offline price', 'offlinesellingprice', 'offline rate'],
+      onlineMarkup: ['online markup', 'online markup %', 'online markup percent', 'onlinemarkup'],
+      onlineSellingPrice: ['online selling price', 'online selling rate', 'online price', 'onlinesellingprice', 'online rate'],
+      wholesalePrice: ['wholesale price', 'wholesale price rate', 'wholesale price level', 'wholesale rate', 'wholesaleprice'],
+      hospitalPrice: ['hospital price', 'hospital price rate', 'hospital rate', 'hospitalprice'],
+      memberPrice: ['member price', 'member price rate', 'member rate', 'memberprice'],
+      specialOfferPrice: ['special offer price', 'special offer rate', 'special price', 'specialofferprice'],
+      retailDiscount: ['retail discount', 'retail discount %', 'retail discount percent', 'retaildiscount'],
+      roundOff: ['round off', 'round off option', 'roundoff', 'rounding'],
       status: ['status', 'active', 'state']
     };
 
@@ -746,6 +1102,77 @@ export class ProductsService {
         }
       }
 
+      const defaults = await this.getPricingDefaults();
+      const offlineMarkup = mapped.offlineMarkup !== null && mapped.offlineMarkup !== undefined && mapped.offlineMarkup !== '' ? parseFloat(mapped.offlineMarkup) : defaults.defaultOfflineMarkup;
+      const onlineMarkup = mapped.onlineMarkup !== null && mapped.onlineMarkup !== undefined && mapped.onlineMarkup !== '' ? parseFloat(mapped.onlineMarkup) : defaults.defaultOnlineMarkup;
+      const roundOff = mapped.roundOff !== null && mapped.roundOff !== undefined && mapped.roundOff !== '' ? (String(mapped.roundOff).toLowerCase() === 'yes' || String(mapped.roundOff).toLowerCase() === 'true' || mapped.roundOff === true) : true;
+      const offlineAutoCalculate = mapped.offlineSellingPrice === null || mapped.offlineSellingPrice === undefined || mapped.offlineSellingPrice === '';
+      const onlineAutoCalculate = mapped.onlineSellingPrice === null || mapped.onlineSellingPrice === undefined || mapped.onlineSellingPrice === '';
+
+      let calculatedOfflinePrice = 0.0;
+      let calculatedOnlinePrice = 0.0;
+
+      if (!isNaN(cost) && cost >= 0) {
+        if (offlineAutoCalculate) {
+          const calc = cost * (1 + offlineMarkup / 100);
+          calculatedOfflinePrice = roundOff ? Math.round(calc) : parseFloat(calc.toFixed(2));
+        } else {
+          calculatedOfflinePrice = parseFloat(mapped.offlineSellingPrice);
+        }
+
+        if (onlineAutoCalculate) {
+          const calc = cost * (1 + onlineMarkup / 100);
+          calculatedOnlinePrice = roundOff ? Math.round(calc) : parseFloat(calc.toFixed(2));
+        } else {
+          calculatedOnlinePrice = parseFloat(mapped.onlineSellingPrice);
+        }
+
+        if (!isNaN(calculatedOfflinePrice)) {
+          if (calculatedOfflinePrice < cost) {
+            rowErrors.push('Offline Selling Price cannot be lower than Purchase Price.');
+          }
+          if (!isNaN(mrp) && mrp > 0 && calculatedOfflinePrice > mrp) {
+            rowErrors.push('Offline Selling Price exceeds MRP.');
+          }
+        }
+
+        if (!isNaN(calculatedOnlinePrice)) {
+          if (calculatedOnlinePrice < cost) {
+            rowErrors.push('Online Selling Price cannot be lower than Purchase Price.');
+          }
+          if (!isNaN(mrp) && mrp > 0 && calculatedOnlinePrice > mrp) {
+            rowErrors.push('Online Selling Price exceeds MRP.');
+          }
+        }
+      }
+
+      if (mapped.wholesalePrice !== null && mapped.wholesalePrice !== undefined && mapped.wholesalePrice !== '') {
+        if (isNaN(parseFloat(mapped.wholesalePrice)) || parseFloat(mapped.wholesalePrice) < 0) {
+          rowErrors.push('Wholesale Price must be a non-negative number.');
+        }
+      }
+      if (mapped.hospitalPrice !== null && mapped.hospitalPrice !== undefined && mapped.hospitalPrice !== '') {
+        if (isNaN(parseFloat(mapped.hospitalPrice)) || parseFloat(mapped.hospitalPrice) < 0) {
+          rowErrors.push('Hospital Price must be a non-negative number.');
+        }
+      }
+      if (mapped.memberPrice !== null && mapped.memberPrice !== undefined && mapped.memberPrice !== '') {
+        if (isNaN(parseFloat(mapped.memberPrice)) || parseFloat(mapped.memberPrice) < 0) {
+          rowErrors.push('Member Price must be a non-negative number.');
+        }
+      }
+      if (mapped.specialOfferPrice !== null && mapped.specialOfferPrice !== undefined && mapped.specialOfferPrice !== '') {
+        if (isNaN(parseFloat(mapped.specialOfferPrice)) || parseFloat(mapped.specialOfferPrice) < 0) {
+          rowErrors.push('Special Offer Price must be a non-negative number.');
+        }
+      }
+      if (mapped.retailDiscount !== null && mapped.retailDiscount !== undefined && mapped.retailDiscount !== '') {
+        const disc = parseFloat(mapped.retailDiscount);
+        if (isNaN(disc) || disc < 0 || disc > 100) {
+          rowErrors.push('Retail Discount % must be between 0 and 100.');
+        }
+      }
+
       if (mapped.gstPercentage !== null && mapped.gstPercentage !== undefined && mapped.gstPercentage !== '') {
         const gst = parseFloat(mapped.gstPercentage);
         if (isNaN(gst)) rowErrors.push('GST Percentage must be numeric.');
@@ -819,6 +1246,25 @@ export class ProductsService {
         sku,
         cost: isNaN(cost) ? 0 : cost,
         mrp: isNaN(mrp) ? 0 : mrp,
+        offlineMarkup: isNaN(offlineMarkup) ? defaults.defaultOfflineMarkup : offlineMarkup,
+        offlineSellingPrice: isNaN(calculatedOfflinePrice) ? 0 : calculatedOfflinePrice,
+        offlineAutoCalculate,
+        onlineMarkup: isNaN(onlineMarkup) ? defaults.defaultOnlineMarkup : onlineMarkup,
+        onlineSellingPrice: isNaN(calculatedOnlinePrice) ? 0 : calculatedOnlinePrice,
+        onlineAutoCalculate,
+        wholesalePrice: isNaN(parseFloat(mapped.wholesalePrice)) ? 0 : parseFloat(mapped.wholesalePrice),
+        hospitalPrice: isNaN(parseFloat(mapped.hospitalPrice)) ? 0 : parseFloat(mapped.hospitalPrice),
+        memberPrice: isNaN(parseFloat(mapped.memberPrice)) ? 0 : parseFloat(mapped.memberPrice),
+        specialOfferPrice: isNaN(parseFloat(mapped.specialOfferPrice)) ? 0 : parseFloat(mapped.specialOfferPrice),
+        retailDiscount: isNaN(parseFloat(mapped.retailDiscount)) ? defaults.defaultRetailDiscount : parseFloat(mapped.retailDiscount),
+        roundOff,
+        drugSchedule: String(mapped.drugSchedule || '').trim() || 'OTC',
+        medicineClassification: String(mapped.medicineClassification || '').trim() || 'Other',
+        prescriptionRequired: String(mapped.prescriptionRequired || '').toLowerCase().trim() === 'yes' || String(mapped.prescriptionRequired || '').toLowerCase().trim() === 'true' || mapped.prescriptionRequired === true,
+        storageCondition: String(mapped.storageCondition || '').trim() || 'Room Temperature',
+        controlledDrug: String(mapped.controlledDrug || '').toLowerCase().trim() === 'yes' || String(mapped.controlledDrug || '').toLowerCase().trim() === 'true' || mapped.controlledDrug === true,
+        coldChainRequired: String(mapped.coldChainRequired || '').toLowerCase().trim() === 'yes' || String(mapped.coldChainRequired || '').toLowerCase().trim() === 'true' || mapped.coldChainRequired === true,
+        highValueMedicine: String(mapped.highValueMedicine || '').toLowerCase().trim() === 'yes' || String(mapped.highValueMedicine || '').toLowerCase().trim() === 'true' || mapped.highValueMedicine === true,
         valid: rowErrors.length === 0,
         errors: rowErrors,
         status
@@ -923,12 +1369,37 @@ export class ProductsService {
             const rackLocation = row.rackLocation ? String(row.rackLocation).trim() : null;
             const description = row.description ? String(row.description).trim() : null;
 
+            const costVal = row.cost !== undefined ? parseFloat(row.cost) || 0 : (row.purchasePrice !== undefined ? parseFloat(row.purchasePrice) || 0 : 0);
             const gstPercentage = row.gstPercentage !== undefined ? parseFloat(row.gstPercentage) || 0 : 0;
-            const purchasePrice = row.purchasePrice !== undefined ? parseFloat(row.purchasePrice) || 0 : 0;
-            const sellingPrice = row.sellingPrice !== undefined ? parseFloat(row.sellingPrice) || 0 : 0;
+            const purchasePrice = costVal;
             const mrp = row.mrp !== undefined ? parseFloat(row.mrp) || 0 : 0;
             const minStockLevel = row.minStockLevel !== undefined ? parseInt(row.minStockLevel) || 0 : 0;
             const status = row.status !== undefined ? (String(row.status).toLowerCase() === 'active' || row.status === true) : true;
+
+            const drugSchedule = row.drugSchedule !== undefined ? String(row.drugSchedule).trim() || null : null;
+            const medicineClassification = row.medicineClassification !== undefined ? String(row.medicineClassification).trim() || null : null;
+            const prescriptionRequired = row.prescriptionRequired === true || String(row.prescriptionRequired).toLowerCase() === 'true';
+            const coldChainRequired = row.coldChainRequired === true || String(row.coldChainRequired).toLowerCase() === 'true';
+            const controlledDrug = row.controlledDrug === true || String(row.controlledDrug).toLowerCase() === 'true';
+            const highValueMedicine = row.highValueMedicine === true || String(row.highValueMedicine).toLowerCase() === 'true';
+            const storageCondition = row.storageCondition !== undefined ? String(row.storageCondition).trim() || null : null;
+
+            const offlineMarkup = row.offlineMarkup !== undefined ? parseFloat(row.offlineMarkup) : 50.0;
+            const offlineSellingPrice = row.offlineSellingPrice !== undefined ? parseFloat(row.offlineSellingPrice) : 0.0;
+            const offlineAutoCalculate = row.offlineAutoCalculate !== undefined ? !!row.offlineAutoCalculate : true;
+            
+            const onlineMarkup = row.onlineMarkup !== undefined ? parseFloat(row.onlineMarkup) : 85.0;
+            const onlineSellingPrice = row.onlineSellingPrice !== undefined ? parseFloat(row.onlineSellingPrice) : 0.0;
+            const onlineAutoCalculate = row.onlineAutoCalculate !== undefined ? !!row.onlineAutoCalculate : true;
+            
+            const wholesalePrice = row.wholesalePrice !== undefined ? parseFloat(row.wholesalePrice) : 0.0;
+            const hospitalPrice = row.hospitalPrice !== undefined ? parseFloat(row.hospitalPrice) : 0.0;
+            const memberPrice = row.memberPrice !== undefined ? parseFloat(row.memberPrice) : 0.0;
+            const specialOfferPrice = row.specialOfferPrice !== undefined ? parseFloat(row.specialOfferPrice) : 0.0;
+            const retailDiscount = row.retailDiscount !== undefined ? parseFloat(row.retailDiscount) : 0.0;
+            const roundOff = row.roundOff !== undefined ? !!row.roundOff : true;
+            
+            const sellingPrice = offlineSellingPrice; // Base sellingPrice is synced to offlineStorePrice
 
             const categoryId = row.categoryName ? await resolveCategory(row.categoryName, tx) : null;
             const manufacturerId = row.manufacturerName ? await resolveManufacturer(row.manufacturerName, tx) : null;
@@ -966,13 +1437,32 @@ export class ProductsService {
                     manufacturerId: manufacturerId || existingProduct.manufacturerId,
                     supplierId: supplierId || existingProduct.supplierId,
                     hsnCode: hsnCode || existingProduct.hsnCode,
-                    gstPercentage: gstPercentage !== undefined ? gstPercentage : existingProduct.gstPercentage,
-                    purchasePrice: purchasePrice !== undefined ? purchasePrice : existingProduct.purchasePrice,
-                    sellingPrice: sellingPrice !== undefined ? sellingPrice : existingProduct.sellingPrice,
-                    mrp: mrp !== undefined ? mrp : existingProduct.mrp,
+                    gstPercentage,
+                    purchasePrice,
+                    sellingPrice,
+                    mrp,
+                    offlineMarkup,
+                    offlineSellingPrice,
+                    offlineAutoCalculate,
+                    onlineMarkup,
+                    onlineSellingPrice,
+                    onlineAutoCalculate,
+                    wholesalePrice,
+                    hospitalPrice,
+                    memberPrice,
+                    specialOfferPrice,
+                    retailDiscount,
+                    roundOff,
                     minStockLevel: minStockLevel !== undefined ? minStockLevel : existingProduct.minStockLevel,
                     rackLocation: rackLocation || existingProduct.rackLocation,
                     description: description || existingProduct.description,
+                    drugSchedule: drugSchedule !== undefined ? drugSchedule : existingProduct.drugSchedule,
+                    medicineClassification: medicineClassification !== undefined ? medicineClassification : existingProduct.medicineClassification,
+                    prescriptionRequired: prescriptionRequired !== undefined ? prescriptionRequired : existingProduct.prescriptionRequired,
+                    coldChainRequired: coldChainRequired !== undefined ? coldChainRequired : existingProduct.coldChainRequired,
+                    controlledDrug: controlledDrug !== undefined ? controlledDrug : existingProduct.controlledDrug,
+                    highValueMedicine: highValueMedicine !== undefined ? highValueMedicine : existingProduct.highValueMedicine,
+                    storageCondition: storageCondition !== undefined ? storageCondition : existingProduct.storageCondition,
                     status,
                     syncStatus: 'PENDING',
                     updatedAt: new Date(),
@@ -1005,11 +1495,45 @@ export class ProductsService {
                 if ((existingProduct.mrp === null || existingProduct.mrp === 0) && mrp) {
                   updateData.mrp = mrp;
                 }
+                if ((existingProduct.offlineSellingPrice === null || existingProduct.offlineSellingPrice === 0) && offlineSellingPrice) {
+                  updateData.offlineSellingPrice = offlineSellingPrice;
+                  updateData.offlineMarkup = offlineMarkup;
+                  updateData.offlineAutoCalculate = offlineAutoCalculate;
+                }
+                if ((existingProduct.onlineSellingPrice === null || existingProduct.onlineSellingPrice === 0) && onlineSellingPrice) {
+                  updateData.onlineSellingPrice = onlineSellingPrice;
+                  updateData.onlineMarkup = onlineMarkup;
+                  updateData.onlineAutoCalculate = onlineAutoCalculate;
+                }
+                if ((existingProduct.wholesalePrice === null || existingProduct.wholesalePrice === 0) && wholesalePrice) {
+                  updateData.wholesalePrice = wholesalePrice;
+                }
+                if ((existingProduct.hospitalPrice === null || existingProduct.hospitalPrice === 0) && hospitalPrice) {
+                  updateData.hospitalPrice = hospitalPrice;
+                }
+                if ((existingProduct.memberPrice === null || existingProduct.memberPrice === 0) && memberPrice) {
+                  updateData.memberPrice = memberPrice;
+                }
+                if ((existingProduct.specialOfferPrice === null || existingProduct.specialOfferPrice === 0) && specialOfferPrice) {
+                  updateData.specialOfferPrice = specialOfferPrice;
+                }
+                if ((existingProduct.retailDiscount === null || existingProduct.retailDiscount === 0) && retailDiscount) {
+                  updateData.retailDiscount = retailDiscount;
+                }
+                updateData.roundOff = roundOff;
                 if ((existingProduct.minStockLevel === null || existingProduct.minStockLevel === 0) && minStockLevel) {
                   updateData.minStockLevel = minStockLevel;
                 }
                 if (!existingProduct.rackLocation && rackLocation) updateData.rackLocation = rackLocation;
                 if (!existingProduct.description && description) updateData.description = description;
+
+                if (!existingProduct.drugSchedule && drugSchedule) updateData.drugSchedule = drugSchedule;
+                if (!existingProduct.medicineClassification && medicineClassification) updateData.medicineClassification = medicineClassification;
+                if (!existingProduct.prescriptionRequired && prescriptionRequired) updateData.prescriptionRequired = prescriptionRequired;
+                if (!existingProduct.coldChainRequired && coldChainRequired) updateData.coldChainRequired = coldChainRequired;
+                if (!existingProduct.controlledDrug && controlledDrug) updateData.controlledDrug = controlledDrug;
+                if (!existingProduct.highValueMedicine && highValueMedicine) updateData.highValueMedicine = highValueMedicine;
+                if (!existingProduct.storageCondition && storageCondition) updateData.storageCondition = storageCondition;
 
                 await tx.product.update({
                   where: { id: existingProduct.id },
@@ -1033,9 +1557,28 @@ export class ProductsService {
                     purchasePrice,
                     sellingPrice,
                     mrp,
+                    offlineMarkup,
+                    offlineSellingPrice,
+                    offlineAutoCalculate,
+                    onlineMarkup,
+                    onlineSellingPrice,
+                    onlineAutoCalculate,
+                    wholesalePrice,
+                    hospitalPrice,
+                    memberPrice,
+                    specialOfferPrice,
+                    retailDiscount,
+                    roundOff,
                     minStockLevel,
                     rackLocation,
                     description,
+                    drugSchedule,
+                    medicineClassification,
+                    prescriptionRequired,
+                    coldChainRequired,
+                    controlledDrug,
+                    highValueMedicine,
+                    storageCondition,
                     status,
                     syncStatus: 'PENDING',
                   }
@@ -1058,9 +1601,28 @@ export class ProductsService {
                   purchasePrice,
                   sellingPrice,
                   mrp,
+                  offlineMarkup,
+                  offlineSellingPrice,
+                  offlineAutoCalculate,
+                  onlineMarkup,
+                  onlineSellingPrice,
+                  onlineAutoCalculate,
+                  wholesalePrice,
+                  hospitalPrice,
+                  memberPrice,
+                  specialOfferPrice,
+                  retailDiscount,
+                  roundOff,
                   minStockLevel,
                   rackLocation,
                   description,
+                  drugSchedule,
+                  medicineClassification,
+                  prescriptionRequired,
+                  coldChainRequired,
+                  controlledDrug,
+                  highValueMedicine,
+                  storageCondition,
                   status,
                   syncStatus: 'PENDING',
                 }
@@ -1110,12 +1672,37 @@ export class ProductsService {
             const rackLocation = row.rackLocation ? String(row.rackLocation).trim() : null;
             const description = row.description ? String(row.description).trim() : null;
 
+            const costVal = row.cost !== undefined ? parseFloat(row.cost) || 0 : (row.purchasePrice !== undefined ? parseFloat(row.purchasePrice) || 0 : 0);
             const gstPercentage = row.gstPercentage !== undefined ? parseFloat(row.gstPercentage) || 0 : 0;
-            const purchasePrice = row.purchasePrice !== undefined ? parseFloat(row.purchasePrice) || 0 : 0;
-            const sellingPrice = row.sellingPrice !== undefined ? parseFloat(row.sellingPrice) || 0 : 0;
+            const purchasePrice = costVal;
             const mrp = row.mrp !== undefined ? parseFloat(row.mrp) || 0 : 0;
             const minStockLevel = row.minStockLevel !== undefined ? parseInt(row.minStockLevel) || 0 : 0;
             const status = row.status !== undefined ? (String(row.status).toLowerCase() === 'active' || row.status === true) : true;
+
+            const drugSchedule = row.drugSchedule !== undefined ? String(row.drugSchedule).trim() || null : null;
+            const medicineClassification = row.medicineClassification !== undefined ? String(row.medicineClassification).trim() || null : null;
+            const prescriptionRequired = row.prescriptionRequired === true || String(row.prescriptionRequired).toLowerCase() === 'true';
+            const coldChainRequired = row.coldChainRequired === true || String(row.coldChainRequired).toLowerCase() === 'true';
+            const controlledDrug = row.controlledDrug === true || String(row.controlledDrug).toLowerCase() === 'true';
+            const highValueMedicine = row.highValueMedicine === true || String(row.highValueMedicine).toLowerCase() === 'true';
+            const storageCondition = row.storageCondition !== undefined ? String(row.storageCondition).trim() || null : null;
+
+            const offlineMarkup = row.offlineMarkup !== undefined ? parseFloat(row.offlineMarkup) : 50.0;
+            const offlineSellingPrice = row.offlineSellingPrice !== undefined ? parseFloat(row.offlineSellingPrice) : 0.0;
+            const offlineAutoCalculate = row.offlineAutoCalculate !== undefined ? !!row.offlineAutoCalculate : true;
+            
+            const onlineMarkup = row.onlineMarkup !== undefined ? parseFloat(row.onlineMarkup) : 85.0;
+            const onlineSellingPrice = row.onlineSellingPrice !== undefined ? parseFloat(row.onlineSellingPrice) : 0.0;
+            const onlineAutoCalculate = row.onlineAutoCalculate !== undefined ? !!row.onlineAutoCalculate : true;
+            
+            const wholesalePrice = row.wholesalePrice !== undefined ? parseFloat(row.wholesalePrice) : 0.0;
+            const hospitalPrice = row.hospitalPrice !== undefined ? parseFloat(row.hospitalPrice) : 0.0;
+            const memberPrice = row.memberPrice !== undefined ? parseFloat(row.memberPrice) : 0.0;
+            const specialOfferPrice = row.specialOfferPrice !== undefined ? parseFloat(row.specialOfferPrice) : 0.0;
+            const retailDiscount = row.retailDiscount !== undefined ? parseFloat(row.retailDiscount) : 0.0;
+            const roundOff = row.roundOff !== undefined ? !!row.roundOff : true;
+            
+            const sellingPrice = offlineSellingPrice; // Base sellingPrice is synced to offlineStorePrice
 
             const categoryId = row.categoryName ? await resolveCategory(row.categoryName, tx) : null;
             const manufacturerId = row.manufacturerName ? await resolveManufacturer(row.manufacturerName, tx) : null;
@@ -1150,13 +1737,32 @@ export class ProductsService {
                     manufacturerId: manufacturerId || existingProduct.manufacturerId,
                     supplierId: supplierId || existingProduct.supplierId,
                     hsnCode: hsnCode || existingProduct.hsnCode,
-                    gstPercentage: gstPercentage !== undefined ? gstPercentage : existingProduct.gstPercentage,
-                    purchasePrice: purchasePrice !== undefined ? purchasePrice : existingProduct.purchasePrice,
-                    sellingPrice: sellingPrice !== undefined ? sellingPrice : existingProduct.sellingPrice,
-                    mrp: mrp !== undefined ? mrp : existingProduct.mrp,
+                    gstPercentage,
+                    purchasePrice,
+                    sellingPrice,
+                    mrp,
+                    offlineMarkup,
+                    offlineSellingPrice,
+                    offlineAutoCalculate,
+                    onlineMarkup,
+                    onlineSellingPrice,
+                    onlineAutoCalculate,
+                    wholesalePrice,
+                    hospitalPrice,
+                    memberPrice,
+                    specialOfferPrice,
+                    retailDiscount,
+                    roundOff,
                     minStockLevel: minStockLevel !== undefined ? minStockLevel : existingProduct.minStockLevel,
                     rackLocation: rackLocation || existingProduct.rackLocation,
                     description: description || existingProduct.description,
+                    drugSchedule: drugSchedule !== undefined ? drugSchedule : existingProduct.drugSchedule,
+                    medicineClassification: medicineClassification !== undefined ? medicineClassification : existingProduct.medicineClassification,
+                    prescriptionRequired: prescriptionRequired !== undefined ? prescriptionRequired : existingProduct.prescriptionRequired,
+                    coldChainRequired: coldChainRequired !== undefined ? coldChainRequired : existingProduct.coldChainRequired,
+                    controlledDrug: controlledDrug !== undefined ? controlledDrug : existingProduct.controlledDrug,
+                    highValueMedicine: highValueMedicine !== undefined ? highValueMedicine : existingProduct.highValueMedicine,
+                    storageCondition: storageCondition !== undefined ? storageCondition : existingProduct.storageCondition,
                     status,
                     syncStatus: 'PENDING',
                     updatedAt: new Date(),
@@ -1189,11 +1795,45 @@ export class ProductsService {
                 if ((existingProduct.mrp === null || existingProduct.mrp === 0) && mrp) {
                   updateData.mrp = mrp;
                 }
+                if ((existingProduct.offlineSellingPrice === null || existingProduct.offlineSellingPrice === 0) && offlineSellingPrice) {
+                  updateData.offlineSellingPrice = offlineSellingPrice;
+                  updateData.offlineMarkup = offlineMarkup;
+                  updateData.offlineAutoCalculate = offlineAutoCalculate;
+                }
+                if ((existingProduct.onlineSellingPrice === null || existingProduct.onlineSellingPrice === 0) && onlineSellingPrice) {
+                  updateData.onlineSellingPrice = onlineSellingPrice;
+                  updateData.onlineMarkup = onlineMarkup;
+                  updateData.onlineAutoCalculate = onlineAutoCalculate;
+                }
+                if ((existingProduct.wholesalePrice === null || existingProduct.wholesalePrice === 0) && wholesalePrice) {
+                  updateData.wholesalePrice = wholesalePrice;
+                }
+                if ((existingProduct.hospitalPrice === null || existingProduct.hospitalPrice === 0) && hospitalPrice) {
+                  updateData.hospitalPrice = hospitalPrice;
+                }
+                if ((existingProduct.memberPrice === null || existingProduct.memberPrice === 0) && memberPrice) {
+                  updateData.memberPrice = memberPrice;
+                }
+                if ((existingProduct.specialOfferPrice === null || existingProduct.specialOfferPrice === 0) && specialOfferPrice) {
+                  updateData.specialOfferPrice = specialOfferPrice;
+                }
+                if ((existingProduct.retailDiscount === null || existingProduct.retailDiscount === 0) && retailDiscount) {
+                  updateData.retailDiscount = retailDiscount;
+                }
+                updateData.roundOff = roundOff;
                 if ((existingProduct.minStockLevel === null || existingProduct.minStockLevel === 0) && minStockLevel) {
                   updateData.minStockLevel = minStockLevel;
                 }
                 if (!existingProduct.rackLocation && rackLocation) updateData.rackLocation = rackLocation;
                 if (!existingProduct.description && description) updateData.description = description;
+
+                if (!existingProduct.drugSchedule && drugSchedule) updateData.drugSchedule = drugSchedule;
+                if (!existingProduct.medicineClassification && medicineClassification) updateData.medicineClassification = medicineClassification;
+                if (!existingProduct.prescriptionRequired && prescriptionRequired) updateData.prescriptionRequired = prescriptionRequired;
+                if (!existingProduct.coldChainRequired && coldChainRequired) updateData.coldChainRequired = coldChainRequired;
+                if (!existingProduct.controlledDrug && controlledDrug) updateData.controlledDrug = controlledDrug;
+                if (!existingProduct.highValueMedicine && highValueMedicine) updateData.highValueMedicine = highValueMedicine;
+                if (!existingProduct.storageCondition && storageCondition) updateData.storageCondition = storageCondition;
 
                 await tx.product.update({
                   where: { id: existingProduct.id },
@@ -1217,9 +1857,28 @@ export class ProductsService {
                     purchasePrice,
                     sellingPrice,
                     mrp,
+                    offlineMarkup,
+                    offlineSellingPrice,
+                    offlineAutoCalculate,
+                    onlineMarkup,
+                    onlineSellingPrice,
+                    onlineAutoCalculate,
+                    wholesalePrice,
+                    hospitalPrice,
+                    memberPrice,
+                    specialOfferPrice,
+                    retailDiscount,
+                    roundOff,
                     minStockLevel,
                     rackLocation,
                     description,
+                    drugSchedule,
+                    medicineClassification,
+                    prescriptionRequired,
+                    coldChainRequired,
+                    controlledDrug,
+                    highValueMedicine,
+                    storageCondition,
                     status,
                     syncStatus: 'PENDING',
                   }
@@ -1242,9 +1901,28 @@ export class ProductsService {
                   purchasePrice,
                   sellingPrice,
                   mrp,
+                  offlineMarkup,
+                  offlineSellingPrice,
+                  offlineAutoCalculate,
+                  onlineMarkup,
+                  onlineSellingPrice,
+                  onlineAutoCalculate,
+                  wholesalePrice,
+                  hospitalPrice,
+                  memberPrice,
+                  specialOfferPrice,
+                  retailDiscount,
+                  roundOff,
                   minStockLevel,
                   rackLocation,
                   description,
+                  drugSchedule,
+                  medicineClassification,
+                  prescriptionRequired,
+                  coldChainRequired,
+                  controlledDrug,
+                  highValueMedicine,
+                  storageCondition,
                   status,
                   syncStatus: 'PENDING',
                 }

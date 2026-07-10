@@ -17,10 +17,14 @@ export class SystemSettingsService {
       settings = await this.repo.createSingleton({
         id: 'singleton',
         storeName: 'Medingen Pharmacy',
-        invoicePrefix: 'INV-',
+        invoicePrefix: 'BILL-',
         poPrefix: 'PO-',
         printerType: '80mm',
         backupInterval: 'DAILY',
+        defaultOfflineMarkup: 50.0,
+        defaultOnlineMarkup: 85.0,
+        defaultGst: 12.0,
+        defaultRetailDiscount: 0.0,
       });
     }
 
@@ -40,6 +44,10 @@ export class SystemSettingsService {
       poPrefix: dto.poPrefix !== undefined ? dto.poPrefix : settings.poPrefix,
       printerType: dto.printerType !== undefined ? dto.printerType : settings.printerType,
       backupInterval: dto.backupInterval !== undefined ? dto.backupInterval : settings.backupInterval,
+      defaultOfflineMarkup: dto.defaultOfflineMarkup !== undefined ? dto.defaultOfflineMarkup : settings.defaultOfflineMarkup,
+      defaultOnlineMarkup: dto.defaultOnlineMarkup !== undefined ? dto.defaultOnlineMarkup : settings.defaultOnlineMarkup,
+      defaultGst: dto.defaultGst !== undefined ? dto.defaultGst : settings.defaultGst,
+      defaultRetailDiscount: dto.defaultRetailDiscount !== undefined ? dto.defaultRetailDiscount : settings.defaultRetailDiscount,
     });
   }
 }

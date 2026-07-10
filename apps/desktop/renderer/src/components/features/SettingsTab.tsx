@@ -12,7 +12,7 @@ interface SettingsTabProps {
   handleActivateLicense: (e: React.FormEvent) => Promise<void>;
 }
 
-type SettingSection = 'general' | 'billing' | 'printer' | 'gst' | 'sync' | 'backup' | 'license' | 'about';
+type SettingSection = 'general' | 'billing' | 'printer' | 'gst' | 'pricing' | 'sync' | 'backup' | 'license' | 'about';
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
   settingsForm,
@@ -31,6 +31,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     { id: 'billing', label: 'Billing & Prefixes', icon: '🧾' },
     { id: 'printer', label: 'Thermal Printer Setup', icon: '🖨️' },
     { id: 'gst', label: 'GST Tax parameters', icon: '📊' },
+    { id: 'pricing', label: 'Pricing Defaults', icon: '💰' },
     { id: 'sync', label: 'Cloud Sync Engine', icon: '☁️' },
     { id: 'backup', label: 'Auto Backups', icon: '💾' },
     { id: 'license', label: 'License Activation', icon: '🔑' },
@@ -175,6 +176,62 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   </div>
                   <p className="text-[10px] text-slate-500 leading-normal">The registered GSTIN is embedded on thermal printed headers and sales return tax receipts. All transactions are logged with CGST (50%) and SGST (50%) components automatically.</p>
                 </div>
+              </div>
+            )}
+
+            {/* Pricing Defaults */}
+            {activeSection === 'pricing' && (
+              <div className="space-y-4 animate-fadeIn">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-slate-850 pb-2 flex items-center gap-2">💰 Global Pricing Defaults</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold">Default Offline Store Markup (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      required
+                      value={settingsForm.defaultOfflineMarkup ?? 50.0}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultOfflineMarkup: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-105 text-xs font-mono focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold">Default Online Store Markup (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      required
+                      value={settingsForm.defaultOnlineMarkup ?? 85.0}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultOnlineMarkup: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-105 text-xs font-mono focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold">Default GST tax (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      required
+                      value={settingsForm.defaultGst ?? 12.0}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultGst: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-105 text-xs font-mono focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold">Default Retail Discount (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      required
+                      value={settingsForm.defaultRetailDiscount ?? 0.0}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultRetailDiscount: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-105 text-xs font-mono focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-500 leading-normal">
+                  These markups and tax policies serve as the initialization template when creating new products or when resetting pricing books. Individual products can override these rules locally.
+                </p>
               </div>
             )}
 

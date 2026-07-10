@@ -18,7 +18,11 @@ export class AuthGuard implements CanActivate {
     let userId: string | undefined;
     let userRole: string | undefined;
 
-    const authHeader = request.headers['authorization'];
+    let authHeader = request.headers['authorization'];
+    if (!authHeader && request.query && request.query.token) {
+      authHeader = `Bearer ${request.query.token}`;
+    }
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const payload = JwtService.verify(token);

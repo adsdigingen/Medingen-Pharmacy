@@ -6,22 +6,27 @@ export class PrintService {
   constructor(private readonly prisma: PrismaService) {}
 
   async generateReceiptText(billId: string, widthType: '58mm' | '80mm' | '150x95mm' = '80mm') {
-    const bill = await this.prisma.bill.findUnique({
-      where: { id: billId },
-      include: {
-        customer: true,
-        billItems: {
-          include: {
-            batch: {
-              include: {
-                product: true,
+    const [bill, settings] = await Promise.all([
+      this.prisma.bill.findUnique({
+        where: { id: billId },
+        include: {
+          customer: true,
+          billItems: {
+            include: {
+              batch: {
+                include: {
+                  product: true,
+                },
               },
             },
           },
+          payments: true,
         },
-        payments: true,
-      },
-    });
+      }),
+      this.prisma.systemSettings.findUnique({
+        where: { id: 'singleton' },
+      }),
+    ]);
 
     if (!bill || bill.deletedAt) {
       throw new NotFoundException(`Invoice with ID "${billId}" not found.`);
@@ -46,10 +51,10 @@ export class PrintService {
       };
 
       // 1. Header
-      lines.push(center("MEDINGEN PHARMACY (MAIN ROAD BRANCH)"));
-      lines.push(center("No. 12, GST Road, Guindy, Chennai 600032"));
-      lines.push(center("DL No: 123/A/2020  Phone: +91 98765 43210"));
-      lines.push(center("GST NO      33AAAAA1111A1Z1"));
+      lines.push(center(settings?.storeName?.toUpperCase() || "MEDINGEN PHARMACY (MAIN ROAD BRANCH)"));
+      lines.push(center(settings?.address || "No. 12, GST Road, Guindy, Chennai 600032"));
+      lines.push(center(`DL No: 123/A/2020  Phone: ${settings?.phone || "+91 98765 43210"}`));
+      lines.push(center(`GST NO      ${settings?.gstin || "33AAAAA1111A1Z1"}`));
       
       const timeStr = new Date(bill.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       lines.push(padLeftRight("  SALES BILL", timeStr));
@@ -139,11 +144,11 @@ export class PrintService {
     };
 
     // 1. Header
-    lines.push(center("MEDINGEN PHARMACY"));
+    lines.push(center(settings?.storeName?.toUpperCase() || "MEDINGEN PHARMACY"));
     lines.push(center("Offline-First ERP POS System"));
-    lines.push(center("No. 12, GST Road, Guindy, Chennai"));
-    lines.push(center("GSTIN: 33AAAAA1111A1Z1"));
-    lines.push(center("Ph: +91 98765 43210"));
+    lines.push(center(settings?.address || "No. 12, GST Road, Guindy, Chennai"));
+    lines.push(center(`GSTIN: ${settings?.gstin || "33AAAAA1111A1Z1"}`));
+    lines.push(center(settings?.phone ? `Ph: ${settings.phone}` : "Ph: +91 98765 43210"));
     lines.push(separator());
 
     // 2. Metadata

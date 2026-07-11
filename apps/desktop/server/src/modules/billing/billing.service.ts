@@ -34,26 +34,25 @@ export class BillingService {
   private async executeCheckout(dto: CheckoutBillDto) {
     const now = new Date();
     
-    // Generate unique bill number: BILL-YYYYMMDD-XXXXX
-    const todayStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const prefix = `BILL-${todayStr}-`;
-
     const result = await this.prisma.$transaction(async (tx) => {
-      // Find latest bill to compute sequence
-      const lastInvoice = await tx.bill.findFirst({
-        where: { billNumber: { startsWith: prefix } },
-        orderBy: { billNumber: 'desc' },
-      });
-
-      let sequence = 1;
-      if (lastInvoice) {
-        const parts = lastInvoice.billNumber.split('-');
-        const lastSeq = parseInt(parts[parts.length - 1], 10);
-        if (!isNaN(lastSeq)) {
-          sequence = lastSeq + 1;
+      // Generate unique random 5-digit bill number
+      let billNumber = '';
+      let exists = true;
+      let retries = 0;
+      while (exists && retries < 20) {
+        const randNum = Math.floor(10000 + Math.random() * 90000).toString();
+        const existing = await tx.bill.findUnique({
+          where: { billNumber: randNum },
+        });
+        if (!existing) {
+          billNumber = randNum;
+          exists = false;
         }
+        retries++;
       }
-      const billNumber = `${prefix}${sequence.toString().padStart(5, '0')}`;
+      if (!billNumber) {
+        billNumber = Math.floor(10000 + Math.random() * 90000).toString();
+      }
 
       // 1. Customer registration on-the-fly
       let customerId = dto.customerId || null;

@@ -23,7 +23,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         let nodeModulesPath = '';
         for (let i = 0; i < 10; i++) {
           const testPath = path.join(currentDir, 'node_modules');
-          if (fs.existsSync(testPath)) {
+          if (fs.existsSync(testPath) && fs.existsSync(path.join(testPath, 'prisma/build/index.js'))) {
             nodeModulesPath = testPath;
             break;
           }
@@ -56,12 +56,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             console.log('[PrismaService] Database migrations completed successfully.');
           } else {
             console.error('[PrismaService] Missing required Prisma files: CLI exists:', fs.existsSync(prismaCliPath), 'Schema exists:', fs.existsSync(schemaPath));
-            // Fallback
-            execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+            // Fallback pointing directly to the monorepo schema path
+            execSync('npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma', { stdio: 'inherit' });
           }
         } else {
           console.warn('[PrismaService] node_modules folder not found in parent path traverse!');
-          execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+          execSync('npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma', { stdio: 'inherit' });
         }
       } catch (err: any) {
         console.error('[PrismaService] Database migration execution failed:', err.message);

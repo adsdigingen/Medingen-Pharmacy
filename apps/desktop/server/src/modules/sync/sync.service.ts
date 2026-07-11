@@ -229,6 +229,11 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     return this.getSyncStatus();
   }
 
+  async updateSyncSettings(data: { cloudApiUrl?: string; syncIntervalMs?: number; syncEnabled?: boolean }) {
+    return this.repo.updateSyncSettings(data);
+  }
+
+
   private async getOrCreateDeviceRegistration() {
     let registration = await this.prisma.deviceRegistration.findFirst();
     if (!registration) {

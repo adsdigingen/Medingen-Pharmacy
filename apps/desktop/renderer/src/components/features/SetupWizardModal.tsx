@@ -151,12 +151,29 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
       });
 
       if (!settingsRes.ok) {
-        throw new Error('Failed to save store configuration.');
+        const errBody = await settingsRes.json().catch(() => ({}));
+        throw new Error(errBody?.message || 'Failed to save store configuration.');
       }
 
       const settingsData = (await settingsRes.json()).data;
       
       // 4. Update local Sync settings to cloudUrl
+      const syncSettingsRes = await fetch(`${API_BASE}/sync/settings`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeToken}`
+        },
+        body: JSON.stringify({
+          cloudApiUrl: cloudUrl.trim()
+        })
+      });
+
+      if (!syncSettingsRes.ok) {
+        const errBody = await syncSettingsRes.json().catch(() => ({}));
+        throw new Error(errBody?.message || 'Failed to save cloud sync target URL configuration.');
+      }
+
       await fetch(`${API_BASE}/sync/force`, {
         method: 'POST',
         headers: { 

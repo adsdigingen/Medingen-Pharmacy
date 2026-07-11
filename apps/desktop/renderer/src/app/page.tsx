@@ -420,11 +420,11 @@ export default function Home() {
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
-            if (parsed && parsed.id && parsed.role) {
+            if (parsed) {
               init = init || {};
               const headersObj = new Headers(init.headers);
-              headersObj.set('x-user-id', parsed.id);
-              headersObj.set('x-user-role', parsed.role);
+              if (parsed.id) headersObj.set('x-user-id', parsed.id);
+              if (parsed.role) headersObj.set('x-user-role', parsed.role);
               if (parsed.token) {
                 headersObj.set('Authorization', `Bearer ${parsed.token}`);
               }
@@ -481,6 +481,16 @@ export default function Home() {
         startupReport.push(msg);
       };
 
+      // Load cached session token early so it can be used for startup API requests
+      let startupToken: string | undefined;
+      try {
+        const cached = localStorage.getItem('medingen_session');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          startupToken = parsed.token;
+        }
+      } catch (_) {}
+
       logTrace("========== APPLICATION STARTUP ==========");
 
       // Step 1: Renderer Loaded
@@ -518,7 +528,7 @@ export default function Home() {
           logTrace("[Startup Warning] Backend did not respond in time — proceeding anyway.");
         }
         logTrace("[Startup]\nFile: apps/desktop/renderer/src/app/page.tsx\nLine: 464\nCalling fetchSettings()");
-        await withTimeout(fetchSettings(), 5000, "Load Settings", null);
+        await withTimeout(fetchSettings(startupToken), 5000, "Load Settings", null);
         logTrace("[Startup]\nFile: apps/desktop/renderer/src/app/page.tsx\nLine: 464\nCompleted fetchSettings()");
         reportStep(4, "Loading Local Settings", true);
       } catch (err: any) {
@@ -562,7 +572,7 @@ export default function Home() {
       try {
         if (cachedSession) {
           logTrace("[Startup]\nFile: apps/desktop/renderer/src/app/page.tsx\nLine: 501\nCalling fetchDashboardStats()");
-          await withTimeout(fetchDashboardStats(), 5000, "Load Dashboard Stats", null);
+          await withTimeout(fetchDashboardStats(startupToken), 5000, "Load Dashboard Stats", null);
           logTrace("[Startup]\nFile: apps/desktop/renderer/src/app/page.tsx\nLine: 501\nCompleted fetchDashboardStats()");
         } else {
           logTrace("Skipping fetchDashboardStats() (No cached session)");
@@ -596,7 +606,7 @@ export default function Home() {
       logTrace("[Startup]\nFile: apps/desktop/renderer/src/app/page.tsx\nLine: 524\n[9/10] Finalizing...");
       try {
         logTrace("[Startup]\nFile: apps/desktop/renderer/src/app/page.tsx\nLine: 527\nCalling fetchAllUsers()");
-        await withTimeout(fetchAllUsers(), 5000, "Load System Users", null);
+        await withTimeout(fetchAllUsers(startupToken), 5000, "Load System Users", null);
         logTrace("[Startup]\nFile: apps/desktop/renderer/src/app/page.tsx\nLine: 527\nCompleted fetchAllUsers()");
         reportStep(9, "Finalizing", true);
       } catch (err: any) {
@@ -723,14 +733,22 @@ ${startupReport.join("\n")}
   }, [activeTab, currentUser]);
 
 
-  const fetchAllUsers = async () => {
+  const fetchAllUsers = async (token?: string) => {
     logTrace("[Startup]\nFile: apps/desktop/renderer/src/app/page.tsx\nLine: 650\nCalling fetchAllUsers()");
     console.time("fetchAllUsers");
     logTrace("[Medingen Init] fetchAllUsers started");
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
-      const res = await fetch(`${API_BASE}/users-management?limit=200`, { signal: controller.signal });
+      const activeToken = token || currentUser?.token;
+      const headers: Record<string, string> = {};
+      if (activeToken) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
+      const res = await fetch(`${API_BASE}/users-management?limit=200`, { 
+        signal: controller.signal,
+        headers
+      });
       if (res.ok) {
         const envelope = await res.json();
         const usersList = envelope.data || [];
@@ -965,11 +983,16 @@ ${startupReport.join("\n")}
   };
 
   // --- DASHBOARD STATS ---
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = async (token?: string) => {
     logTrace("[Startup]\nFile: apps/desktop/renderer/src/app/page.tsx\nLine: 868\nCalling fetchDashboardStats()");
     setDashboardLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/dashboard/stats`);
+      const activeToken = token || currentUser?.token;
+      const headers: Record<string, string> = {};
+      if (activeToken) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
+      const res = await fetch(`${API_BASE}/dashboard/stats`, { headers });
       if (res.ok) {
         const envelope = await res.json();
         const data = envelope.data || {};
@@ -1383,7 +1406,7 @@ ${startupReport.join("\n")}
   };
 
   // --- SYSTEM SETTINGS LOGIC ---
-  const fetchSettings = async () => {
+  const fetchSettings = async (token?: string) => {
     logTrace("[Startup]\nFile: apps/desktop/renderer/src/app/page.tsx\nLine: 1274\nCalling fetchSettings()");
     console.time("fetchSettings");
     logTrace("[Medingen Init] fetchSettings started");
@@ -1391,7 +1414,15 @@ ${startupReport.join("\n")}
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
-      const res = await fetch(`${API_BASE}/system-settings`, { signal: controller.signal });
+      const activeToken = token || currentUser?.token;
+      const headers: Record<string, string> = {};
+      if (activeToken) {
+        headers['Authorization'] = `Bearer ${activeToken}`;
+      }
+      const res = await fetch(`${API_BASE}/system-settings`, { 
+        signal: controller.signal,
+        headers
+      });
       if (res.ok) {
         const envelope = await res.json();
         setSettingsForm(envelope.data);

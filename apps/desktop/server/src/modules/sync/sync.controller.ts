@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, UseGuards } from '@nestjs/common';
 import { SyncService } from './sync.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
@@ -24,6 +24,13 @@ export class SyncController {
   forceSync() {
     return this.syncService.forceTrigger();
   }
+
+  @Put('settings')
+  @Roles(Role.ADMIN)
+  updateSettings(@Body() dto: { cloudApiUrl?: string; syncIntervalMs?: number; syncEnabled?: boolean }) {
+    return this.syncService.updateSyncSettings(dto);
+  }
+
 
   @Get('conflicts')
   getConflicts() {

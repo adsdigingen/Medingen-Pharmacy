@@ -71,6 +71,24 @@ export class DashboardService {
       purchasesThisMonth += poCost;
     });
 
+    // 4.5. Today's Sales/Revenue/Profit
+    const todayBills = await this.prisma.bill.findMany({
+      where: {
+        createdAt: { gte: todayStart },
+        status: 'COMPLETED',
+        deletedAt: null,
+      },
+    });
+
+    let revenue = 0;
+    let profit = 0;
+    const totalBills = todayBills.length;
+
+    todayBills.forEach((b) => {
+      revenue += b.netAmount;
+      profit += b.profitAmount;
+    });
+
     // 5. Expiry List (top 10 closest to expiring)
     const expiringBatches = await this.repo.findExpiringBatches(exp90);
 
@@ -146,6 +164,9 @@ export class DashboardService {
         pendingPoCount,
         purchasesToday,
         purchasesThisMonth,
+        revenue,
+        profit,
+        totalBills,
       },
       expiringBatches,
       lowStockList,

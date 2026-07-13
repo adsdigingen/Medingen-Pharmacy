@@ -17,10 +17,21 @@ export class ProductsService {
   ) {}
 
   private async getPricingDefaults() {
-    const settings = await this.prisma.systemSettings.findUnique({
-      where: { id: 'singleton' },
-    });
-    if (!settings) {
+    try {
+      const settings = await this.prisma.systemSettings.findUnique({
+        where: { id: 'singleton' },
+      });
+      if (!settings) {
+        return {
+          defaultOfflineMarkup: 50.0,
+          defaultOnlineMarkup: 85.0,
+          defaultGst: 12.0,
+          defaultRetailDiscount: 0.0,
+        };
+      }
+      return settings;
+    } catch (e) {
+      console.warn('[ProductsService] Failed to fetch system settings from database, returning static defaults:', e.message);
       return {
         defaultOfflineMarkup: 50.0,
         defaultOnlineMarkup: 85.0,
@@ -28,7 +39,6 @@ export class ProductsService {
         defaultRetailDiscount: 0.0,
       };
     }
-    return settings;
   }
 
   private calculateProductPrices(

@@ -13,10 +13,10 @@ export const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   return (
-    <div className={`bg-slate-900/35 backdrop-blur-md border border-slate-800/80 rounded-2xl shadow-xl overflow-hidden ${className}`} {...props}>
+    <div className={`bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden ${className}`} {...props}>
       {(title || headerActions) && (
-        <div className="px-5 py-4 border-b border-slate-800/70 flex items-center justify-between">
-          {title && <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider">{title}</h3>}
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          {title && <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">{title}</h3>}
           {headerActions && <div>{headerActions}</div>}
         </div>
       )}

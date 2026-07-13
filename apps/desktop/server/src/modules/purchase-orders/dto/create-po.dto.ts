@@ -44,6 +44,10 @@ export class PurchaseOrderItemDto {
 
   @IsNumber()
   totalAmount: number;
+
+  @IsString()
+  @IsOptional()
+  drugSchedule?: string;
 }
 
 export class CreatePurchaseOrderDto {

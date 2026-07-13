@@ -192,21 +192,21 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
 
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 font-sans text-xs text-slate-400 select-none">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-fadeIn relative">
+    <div className="fixed inset-0 z-50 bg-white/80 backdrop-blur-md flex items-center justify-center p-4 font-sans text-xs text-muted select-none">
+      <div className="w-full max-w-lg bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden animate-fadeIn relative">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.03)_0%,transparent_60%)] pointer-events-none" />
         
         {/* Header */}
-        <div className="p-6 border-b border-slate-850 bg-slate-950/30 flex justify-between items-center relative z-10">
+        <div className="p-6 border-b border-gray-200 bg-white/30 flex justify-between items-center relative z-10">
           <div>
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">🚀 Medingen First-Time Setup Wizard</h2>
-            <p className="text-[10px] text-slate-500 mt-1">Configure your pharmacy instance before launching terminal dashboards.</p>
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">🚀 Medingen First-Time Setup Wizard</h2>
+            <p className="text-[10px] text-gray-500 mt-1">Configure your pharmacy instance before launching terminal dashboards.</p>
           </div>
-          <span className="text-[10px] font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded">STEP {step} OF 4</span>
+          <span className="text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">STEP {step} OF 4</span>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full h-1 bg-slate-950">
+        <div className="w-full h-1 bg-white">
           <div 
             className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-300"
             style={{ width: `${(step / 4) * 100}%` }}
@@ -215,7 +215,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 relative z-10">
           {error && (
-            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-455 p-3 rounded-lg font-bold">
+            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-600 p-3 rounded-lg font-bold">
               ⚠️ {error}
             </div>
           )}
@@ -223,51 +223,51 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
           {/* STEP 1: Store & Contact */}
           {step === 1 && (
             <div className="space-y-4 animate-fadeIn">
-              <span className="font-bold text-slate-200 block text-xs">🏪 Step 1: General Pharmacy Configurations</span>
+              <span className="font-bold text-gray-700 block text-xs">🏪 Step 1: General Pharmacy Configurations</span>
               <div className="space-y-3.5">
                 <div className="space-y-1">
-                  <label className="text-slate-450 font-bold">Store / Pharmacy Name *</label>
+                  <label className="text-gray-500 font-bold">Store / Pharmacy Name *</label>
                   <input
                     type="text"
                     required
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
                     placeholder="e.g. Medingen Pharmacy Main Store"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-800 focus:outline-none"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3.5">
                   <div className="space-y-1">
-                    <label className="text-slate-450 font-bold">Store Phone *</label>
+                    <label className="text-gray-500 font-bold">Store Phone *</label>
                     <input
                       type="text"
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="e.g. +91 9988776655"
-                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none"
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-800 focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-slate-450 font-bold">Support Email</label>
+                    <label className="text-gray-500 font-bold">Support Email</label>
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="e.g. contact@store.com"
-                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none"
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-800 focus:outline-none"
                     />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-450 font-bold">Physical Address Location *</label>
+                  <label className="text-gray-500 font-bold">Physical Address Location *</label>
                   <input
                     type="text"
                     required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="e.g. Block 4 Indiranagar, Bangalore, Karnataka"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-800 focus:outline-none"
                   />
                 </div>
               </div>
@@ -277,31 +277,31 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
           {/* STEP 2: Tax & Licenses */}
           {step === 2 && (
             <div className="space-y-4 animate-fadeIn">
-              <span className="font-bold text-slate-200 block text-xs">📊 Step 2: Tax Parameters & Licenses</span>
+              <span className="font-bold text-gray-700 block text-xs">📊 Step 2: Tax Parameters & Licenses</span>
               <div className="space-y-3.5">
                 <div className="space-y-1">
-                  <label className="text-slate-450 font-bold">Pharmacy GSTIN *</label>
+                  <label className="text-gray-500 font-bold">Pharmacy GSTIN *</label>
                   <input
                     type="text"
                     required
                     value={gstin}
                     onChange={(e) => setGstin(e.target.value)}
                     placeholder="e.g. 29AAAAA1111A1Z1"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 font-mono focus:outline-none"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 font-mono focus:outline-none"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-450 font-bold">State Drug License Number *</label>
+                  <label className="text-gray-500 font-bold">State Drug License Number *</label>
                   <input
                     type="text"
                     required
                     value={drugLicense}
                     onChange={(e) => setDrugLicense(e.target.value)}
                     placeholder="e.g. KA-IND-12345/2026"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 font-mono focus:outline-none"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 font-mono focus:outline-none"
                   />
                 </div>
-                <p className="text-[10px] text-slate-500 leading-relaxed leading-normal">
+                <p className="text-[10px] text-gray-500 leading-relaxed leading-normal">
                   The Drug License and GSTIN numbers are dynamically embedded on customer receipts and billing statements to guarantee local drug store compliance standards.
                 </p>
               </div>
@@ -311,31 +311,31 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
           {/* STEP 3: Admin Password Policy */}
           {step === 3 && (
             <div className="space-y-4 animate-fadeIn">
-              <span className="font-bold text-slate-200 block text-xs">🔑 Step 3: Configure Administrator Credentials</span>
+              <span className="font-bold text-gray-700 block text-xs">🔑 Step 3: Configure Administrator Credentials</span>
               <div className="space-y-3.5">
-                <p className="text-[10px] text-slate-500 leading-normal">
+                <p className="text-[10px] text-gray-500 leading-normal">
                   You are currently logged in with the default setup account credentials. For security, please choose a strong custom administrator password.
                 </p>
                 <div className="space-y-1">
-                  <label className="text-slate-450 font-bold">New Admin Password *</label>
+                  <label className="text-gray-500 font-bold">New Admin Password *</label>
                   <input
                     type="password"
                     required
                     value={adminPassword}
                     onChange={(e) => setAdminPassword(e.target.value)}
                     placeholder="Password (minimum 6 characters)"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-800 focus:outline-none"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-450 font-bold">Confirm Admin Password *</label>
+                  <label className="text-gray-500 font-bold">Confirm Admin Password *</label>
                   <input
                     type="password"
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repeat password"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 focus:outline-none"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-800 focus:outline-none"
                   />
                 </div>
               </div>
@@ -345,24 +345,24 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
           {/* STEP 4: Integrations */}
           {step === 4 && (
             <div className="space-y-4 animate-fadeIn">
-              <span className="font-bold text-slate-200 block text-xs">🔌 Step 4: System Integration Parameters</span>
+              <span className="font-bold text-gray-700 block text-xs">🔌 Step 4: System Integration Parameters</span>
               <div className="space-y-3.5">
                 <div className="space-y-1">
-                  <label className="text-slate-450 font-bold">Cloud Sync Target API URL *</label>
+                  <label className="text-gray-500 font-bold">Cloud Sync Target API URL *</label>
                   <input
                     type="text"
                     required
                     value={cloudUrl}
                     onChange={(e) => setCloudUrl(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 font-mono focus:outline-none"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-800 font-mono focus:outline-none"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-slate-450 font-bold">Active Thermal Receipt Printer Width *</label>
+                  <label className="text-gray-500 font-bold">Active Thermal Receipt Printer Width *</label>
                   <select
                     value={printerType}
                     onChange={(e) => setPrinterType(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 focus:outline-none"
                   >
                     <option value="80mm">80mm Standard thermal roll width</option>
                     <option value="58mm">58mm Compact thermal roll width</option>
@@ -373,13 +373,13 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
           )}
 
           {/* Action Bar */}
-          <div className="flex justify-between items-center pt-5 border-t border-slate-850 mt-4">
+          <div className="flex justify-between items-center pt-5 border-t border-gray-200 mt-4">
             {step > 1 ? (
               <button
                 type="button"
                 onClick={handleBack}
                 disabled={loading}
-                className="px-4 py-2 border border-slate-800 hover:bg-slate-850 text-slate-350 font-bold rounded-lg cursor-pointer transition-all disabled:opacity-50"
+                className="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-600 font-bold rounded-lg cursor-pointer transition-all disabled:opacity-50"
               >
                 Back
               </button>
@@ -391,7 +391,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-6 py-2 bg-teal-500 text-slate-950 font-bold hover:bg-teal-400 rounded-lg cursor-pointer transition-all active:scale-95 shadow-lg shadow-teal-500/10"
+                className="px-6 py-2 bg-primary text-slate-950 font-bold hover:bg-primary-hover rounded-lg cursor-pointer transition-all active:scale-95 shadow-lg shadow-primary/10"
               >
                 Next Step
               </button>

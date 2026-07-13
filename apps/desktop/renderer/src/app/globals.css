@@ -1,37 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #090D16;
-  --foreground: #F3F4F6;
+  --background: #FFFFFF;
+  --foreground: #1A1A2E;
 }
 
 @theme {
-  --color-slate-955: #05070C;
-  --color-slate-950: #090D16;
-  --color-slate-900: #111827;
-  --color-slate-850: #151C2C;
-  --color-slate-800: #1F2937;
-  --color-slate-700: #374151;
-  --color-slate-600: #4B5563;
-  --color-slate-500: #6B7280;
-  --color-slate-450: #9CA3AF;
-  --color-slate-400: #9CA3AF;
-  --color-slate-350: #D1D5DB;
-  --color-slate-300: #D1D5DB;
-  --color-slate-200: #E5E7EB;
-  --color-slate-100: #F3F4F6;
+  /* Semantic variables */
+  --color-primary: #7259db;
+  --color-primary-hover: #6149cb;
+  --color-primary-light: rgba(114, 89, 219, 0.1);
+  --color-success: #10B981;
+  --color-success-hover: #059669;
+  --color-warning: #F59E0B;
+  --color-danger: #F43F5E;
+  --color-danger-hover: #E11D48;
+  --color-muted: #6B7280;
+  --color-surface: #FFFFFF;
+  --color-background: #FAFBFC;
+  --color-border: #E2E4E9;
 
-  --color-teal-500: #14B8A6;
-  --color-teal-400: #2DD4BF;
-  --color-teal-600: #0D9488;
-  --color-teal-700: #0F766E;
+  /* Custom slate definitions for legacy compatibility */
+  --color-slate-955: #FAFBFC;
+  --color-slate-950: #F5F6F8;
+  --color-slate-900: #FFFFFF;
+  --color-slate-850: #F0F1F4;
+  --color-slate-800: #E2E4E9;
+  --color-slate-700: #D1D5DB;
+  --color-slate-600: #9CA3AF;
+  --color-slate-500: #6B7280;
+  --color-slate-450: #4B5563;
+  --color-slate-400: #4B5563;
+  --color-slate-350: #374151;
+  --color-slate-300: #374151;
+  --color-slate-205: #1F2937;
+  --color-slate-200: #1F2937;
+  --color-slate-100: #111827;
+
+  /* Brand purple (mapped directly) */
+  --color-teal-500: #7259db;
+  --color-teal-400: #8B75E3;
+  --color-teal-600: #6149cb;
+  --color-teal-700: #5039b5;
 
   --color-emerald-500: #10B981;
   --color-emerald-400: #34D399;
   --color-emerald-600: #059669;
 
   --color-rose-500: #F43F5E;
-  --color-rose-455: #FB7185;
+  --color-rose-455: #E11D48;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -51,17 +68,10 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #090D16;
-    --foreground: #F3F4F6;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), sans-serif;
+  font-family: 'Open Sans', sans-serif;
   overflow-x: hidden;
 }
 
@@ -71,14 +81,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #05070C;
+  background: #F5F6F8;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1F2937;
+  background: #D1D5DB;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #374151;
+  background: #9CA3AF;
 }
 
 /* Animations */
@@ -93,6 +103,34 @@ body {
 
 /* Focus utilities */
 input:focus, select:focus, textarea:focus {
-  outline: 2px solid var(--color-teal-500) !important;
+  outline: 2px solid #7259db !important;
   outline-offset: 1px;
+}
+
+/* UI Density Overrides for Compact Layout */
+.density-compact th,
+.density-compact td {
+  padding-top: 0.3rem !important;
+  padding-bottom: 0.3rem !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+  font-size: 11px !important;
+}
+
+.density-compact input,
+.density-compact select,
+.density-compact textarea {
+  padding-top: 0.35rem !important;
+  padding-bottom: 0.35rem !important;
+  font-size: 11px !important;
+}
+
+.density-compact button {
+  padding-top: 0.35rem !important;
+  padding-bottom: 0.35rem !important;
+  font-size: 11px !important;
+}
+
+.density-compact h3 {
+  font-size: 12px !important;
 }

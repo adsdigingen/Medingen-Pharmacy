@@ -92,6 +92,16 @@ export class PurchaseOrdersService {
         await this.integrateReceivedStock(po.id, tx);
       }
 
+      // Update drug schedules for each item in the product table
+      for (const item of createPoDto.items) {
+        if (item.drugSchedule !== undefined) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { drugSchedule: item.drugSchedule || null },
+          });
+        }
+      }
+
       return po;
     });
 
@@ -594,6 +604,16 @@ export class PurchaseOrdersService {
           items: true,
         },
       });
+
+      // Update drug schedules for each item in the product table
+      for (const item of dto.items) {
+        if (item.drugSchedule !== undefined) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { drugSchedule: item.drugSchedule || null },
+          });
+        }
+      }
 
       return updated;
     });

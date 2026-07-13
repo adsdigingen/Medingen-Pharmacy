@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ToastProvider } from "../components/common/ToastProvider";
 
 export const metadata: Metadata = {
   title: "Medingen Pharmacy ERP",
@@ -17,7 +18,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
         {/* Instant splash screen rendered as raw HTML before ANY JS loads */}
@@ -76,7 +77,7 @@ export default function RootLayout({
           console.log("[Layout] Startup trace initialized.");
         `}} />
       </head>
-      <body className="min-h-full flex flex-col bg-slate-950" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <body className="min-h-full flex flex-col bg-background" style={{ fontFamily: "'Open Sans', system-ui, sans-serif" }}>
         {/* Instant splash: visible immediately, before React hydrates */}
         <div id="app-loader">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -99,7 +100,9 @@ export default function RootLayout({
           }}></div>
         </div>
 
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

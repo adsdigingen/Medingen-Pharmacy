@@ -4,20 +4,24 @@ interface EmptyStateProps {
   title?: string;
   description?: string;
   icon?: React.ReactNode;
+  actionLabel?: string;
+  onActionClick?: () => void;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   title = "No data available",
   description = "There are no records to display at the moment.",
   icon,
+  actionLabel,
+  onActionClick,
 }) => {
   return (
-    <div className="flex flex-col items-center justify-center p-8 text-center bg-slate-900/10 border border-dashed border-slate-800 rounded-xl">
+    <div className="flex flex-col items-center justify-center p-8 text-center bg-gray-50 border border-dashed border-gray-200 rounded-xl">
       {icon ? (
-        <div className="text-slate-500 mb-3">{icon}</div>
+        <div className="text-gray-400 mb-3">{icon}</div>
       ) : (
         <svg
-          className="mx-auto h-10 w-10 text-slate-550 mb-3"
+          className="mx-auto h-10 w-10 text-gray-300 mb-3"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -32,8 +36,17 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           />
         </svg>
       )}
-      <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">{title}</h3>
-      <p className="mt-1 text-xs text-slate-500 max-w-xs">{description}</p>
+      <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wider">{title}</h3>
+      <p className="mt-1 text-xs text-gray-450 max-w-xs mb-3.5">{description}</p>
+      {actionLabel && onActionClick && (
+        <button
+          type="button"
+          onClick={onActionClick}
+          className="px-4 py-2 bg-primary text-white hover:bg-primary-hover font-bold rounded-lg text-xs transition-transform active:scale-95 shadow-md shadow-primary/10 cursor-pointer"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 };

@@ -7,6 +7,7 @@ import { TbReceipt2 } from 'react-icons/tb';
 import { LuBoxes } from 'react-icons/lu';
 import LoginScreen from '../components/features/LoginScreen';
 import { SetupWizardModal } from '../components/features/SetupWizardModal';
+import { useToast } from '../components/common/ToastProvider';
 
 // Tab Components
 import DashboardTab from '../components/features/DashboardTab';
@@ -91,6 +92,20 @@ async function waitForBackend(url: string, maxMs = 10000): Promise<boolean> {
 
 
 export default function Home() {
+  const { showToast } = useToast();
+
+  // UI Layout Density
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('medingen-density');
+      if (cached === 'compact' || cached === 'comfortable') {
+        setDensity(cached);
+      }
+    }
+  }, []);
+
   // Session Authentication state
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -111,9 +126,11 @@ export default function Home() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  // Global search Ctrl+K state
+  // Global search Ctrl+K state & Command Palette
   const [searchOpen, setSearchOpen] = useState(false);
   const [globalQuery, setGlobalQuery] = useState('');
+  const [paletteSelectedIndex, setPaletteSelectedIndex] = useState(0);
+  const [isShortcutHelpOpen, setIsShortcutHelpOpen] = useState(false);
 
   // Global catalogs
   const [allCategories, setAllCategories] = useState<any[]>([]);
@@ -795,14 +812,27 @@ ${startupReport.join("\n")}
       if (e.ctrlKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setSearchOpen(prev => !prev);
+      } else if (e.key === '?' || (e.ctrlKey && e.key === '/')) {
+        e.preventDefault();
+        setIsShortcutHelpOpen(prev => !prev);
       } else if (e.key === 'F2') {
         e.preventDefault();
-        setActiveTab('pos');
-        handleNewBill();
+        if (activeTab === 'pos' && cart.length > 0) {
+          if (confirm("Are you sure you want to clear the active cart? All progress will be lost.")) {
+            handleNewBill();
+          }
+        } else {
+          setActiveTab('pos');
+          handleNewBill();
+        }
       } else if (e.key === 'F3') {
         e.preventDefault();
-        setActiveTab('inventory');
-        setInventorySubTab('stock');
+        if (activeTab === 'pos') {
+          searchInputRef.current?.focus();
+        } else {
+          setActiveTab('pos');
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+        }
       } else if (e.key === 'F4') {
         e.preventDefault();
         if (activeTab === 'pos') {
@@ -831,6 +861,7 @@ ${startupReport.join("\n")}
         setIsCancelModalOpen(false);
         setIsSalesReturnModalOpen(false);
         setIsUserModalOpen(false);
+        setIsShortcutHelpOpen(false);
         setActiveReceiptId(null);
         setSearchOpen(false);
         setProfileDropdownOpen(false);
@@ -856,11 +887,10 @@ ${startupReport.join("\n")}
     ).slice(0, 8);
     setPosSearchResults(filtered);
 
-    // Barcode scanner quick add
+    // Barcode scanner quick add (continuous scan-to-cart automation)
     const exactMatch = allProducts.find(p => p.barcode === posSearch);
     if (exactMatch) {
-      handleSelectProduct(exactMatch);
-      setPosSearch('');
+      handleBarcodeScanAdd(exactMatch);
     }
   }, [posSearch, allProducts]);
 
@@ -1015,6 +1045,94 @@ ${startupReport.join("\n")}
   };
 
   // --- POS CART CONTROLLER ---
+  const handleBarcodeScanAdd = async (product: any) => {
+    try {
+      const res = await fetch(`${API_BASE}/batches/fefo/${product.id}`);
+      if (res.ok) {
+        const envelope = await res.json();
+        const batchesList = envelope.data || [];
+        const activeBatch = batchesList.find((b: any) => b.availableQty > 0);
+        if (!activeBatch) {
+          showToast(`Product "${product.name}" is out of stock in all batches.`, 'error');
+          setPosSearch('');
+          return;
+        }
+        
+        // Add directly to cart
+        setCart(prevCart => {
+          const existingIndex = prevCart.findIndex(it => it.batchId === activeBatch.id);
+          const isOnline = modeOfSell === 'ONLINE';
+          const priceToUse = isOnline ? activeBatch.mrp : activeBatch.sellingPrice;
+          
+          if (existingIndex > -1) {
+            const updatedCart = [...prevCart];
+            const newQty = updatedCart[existingIndex].quantity + 1;
+            if (activeBatch.availableQty < newQty) {
+              showToast(`Insufficient stock. Cumulative cart quantity (${newQty}) exceeds available batch stock (${activeBatch.availableQty}).`, 'warning');
+              return prevCart;
+            }
+            const item = { ...updatedCart[existingIndex] };
+            item.quantity = newQty;
+            
+            const subtotal = newQty * item.sellingPrice;
+            const gstAmt = subtotal * (item.gstPercentage / 100);
+            item.gstAmount = gstAmt;
+            item.totalAmount = subtotal - (subtotal * (item.discountPercentage / 100)) + gstAmt;
+            
+            updatedCart[existingIndex] = item;
+            return updatedCart;
+          } else {
+            const subtotal = 1 * priceToUse;
+            const gstAmt = subtotal * (activeBatch.gstPercentage / 100);
+            return [
+              ...prevCart,
+              {
+                productId: product.id,
+                name: product.name,
+                batchId: activeBatch.id,
+                batchNumber: activeBatch.batchNumber,
+                expiryDate: activeBatch.expiryDate,
+                quantity: 1,
+                sellingPrice: priceToUse,
+                mrp: activeBatch.mrp,
+                offlinePrice: activeBatch.sellingPrice,
+                onlinePrice: activeBatch.mrp,
+                discountPercentage: 0,
+                gstPercentage: activeBatch.gstPercentage,
+                gstAmount: gstAmt,
+                totalAmount: subtotal + gstAmt
+              }
+            ];
+          }
+        });
+
+        // Continuous scan sound feedback
+        try {
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+          gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.12);
+        } catch (err) {
+          console.warn("Audio Context blocked:", err);
+        }
+
+        showToast(`Added ${product.name} (Batch: ${activeBatch.batchNumber}) to cart`, 'success');
+        setPosSearch('');
+        setPosSearchResults([]);
+        searchInputRef.current?.focus();
+      }
+    } catch (e) {
+      console.error("Failed to auto-add product on barcode scan:", e);
+    }
+  };
+
   const handleSelectProduct = async (product: any) => {
     setSelectedProduct(product);
     setPosSearch('');
@@ -1123,9 +1241,24 @@ ${startupReport.join("\n")}
   };
 
   const handleRemoveCartItem = (index: number) => {
+    const removedItem = cart[index];
+    if (!removedItem) return;
+
     const updated = [...cart];
     updated.splice(index, 1);
     setCart(updated);
+
+    showToast(`Removed ${removedItem.name} from cart`, 'info', 5000, {
+      label: 'Undo',
+      onClick: () => {
+        setCart(prev => {
+          const u = [...prev];
+          u.splice(index, 0, removedItem);
+          return u;
+        });
+        showToast("Restored cart item", "success");
+      }
+    });
   };
 
   const calculateCartSummary = () => {
@@ -1160,24 +1293,48 @@ ${startupReport.join("\n")}
   const cartSummary = calculateCartSummary();
 
   const handleNewBill = () => {
-    setCart([]);
-    setSelectedCustomer(null);
-    setPaymentMethod('CASH');
-    setAmountPaid(0);
-    setMixedPayments([
-      { method: 'CASH', amount: 0 },
-      { method: 'UPI', amount: 0 },
-      { method: 'CARD', amount: 0 }
-    ]);
+    if (cart.length > 0) {
+      const oldCart = [...cart];
+      const oldCustomer = selectedCustomer;
+      setCart([]);
+      setSelectedCustomer(null);
+      setPaymentMethod('CASH');
+      setAmountPaid(0);
+      setMixedPayments([
+        { method: 'CASH', amount: 0 },
+        { method: 'UPI', amount: 0 },
+        { method: 'CARD', amount: 0 },
+        { method: 'CREDIT', amount: 0 }
+      ]);
+      showToast("Cleared active billing cart", "info", 5000, {
+        label: "Undo",
+        onClick: () => {
+          setCart(oldCart);
+          setSelectedCustomer(oldCustomer);
+          showToast("Restored billing cart", "success");
+        }
+      });
+    } else {
+      setCart([]);
+      setSelectedCustomer(null);
+      setPaymentMethod('CASH');
+      setAmountPaid(0);
+      setMixedPayments([
+        { method: 'CASH', amount: 0 },
+        { method: 'UPI', amount: 0 },
+        { method: 'CARD', amount: 0 },
+        { method: 'CREDIT', amount: 0 }
+      ]);
+    }
     searchInputRef.current?.focus();
   };
 
   const handleCheckoutSubmit = async () => {
     if (cart.length === 0) return;
     
-    // Enforce customer registration for all checkouts
-    if (!selectedCustomer) {
-      alert("A registered customer is required to checkout. Please search by mobile number and select a customer, or click '+ New Profile' to register the customer first.");
+    // Enforce customer registration for CREDIT checkouts only
+    if (paymentMethod === 'CREDIT' && !selectedCustomer) {
+      alert("A registered customer is required for purchases on Credit. Please select or register a customer first.");
       return;
     }
 
@@ -1203,7 +1360,8 @@ ${startupReport.join("\n")}
         items: cart.map(it => ({
           productId: it.productId,
           quantity: it.quantity,
-          discountPercentage: it.discountPercentage
+          discountPercentage: it.discountPercentage,
+          customPrice: it.sellingPrice // Sync the active UI selling price (online/offline) to backend
         })),
         payments: paymentMethod === 'MIXED' ? splits : undefined
       };
@@ -1781,18 +1939,100 @@ ${startupReport.join("\n")}
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
 
-  // Filtered search lists for Ctrl+K
-  const filteredSearchLists = useMemo(() => {
-    if (!globalQuery.trim()) return { products: [], customers: [], suppliers: [], invoices: [] };
-    const q = globalQuery.toLowerCase();
+  // Flat Search Results for Command Palette
+  const navCommands = useMemo(() => [
+    { type: 'COMMAND', name: 'Go to POS Tab (Billing Desk)', action: () => { setActiveTab('pos'); }, tab: 'pos' },
+    { type: 'COMMAND', name: 'Go to Dashboard Summary', action: () => { setActiveTab('dashboard'); }, tab: 'dashboard' },
+    { type: 'COMMAND', name: 'Go to Inventory Stock Ledger', action: () => { setActiveTab('inventory'); setInventorySubTab('stock'); }, tab: 'inventory' },
+    { type: 'COMMAND', name: 'Go to Products Catalog', action: () => { setActiveTab('products'); }, tab: 'products' },
+    { type: 'COMMAND', name: 'Go to Suppliers Directory', action: () => { setActiveTab('suppliers'); }, tab: 'suppliers' },
+    { type: 'COMMAND', name: 'Go to Billing History Logs', action: () => { setActiveTab('history'); }, tab: 'history' },
+    { type: 'COMMAND', name: 'Go to Financial Reports', action: () => { setActiveTab('reports'); }, tab: 'reports' },
+    { type: 'COMMAND', name: 'Go to Offline Synchronization', action: () => { setActiveTab('sync'); }, tab: 'sync' },
+    { type: 'COMMAND', name: 'Go to System & User Settings', action: () => { setActiveTab('settings'); }, tab: 'settings' },
+    { type: 'COMMAND', name: 'Go to Administrator Panel', action: () => { setActiveTab('admin'); }, tab: 'admin' },
+  ], []);
+
+  const flatSearchResults = useMemo(() => {
+    const q = globalQuery.toLowerCase().trim();
     
-    return {
-      products: allProducts.filter(p => p.name.toLowerCase().includes(q) || p.genericName?.toLowerCase().includes(q) || p.barcode?.includes(q)).slice(0, 5),
-      customers: allProducts.filter(p => false), // simple placeholder or API results could go here
-      suppliers: allSuppliers.filter(s => s.name.toLowerCase().includes(q) || s.phone?.includes(q)).slice(0, 5),
-      invoices: invoices.filter(inv => inv.billNumber?.toLowerCase().includes(q)).slice(0, 5)
-    };
-  }, [globalQuery, allProducts, allSuppliers, invoices]);
+    // Filter Commands
+    const filteredCommands = q.startsWith('>') 
+      ? navCommands.filter(c => c.name.toLowerCase().includes(q.substring(1).trim()))
+      : navCommands.filter(c => c.name.toLowerCase().includes(q));
+
+    if (!q) {
+      return filteredCommands.map(c => ({ ...c, uniqueKey: `cmd-${c.name}` }));
+    }
+
+    // Filter Products
+    const matchedProducts = allProducts
+      .filter(p => p.name.toLowerCase().includes(q) || p.genericName?.toLowerCase().includes(q) || p.barcode?.includes(q))
+      .slice(0, 5)
+      .map(p => ({
+        type: 'PRODUCT',
+        name: p.name,
+        subtitle: `Sku: ${p.sku || 'N/A'} | Barcode: ${p.barcode || 'N/A'}`,
+        action: () => { setActiveTab('products'); setProductSearch(p.name); },
+        uniqueKey: `prod-${p.id}`
+      }));
+
+    // Filter Suppliers
+    const matchedSuppliers = allSuppliers
+      .filter(s => s.name.toLowerCase().includes(q) || s.phone?.includes(q))
+      .slice(0, 5)
+      .map(s => ({
+        type: 'SUPPLIER',
+        name: s.name,
+        subtitle: `Gstin: ${s.gstin || 'N/A'} | Phone: ${s.phone || 'N/A'}`,
+        action: () => { setActiveTab('suppliers'); },
+        uniqueKey: `sup-${s.id}`
+      }));
+
+    // Filter Invoices
+    const matchedInvoices = invoices
+      .filter(inv => inv.billNumber?.toLowerCase().includes(q))
+      .slice(0, 5)
+      .map(inv => ({
+        type: 'INVOICE',
+        name: inv.billNumber,
+        subtitle: `Total: ₹${inv.netAmount} | Status: ${inv.status}`,
+        action: () => { setActiveTab('history'); setInvoiceSearch(inv.billNumber); },
+        uniqueKey: `inv-${inv.id}`
+      }));
+
+    return [
+      ...matchedProducts,
+      ...matchedSuppliers,
+      ...matchedInvoices,
+      ...filteredCommands.map(c => ({ ...c, uniqueKey: `cmd-${c.name}` }))
+    ];
+  }, [globalQuery, allProducts, allSuppliers, invoices, navCommands]);
+
+  const handlePaletteKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (flatSearchResults.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setPaletteSelectedIndex(prev => (prev + 1) % flatSearchResults.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setPaletteSelectedIndex(prev => (prev - 1 + flatSearchResults.length) % flatSearchResults.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const selectedItem = flatSearchResults[paletteSelectedIndex];
+      if (selectedItem) {
+        selectedItem.action();
+        setSearchOpen(false);
+        setGlobalQuery('');
+      }
+    }
+  };
+
+  // Reset keyboard cursor on query change
+  useEffect(() => {
+    setPaletteSelectedIndex(0);
+  }, [globalQuery, searchOpen]);
 
   // The splash screen is now owned by layout.tsx as instant HTML.
   // It is dismissed via window.hideAppLoader() when setAuthChecked(true) fires.
@@ -1818,7 +2058,7 @@ ${startupReport.join("\n")}
   const showSetupWizard = currentUser && currentUser.role === 'ADMIN' && (!settingsForm || !settingsForm.gstin || settingsForm.gstin.trim() === '');
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none antialiased">
+    <div className={`min-h-screen bg-white text-gray-800 flex flex-col font-sans select-none antialiased ${density === 'compact' ? 'density-compact' : 'density-comfortable'}`}>
       {showSetupWizard && (
         <SetupWizardModal
           settingsForm={settingsForm}
@@ -1830,13 +2070,13 @@ ${startupReport.join("\n")}
         />
       )}
       {/* Top Header Navigation */}
-      <header className="border-b border-slate-900 bg-slate-955/65 backdrop-blur-md sticky top-0 z-50 px-5 py-3 flex items-center justify-between">
+      <header className="border-b border-gray-200 bg-white sticky top-0 z-50 px-5 py-3 flex items-center justify-between">
         
         {/* Brand section */}
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1.5 rounded-lg hover:bg-slate-850 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
             title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1845,14 +2085,14 @@ ${startupReport.join("\n")}
           </button>
           
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-teal-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-teal-500/20">
-              <svg className="w-5 h-5 text-slate-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-12h.008v.008H12v-.008z" />
               </svg>
             </div>
             <div>
-              <h1 className="text-sm font-bold tracking-tight text-white">{settingsForm.storeName || 'Medingen Pharmacy'}</h1>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest leading-none">ERP Desk</p>
+              <h1 className="text-sm font-bold tracking-tight text-gray-800">{settingsForm.storeName || 'Medingen Pharmacy'}</h1>
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-none">ERP Desk</p>
             </div>
           </div>
         </div>
@@ -1863,7 +2103,7 @@ ${startupReport.join("\n")}
           {/* Quick billing screen trigger */}
           <button 
             onClick={() => setActiveTab('pos')} 
-            className="px-3.5 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-955 text-xs font-bold transition-all shadow-lg active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-lg active:scale-95 flex items-center gap-1.5 cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -1874,18 +2114,18 @@ ${startupReport.join("\n")}
           {/* Universal search trigger button */}
           <button 
             onClick={() => setSearchOpen(true)}
-            className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer hidden md:flex items-center gap-2"
+            className="p-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer hidden md:flex items-center gap-2"
           >
-            <FiSearch className="text-slate-500 shrink-0" size={16} />
-            <span className="text-xs text-slate-500 font-semibold pr-2">Search ERP...</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-[10px] text-slate-500 font-bold">Ctrl+K</kbd>
+            <FiSearch className="text-gray-400 shrink-0" size={16} />
+            <span className="text-xs text-gray-400 font-semibold pr-2">Search ERP...</span>
+            <kbd className="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] text-gray-400 font-bold">Ctrl+K</kbd>
           </button>
 
           {/* Notification bell center */}
           <div className="relative">
             <button 
               onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className="p-2 rounded-lg hover:bg-slate-850 text-slate-400 hover:text-white transition-colors relative cursor-pointer"
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors relative cursor-pointer"
             >
               <FiBell className="shrink-0" size={20} />
               {unreadNotificationCount > 0 && (
@@ -1898,23 +2138,23 @@ ${startupReport.join("\n")}
             {notificationsOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} />
-                <div className="absolute right-0 mt-2.5 w-80 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden text-xs">
-                  <div className="p-3.5 bg-slate-950 border-b border-slate-850 flex justify-between items-center">
-                    <span className="font-bold text-slate-350 uppercase tracking-wider text-[10px]">Notification Center</span>
-                    <button onClick={clearAllNotifications} className="text-[10px] text-rose-455 hover:underline">Clear all</button>
+                <div className="absolute right-0 mt-2.5 w-80 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-xs">
+                  <div className="p-3.5 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                    <span className="font-bold text-gray-600 uppercase tracking-wider text-[10px]">Notification Center</span>
+                    <button onClick={clearAllNotifications} className="text-[10px] text-rose-600 hover:underline">Clear all</button>
                   </div>
-                  <div className="max-h-64 overflow-y-auto divide-y divide-slate-850">
+                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
                     {notifications.length === 0 ? (
-                      <div className="p-6 text-center text-slate-550">No new updates or alerts.</div>
+                      <div className="p-6 text-center text-gray-400">No new updates or alerts.</div>
                     ) : (
                       notifications.map(n => (
-                        <div key={n.id} className={`p-3.5 hover:bg-slate-850/30 flex justify-between gap-2.5 items-start ${n.read ? 'opacity-60' : ''}`}>
+                        <div key={n.id} className={`p-3.5 hover:bg-gray-50 flex justify-between gap-2.5 items-start ${n.read ? 'opacity-60' : ''}`}>
                           <div className="space-y-0.5">
-                            <span className={`font-bold block ${n.type === 'STOCK_WARN' ? 'text-amber-400' : 'text-rose-455'}`}>{n.title}</span>
-                            <p className="text-slate-400 leading-normal">{n.message}</p>
+                            <span className={`font-bold block ${n.type === 'STOCK_WARN' ? 'text-amber-400' : 'text-rose-600'}`}>{n.title}</span>
+                            <p className="text-gray-500 leading-normal">{n.message}</p>
                           </div>
                           {!n.read && (
-                            <button onClick={() => markNotificationRead(n.id)} className="text-[9px] text-teal-400 hover:underline shrink-0">Read</button>
+                            <button onClick={() => markNotificationRead(n.id)} className="text-[9px] text-primary hover:underline shrink-0">Read</button>
                           )}
                         </div>
                       ))
@@ -1929,16 +2169,16 @@ ${startupReport.join("\n")}
           <div className="relative">
             <button 
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-850 transition-colors cursor-pointer"
+              className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-lg bg-slate-800 text-teal-400 flex items-center justify-center font-bold text-sm border border-slate-700">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm border border-primary/20">
                 {currentUser?.username?.charAt(0).toUpperCase()}
               </div>
               <div className="hidden lg:block text-left text-xs leading-none">
-                <div className="font-bold text-slate-200">{currentUser?.username}</div>
-                <div className="text-[9px] text-slate-500 mt-0.5">{currentUser?.role}</div>
+                <div className="font-bold text-gray-800">{currentUser?.username}</div>
+                <div className="text-[9px] text-gray-400 mt-0.5">{currentUser?.role}</div>
               </div>
-              <svg className="w-3.5 h-3.5 text-slate-500 hidden lg:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3.5 h-3.5 text-gray-400 hidden lg:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
@@ -1946,18 +2186,18 @@ ${startupReport.join("\n")}
             {profileDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setProfileDropdownOpen(false)} />
-                <div className="absolute right-0 mt-2.5 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden text-xs text-slate-300">
-                  <div className="p-3 bg-slate-950 border-b border-slate-850 flex flex-col gap-0.5">
-                    <span className="font-bold text-white leading-none">{currentUser?.username}</span>
-                    <span className="text-[10px] text-slate-500">{currentUser?.role}</span>
+                <div className="absolute right-0 mt-2.5 w-52 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-xs text-gray-600">
+                  <div className="p-3 bg-gray-50 border-b border-gray-200 flex flex-col gap-0.5">
+                    <span className="font-bold text-gray-800 leading-none">{currentUser?.username}</span>
+                    <span className="text-[10px] text-gray-400">{currentUser?.role}</span>
                   </div>
                   <div className="p-1.5 space-y-0.5">
-                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('profile'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 flex items-center gap-2"><svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> My Profile</button>
-                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('password'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 flex items-center gap-2"><svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m-5-2a2 2 0 00-2 2m5 0a2 2 0 012 2m-5-2a2 2 0 00-2 2m5 4a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Change Password</button>
-                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('preferences'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 flex items-center gap-2"><svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg> Preferences</button>
-                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('about'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 flex items-center gap-2"><svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> About ERP</button>
-                    <div className="border-t border-slate-850 my-1.5" />
-                    <button onClick={handleLogout} className="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-500/10 text-rose-455 hover:text-rose-400 flex items-center gap-2"><FiLogOut className="w-4 h-4" /> Sign Out</button>
+                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('profile'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> My Profile</button>
+                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('password'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m-5-2a2 2 0 00-2 2m5 0a2 2 0 012 2m-5-2a2 2 0 00-2 2m5 4a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Change Password</button>
+                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('preferences'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg> Preferences</button>
+                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('about'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> About ERP</button>
+                    <div className="border-t border-gray-100 my-1.5" />
+                    <button onClick={handleLogout} className="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-500/10 text-rose-600 hover:text-rose-400 flex items-center gap-2"><FiLogOut className="w-4 h-4" /> Sign Out</button>
                   </div>
                 </div>
               </>
@@ -1971,7 +2211,7 @@ ${startupReport.join("\n")}
       <div className="flex-1 flex overflow-hidden">
         
         {/* Navigation Sidebar */}
-        <aside className={`border-r border-slate-900 bg-slate-955/20 transition-all duration-300 flex flex-col justify-between ${
+        <aside className={`border-r border-gray-200 bg-primary transition-all duration-300 flex flex-col justify-between ${
           sidebarCollapsed ? 'w-16' : 'w-64'
         }`}>
           <div className="p-3.5 space-y-6 overflow-y-auto overflow-x-hidden flex-1">
@@ -1979,7 +2219,7 @@ ${startupReport.join("\n")}
             {sidebarCategories.map((cat, catIdx) => (
               <div key={catIdx}>
                 {!sidebarCollapsed && (
-                  <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase px-3.5 mb-2.5">
+                  <p className="text-[10px] font-bold text-white/60 tracking-wider uppercase px-3.5 mb-2.5">
                     {cat.categoryName}
                   </p>
                 )}
@@ -1994,8 +2234,8 @@ ${startupReport.join("\n")}
                           sidebarCollapsed ? 'justify-center px-0' : 'px-3.5'
                         } ${
                           activeTab === item.id
-                            ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20 font-semibold'
-                            : 'text-slate-400 hover:bg-slate-900/60 hover:text-white'
+                            ? 'bg-white/20 text-white border border-white/30 font-semibold'
+                            : 'text-white/80 hover:bg-white/10 hover:text-white'
                         }`}
                         title={item.title}
                       >
@@ -2012,7 +2252,7 @@ ${startupReport.join("\n")}
         </aside>
 
         {/* Workspace Display Grid */}
-        <main className="flex-1 p-6 overflow-y-auto bg-slate-950">
+        <main className="flex-1 p-6 overflow-y-auto bg-gray-50">
           
           {activeTab === 'dashboard' && (
             <DashboardTab
@@ -2124,6 +2364,8 @@ ${startupReport.join("\n")}
               activationKey={activationKey}
               setActivationKey={setActivationKey}
               handleActivateLicense={handleActivateLicense}
+              density={density}
+              setDensity={setDensity}
             />
           )}
 
@@ -2247,7 +2489,7 @@ ${startupReport.join("\n")}
       </div>
 
       {/* Sticky Bottom Status Bar */}
-      <footer className="border-t border-slate-900 bg-slate-955 px-5 py-2 text-[10px] font-mono text-slate-500 flex flex-wrap justify-between items-center gap-2">
+      <footer className="border-t border-gray-200 bg-white px-5 py-2 text-[10px] font-mono text-gray-400 flex flex-wrap justify-between items-center gap-2">
         <div className="flex gap-4">
           <span className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${localDbConnected ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30' : 'bg-rose-500'}`} />
@@ -2263,97 +2505,142 @@ ${startupReport.join("\n")}
           </span>
         </div>
         <div className="flex gap-4">
-          <span>OPERATOR: <span className="text-slate-350 font-bold uppercase">{currentUser?.username} ({currentUser?.role})</span></span>
-          <span>SHIFT: <span className="text-slate-350 font-bold uppercase">{currentShift.split(' ')[0]} SHIFT</span></span>
-          <span>PRINTER: <span className="text-slate-350 font-bold">{settingsForm.printerType || '80MM'}</span></span>
+          <span>OPERATOR: <span className="text-gray-600 font-bold uppercase">{currentUser?.username} ({currentUser?.role})</span></span>
+          <span>SHIFT: <span className="text-gray-600 font-bold uppercase">{currentShift.split(' ')[0]} SHIFT</span></span>
+          <span>PRINTER: <span className="text-gray-600 font-bold">{settingsForm.printerType || '80MM'}</span></span>
           <span>LICENSE: <span className={licenseInfo?.status === 'ACTIVE' ? 'text-emerald-400 font-bold' : 'text-rose-400'}>{licenseInfo?.status || 'N/A'}</span></span>
-          <span>VERSION: <span className="text-slate-350 font-bold">1.0.4</span></span>
-          <span className="text-slate-400 font-semibold border-l border-slate-800 pl-4">{currentTime}</span>
+          <span>VERSION: <span className="text-gray-600 font-bold">1.0.4</span></span>
+          <span className="text-gray-500 font-semibold border-l border-gray-200 pl-4">{currentTime}</span>
         </div>
       </footer>
 
       {/* ==================== DIALOGS & OVERLAYS ==================== */}
 
-      {/* Universal Search Modal (Ctrl + K) */}
+      {/* Universal Search Modal (Ctrl + K Command Palette) */}
       {searchOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/70 backdrop-blur-sm pt-20 animate-fadeIn text-xs">
-          <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="w-full max-w-xl bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
             <div className="relative">
               <input
                 type="text"
                 autoFocus
                 value={globalQuery}
                 onChange={(e) => setGlobalQuery(e.target.value)}
-                placeholder="Search products, suppliers, invoices, barcode..."
-                className="w-full pl-11 pr-12 py-4 bg-slate-950 border-b border-slate-850 text-slate-100 text-sm focus:outline-none placeholder-slate-500"
+                onKeyDown={handlePaletteKeyDown}
+                placeholder="Search products, invoices, commands (type '>' for commands)..."
+                className="w-full pl-11 pr-12 py-4 bg-white border-b border-gray-200 text-gray-800 text-sm focus:outline-none placeholder-slate-500 font-sans"
               />
-              <svg className="absolute left-4 top-4.5 h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="absolute left-4 top-4.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <kbd className="absolute right-4 top-4.5 px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-500 font-bold">ESC</kbd>
+              <kbd className="absolute right-4 top-4.5 px-2 py-0.5 rounded bg-white border border-gray-200 text-[10px] text-gray-400 font-bold">ESC</kbd>
             </div>
             
-            <div className="p-4 max-h-[350px] overflow-y-auto space-y-4">
-              {!globalQuery.trim() ? (
-                <div className="text-center py-8 text-slate-500">
-                  <p className="font-bold">Global System Search</p>
-                  <p className="mt-1">Enter queries to find records across catalog tables.</p>
+            <div className="p-2 max-h-[380px] overflow-y-auto space-y-1.5 bg-gray-50/50">
+              {flatSearchResults.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <p className="font-bold">No results found</p>
+                  <p className="mt-1">Try another search keyword.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {/* Matching Products */}
-                  {filteredSearchLists.products.length > 0 && (
-                    <div className="space-y-1.5">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block pl-1">Products Catalog</span>
-                      {filteredSearchLists.products.map((p, i) => (
-                        <div key={i} onClick={() => { setSearchOpen(false); setActiveTab('products'); setProductSearch(p.name); }} className="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 cursor-pointer flex justify-between items-center text-slate-300">
-                          <div>
-                            <span className="font-bold text-white block">{p.name}</span>
-                            <span className="text-[10px] text-slate-500">Sku: {p.sku || 'N/A'} | Barcode: {p.barcode || 'N/A'}</span>
-                          </div>
-                          <span className="text-[10px] text-teal-400 font-bold">View Tab</span>
+                flatSearchResults.map((item, idx) => {
+                  const isSelected = idx === paletteSelectedIndex;
+                  return (
+                    <div
+                      key={item.uniqueKey}
+                      onClick={() => {
+                        item.action();
+                        setSearchOpen(false);
+                        setGlobalQuery('');
+                      }}
+                      className={`p-3 rounded-xl cursor-pointer flex justify-between items-center transition-all ${
+                        isSelected 
+                          ? 'bg-primary-light border-l-4 border-primary text-gray-850 translate-x-1 shadow-sm' 
+                          : 'bg-white hover:bg-gray-50 text-gray-600 border-l-4 border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase ${
+                          item.type === 'PRODUCT' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/25' :
+                          item.type === 'SUPPLIER' ? 'bg-orange-50 text-orange-600 border border-orange-200/25' :
+                          item.type === 'INVOICE' ? 'bg-sky-50 text-sky-600 border border-sky-200/25' :
+                          'bg-primary-light text-primary border border-primary/20'
+                        }`}>
+                          {item.type || 'COMMAND'}
+                        </span>
+                        <div>
+                          <span className="font-bold text-gray-800 block">{item.name}</span>
+                          {item.subtitle && <span className="text-[10px] text-gray-500">{item.subtitle}</span>}
                         </div>
-                      ))}
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-455">
+                        {isSelected ? '⏎ Select' : 'Click'}
+                      </span>
                     </div>
-                  )}
-
-                  {/* Matching Suppliers */}
-                  {filteredSearchLists.suppliers.length > 0 && (
-                    <div className="space-y-1.5">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block pl-1">Suppliers</span>
-                      {filteredSearchLists.suppliers.map((s, i) => (
-                        <div key={i} onClick={() => { setSearchOpen(false); setActiveTab('settings'); }} className="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 cursor-pointer flex justify-between items-center text-slate-300">
-                          <div>
-                            <span className="font-bold text-white block">{s.name}</span>
-                            <span className="text-[10px] text-slate-500">Gstin: {s.gstin || 'N/A'} | Phone: {s.phone || 'N/A'}</span>
-                          </div>
-                          <span className="text-[10px] text-teal-400 font-bold">View Tab</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Matching Invoices */}
-                  {filteredSearchLists.invoices.length > 0 && (
-                    <div className="space-y-1.5">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block pl-1">Invoices</span>
-                      {filteredSearchLists.invoices.map((inv, i) => (
-                        <div key={i} onClick={() => { setSearchOpen(false); setActiveTab('history'); setInvoiceSearch(inv.billNumber); }} className="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 cursor-pointer flex justify-between items-center text-slate-300">
-                          <div>
-                            <span className="font-bold text-white block">{inv.billNumber}</span>
-                            <span className="text-[10px] text-slate-500">Total: ₹{inv.netAmount} | Status: {inv.status}</span>
-                          </div>
-                          <span className="text-[10px] text-teal-400 font-bold">View Tab</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {filteredSearchLists.products.length === 0 && filteredSearchLists.suppliers.length === 0 && filteredSearchLists.invoices.length === 0 && (
-                    <div className="text-center py-6 text-slate-500">No records found matching "{globalQuery}".</div>
-                  )}
-                </div>
+                  );
+                })
               )}
+            </div>
+            
+            <div className="px-4 py-2 border-t border-gray-200 bg-white text-[9px] text-gray-400 font-mono flex justify-between items-center">
+              <span>↑↓ Navigation</span>
+              <span>⏎ Trigger Command</span>
+              <span>ESC Close</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard Shortcut Help Dialog */}
+      {isShortcutHelpOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-xs text-gray-500">
+          <div className="w-full max-w-md bg-white border border-gray-200 rounded-2xl p-6 space-y-4 animate-scale-in">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-2.5">
+              <h3 className="text-base font-bold text-gray-850 uppercase tracking-wider flex items-center gap-2">
+                ⌨️ Keyboard Shortcuts Help
+              </h3>
+              <button onClick={() => setIsShortcutHelpOpen(false)} className="text-gray-400 hover:text-gray-600 text-sm font-bold">✕</button>
+            </div>
+            <div className="space-y-2 bg-gray-50 p-4 border border-gray-200 rounded-xl max-h-72 overflow-y-auto font-mono text-[11px]">
+              <div className="flex justify-between py-1 border-b border-gray-150">
+                <span className="text-gray-700 font-semibold">Ctrl + K</span>
+                <span className="px-1.5 py-0.5 rounded bg-white border border-gray-300 font-bold">Command Palette</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-150">
+                <span className="text-gray-700 font-semibold">?  /  Ctrl + /</span>
+                <span className="px-1.5 py-0.5 rounded bg-white border border-gray-300 font-bold">Shortcut Helper</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-150">
+                <span className="text-gray-700 font-semibold">F2</span>
+                <span className="px-1.5 py-0.5 rounded bg-white border border-gray-300 font-bold">New Invoice (Clear Cart)</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-150">
+                <span className="text-gray-700 font-semibold">F3</span>
+                <span className="px-1.5 py-0.5 rounded bg-white border border-gray-300 font-bold">Focus Medicine Search</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-150">
+                <span className="text-gray-700 font-semibold">F4</span>
+                <span className="px-1.5 py-0.5 rounded bg-white border border-gray-300 font-bold">Focus Customer Mobile</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-150">
+                <span className="text-gray-700 font-semibold">F5</span>
+                <span className="px-1.5 py-0.5 rounded bg-white border border-gray-300 font-bold">Submit Bill & Print</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-150">
+                <span className="text-gray-700 font-semibold">F6</span>
+                <span className="px-1.5 py-0.5 rounded bg-white border border-gray-300 font-bold">Hold Bill</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-150">
+                <span className="text-gray-700 font-semibold">F8</span>
+                <span className="px-1.5 py-0.5 rounded bg-white border border-gray-300 font-bold">Focus Cash Paid</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-150">
+                <span className="text-gray-700 font-semibold">ESC</span>
+                <span className="px-1.5 py-0.5 rounded bg-white border border-gray-300 font-bold">Close Dialogs / Modals</span>
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button onClick={() => setIsShortcutHelpOpen(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg cursor-pointer">Close</button>
             </div>
           </div>
         </div>
@@ -2361,53 +2648,53 @@ ${startupReport.join("\n")}
 
       {/* Dialogue Modal Overlay (Change password, My Profile, Preferences, About) */}
       {activeDialog === 'profile' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-xs text-slate-400">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-base font-bold text-white uppercase tracking-wider">My Operator Profile</h3>
-            <div className="space-y-2 bg-slate-950 p-4 border border-slate-850 rounded-xl">
-              <div>Username: <span className="font-bold text-slate-100">{currentUser?.username}</span></div>
-              <div>Assigned Profile: <span className="font-bold text-slate-100">{currentUser?.role}</span></div>
-              <div>Duty Shift: <span className="font-bold text-teal-450">{currentShift}</span></div>
-              <div>Station: <span className="font-bold text-slate-100">{settingsForm.storeName}</span></div>
-              <div>Session Login Time: <span className="font-semibold text-slate-400">{new Date(currentUser?.loginTime).toLocaleTimeString()}</span></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-xs text-gray-500">
+          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-gray-800 uppercase tracking-wider">My Operator Profile</h3>
+            <div className="space-y-2 bg-white p-4 border border-gray-200 rounded-xl">
+              <div>Username: <span className="font-bold text-gray-800">{currentUser?.username}</span></div>
+              <div>Assigned Profile: <span className="font-bold text-gray-800">{currentUser?.role}</span></div>
+              <div>Duty Shift: <span className="font-bold text-primary">{currentShift}</span></div>
+              <div>Station: <span className="font-bold text-gray-800">{settingsForm.storeName}</span></div>
+              <div>Session Login Time: <span className="font-semibold text-gray-500">{new Date(currentUser?.loginTime).toLocaleTimeString()}</span></div>
             </div>
             <div className="flex justify-end">
-              <button onClick={() => setActiveDialog(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg cursor-pointer">Close</button>
+              <button onClick={() => setActiveDialog(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-700 font-bold rounded-lg cursor-pointer">Close</button>
             </div>
           </div>
         </div>
       )}
 
       {activeDialog === 'password' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-xs text-slate-400">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6">
-            <h3 className="text-base font-bold text-white uppercase tracking-wider mb-4">Change Operator Password</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-xs text-gray-500">
+          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-6">
+            <h3 className="text-base font-bold text-gray-800 uppercase tracking-wider mb-4">Change Operator Password</h3>
             <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">New Password *</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase">New Password *</label>
                 <input
                   type="password"
                   required
                   value={userProfilePassword.new}
                   onChange={(e) => setUserProfilePassword({ ...userProfilePassword, new: e.target.value })}
                   placeholder="Enter new password"
-                  className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs"
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-xs"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Confirm New Password *</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Confirm New Password *</label>
                 <input
                   type="password"
                   required
                   value={userProfilePassword.confirm}
                   onChange={(e) => setUserProfilePassword({ ...userProfilePassword, confirm: e.target.value })}
                   placeholder="Re-enter password"
-                  className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200 text-xs"
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-xs"
                 />
               </div>
               <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setActiveDialog(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg cursor-pointer">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-teal-500 text-slate-955 font-bold rounded-lg cursor-pointer">Change Password</button>
+                <button type="button" onClick={() => setActiveDialog(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-700 font-bold rounded-lg cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-primary text-slate-955 font-bold rounded-lg cursor-pointer">Change Password</button>
               </div>
             </form>
           </div>
@@ -2415,23 +2702,23 @@ ${startupReport.join("\n")}
       )}
 
       {activeDialog === 'preferences' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-xs text-slate-400">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-base font-bold text-white uppercase tracking-wider">Interface Preferences</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-xs text-gray-500">
+          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-gray-800 uppercase tracking-wider">Interface Preferences</h3>
             <div className="space-y-3">
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-500 font-bold">Theme Style</label>
-                <select className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200">
+                <label className="text-[10px] text-gray-400 font-bold">Theme Style</label>
+                <select className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700">
                   <option>Medingen Dark Carbon (Active)</option>
                   <option disabled>Emerald Classic (Premium Only)</option>
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-500 font-bold">Receipt Layout Size</label>
+                <label className="text-[10px] text-gray-400 font-bold">Receipt Layout Size</label>
                 <select 
                   value={receiptWidth}
                   onChange={(e: any) => setReceiptWidth(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-slate-200"
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700"
                 >
                   <option value="80mm">80mm Paper width (Standard)</option>
                   <option value="58mm">58mm Paper width (Compact)</option>
@@ -2440,38 +2727,38 @@ ${startupReport.join("\n")}
               </div>
             </div>
             <div className="flex justify-end pt-2">
-              <button onClick={() => setActiveDialog(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg cursor-pointer">Save & Exit</button>
+              <button onClick={() => setActiveDialog(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-700 font-bold rounded-lg cursor-pointer">Save & Exit</button>
             </div>
           </div>
         </div>
       )}
 
       {activeDialog === 'about' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-xs text-slate-400">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-xs text-gray-500">
+          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
             <div className="text-center">
               <div className="mx-auto w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-500 flex items-center justify-center mb-3">
                 <svg className="w-6 h-6 text-slate-955" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-12h.008v.008H12v-.008z" /></svg>
               </div>
-              <h4 className="text-sm font-bold text-white">Medingen Pharmacy ERP</h4>
-              <p className="text-[10px] text-slate-500 font-bold">Hybrid Desktop & Billing Suite</p>
+              <h4 className="text-sm font-bold text-gray-800">Medingen Pharmacy ERP</h4>
+              <p className="text-[10px] text-gray-400 font-bold">Hybrid Desktop & Billing Suite</p>
             </div>
             
-            <div className="space-y-1.5 bg-slate-950 p-4 border border-slate-850 rounded-xl font-mono text-[10px] text-slate-400">
-              <div className="flex justify-between"><span>App Version:</span><span className="text-slate-200">1.0.4</span></div>
-              <div className="flex justify-between"><span>Prisma Engine:</span><span className="text-slate-200">v5.12.0</span></div>
-              <div className="flex justify-between"><span>Database:</span><span className="text-slate-200">PostgreSQL 16</span></div>
-              <div className="flex justify-between"><span>Next.js API:</span><span className="text-slate-200">v16.2.9</span></div>
+            <div className="space-y-1.5 bg-white p-4 border border-gray-200 rounded-xl font-mono text-[10px] text-gray-500">
+              <div className="flex justify-between"><span>App Version:</span><span className="text-gray-700">1.0.4</span></div>
+              <div className="flex justify-between"><span>Prisma Engine:</span><span className="text-gray-700">v5.12.0</span></div>
+              <div className="flex justify-between"><span>Database:</span><span className="text-gray-700">PostgreSQL 16</span></div>
+              <div className="flex justify-between"><span>Next.js API:</span><span className="text-gray-700">v16.2.9</span></div>
               <div className="flex justify-between"><span>License Type:</span><span className="text-emerald-450 font-bold">{licenseInfo?.status || 'N/A'}</span></div>
-              <div className="flex justify-between"><span>Company:</span><span className="text-slate-250">Medingen Solutions Group</span></div>
+              <div className="flex justify-between"><span>Company:</span><span className="text-gray-700">Medingen Solutions Group</span></div>
             </div>
 
-            <div className="text-center text-[10px] text-slate-500">
-              For system technical support, call: <span className="text-teal-400 hover:underline cursor-pointer">+91 99887 76655</span>
+            <div className="text-center text-[10px] text-gray-400">
+              For system technical support, call: <span className="text-primary hover:underline cursor-pointer">+91 99887 76655</span>
             </div>
 
             <div className="flex justify-end">
-              <button onClick={() => setActiveDialog(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg cursor-pointer">Close</button>
+              <button onClick={() => setActiveDialog(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-700 font-bold rounded-lg cursor-pointer">Close</button>
             </div>
           </div>
         </div>
@@ -2479,35 +2766,35 @@ ${startupReport.join("\n")}
 
       {/* Register Customer Modal */}
       {isCustomerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn font-sans text-xs text-slate-400">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6">
-            <h3 className="text-base font-bold text-white mb-4">Register New Customer</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn font-sans text-xs text-gray-500">
+          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl shadow-2xl p-6">
+            <h3 className="text-base font-bold text-gray-800 mb-4">Register New Customer</h3>
             <div className="space-y-3">
               <div className="space-y-1">
-                <label className="text-slate-450 font-semibold">Customer Name *</label>
+                <label className="text-gray-500 font-semibold">Customer Name *</label>
                 <input
                   type="text"
                   required
                   value={newCustomerForm.name}
                   onChange={(e) => setNewCustomerForm({ ...newCustomerForm, name: e.target.value })}
                   placeholder="Enter full name"
-                  className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800 text-slate-250"
+                  className="w-full px-3 py-2 rounded bg-white border border-gray-200 text-gray-700"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-slate-455 font-semibold">Mobile Number *</label>
+                <label className="text-gray-500 font-semibold">Mobile Number *</label>
                 <input
                   type="text"
                   required
                   value={newCustomerForm.mobile}
                   onChange={(e) => setNewCustomerForm({ ...newCustomerForm, mobile: e.target.value })}
                   placeholder="Enter 10-digit mobile"
-                  className="w-full px-3 py-2 rounded bg-slate-955 border border-slate-800 text-slate-200 font-mono"
+                  className="w-full px-3 py-2 rounded bg-white border border-gray-200 text-gray-700 font-mono"
                 />
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6 font-semibold">
-              <button onClick={() => setIsCustomerModalOpen(false)} className="px-3.5 py-1.5 rounded bg-slate-955 border border-slate-800 text-slate-350 cursor-pointer">Cancel</button>
+              <button onClick={() => setIsCustomerModalOpen(false)} className="px-3.5 py-1.5 rounded bg-white border border-gray-200 text-gray-600 cursor-pointer">Cancel</button>
               <button
                 onClick={async () => {
                   if (!newCustomerForm.name || !newCustomerForm.mobile) return;
@@ -2524,7 +2811,7 @@ ${startupReport.join("\n")}
                     setIsCustomerModalOpen(false);
                   } catch (e: any) { alert(e.message); }
                 }}
-                className="px-3.5 py-1.5 rounded bg-teal-500 text-slate-955 font-bold cursor-pointer"
+                className="px-3.5 py-1.5 rounded bg-primary text-slate-955 font-bold cursor-pointer"
               >
                 Register & Select
               </button>
@@ -2535,25 +2822,25 @@ ${startupReport.join("\n")}
 
       {/* Hold Bill Modal */}
       {isHoldModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn font-sans text-xs text-slate-400">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6">
-            <h3 className="text-base font-bold text-white mb-2">Hold Active Transaction</h3>
-            <p className="text-xs text-slate-500 mb-4">Temporarily save this bill. Enter a label to identify it.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn font-sans text-xs text-gray-500">
+          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl shadow-2xl p-6">
+            <h3 className="text-base font-bold text-gray-800 mb-2">Hold Active Transaction</h3>
+            <p className="text-xs text-gray-400 mb-4">Temporarily save this bill. Enter a label to identify it.</p>
             <form onSubmit={handleHoldBillSubmit} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-slate-500 uppercase tracking-wider font-bold">Hold Label *</label>
+                <label className="text-gray-400 uppercase tracking-wider font-bold">Hold Label *</label>
                 <input
                   type="text"
                   required
                   value={holdLabel}
                   onChange={(e) => setHoldLabel(e.target.value)}
                   placeholder="e.g. Counter 2 Customer"
-                  className="w-full px-3 py-2 rounded bg-slate-955 border border-slate-800 text-slate-200"
+                  className="w-full px-3 py-2 rounded bg-white border border-gray-200 text-gray-700"
                 />
               </div>
               <div className="flex justify-end gap-3 font-semibold">
-                <button type="button" onClick={() => setIsHoldModalOpen(false)} className="px-3.5 py-1.5 rounded bg-slate-955 border border-slate-800 text-slate-350 cursor-pointer">Cancel</button>
-                <button type="submit" className="px-3.5 py-1.5 rounded bg-teal-500 text-slate-955 font-bold cursor-pointer">Confirm Hold</button>
+                <button type="button" onClick={() => setIsHoldModalOpen(false)} className="px-3.5 py-1.5 rounded bg-white border border-gray-200 text-gray-600 cursor-pointer">Cancel</button>
+                <button type="submit" className="px-3.5 py-1.5 rounded bg-primary text-slate-955 font-bold cursor-pointer">Confirm Hold</button>
               </div>
             </form>
           </div>
@@ -2562,21 +2849,21 @@ ${startupReport.join("\n")}
 
       {/* Sales Return Modal */}
       {isSalesReturnModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fadeIn font-sans text-xs text-slate-400">
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden my-8">
-            <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
-              <h3 className="font-bold text-white text-lg">Process Sales Return</h3>
-              <button onClick={() => setIsSalesReturnModalOpen(false)} className="text-slate-400 hover:text-white transition-all cursor-pointer">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fadeIn font-sans text-xs text-gray-500">
+          <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden my-8">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="font-bold text-gray-800 text-lg">Process Sales Return</h3>
+              <button onClick={() => setIsSalesReturnModalOpen(false)} className="text-gray-500 hover:text-gray-800 transition-all cursor-pointer">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
             <form onSubmit={handleSalesReturnSubmit} className="p-6 space-y-4">
               <div className="space-y-3 max-h-64 overflow-y-auto">
                 {salesReturnForm.items.map((it: any, index: number) => (
-                  <div key={index} className="bg-slate-950 border border-slate-850 p-3 rounded-lg flex items-center justify-between gap-3">
+                  <div key={index} className="bg-white border border-gray-200 p-3 rounded-lg flex items-center justify-between gap-3">
                     <div>
-                      <div className="font-bold text-slate-200">{it.productName}</div>
-                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">Batch: {it.batchNumber} | Sold: {it.boughtQty}</div>
+                      <div className="font-bold text-gray-700">{it.productName}</div>
+                      <div className="text-[10px] text-gray-400 font-mono mt-0.5">Batch: {it.batchNumber} | Sold: {it.boughtQty}</div>
                     </div>
                     <div className="flex items-center gap-3">
                       <input
@@ -2585,7 +2872,7 @@ ${startupReport.join("\n")}
                         max={it.boughtQty - it.returnedQty}
                         value={it.quantity}
                         onChange={(e) => handleSalesReturnItemQty(index, parseInt(e.target.value, 10) || 0)}
-                        className="w-16 px-2 py-1 rounded bg-slate-900 border border-slate-800 text-center text-white"
+                        className="w-16 px-2 py-1 rounded bg-white border border-gray-200 text-center text-gray-800"
                       />
                       <select
                         value={it.reason}
@@ -2594,7 +2881,7 @@ ${startupReport.join("\n")}
                           updated[index].reason = e.target.value;
                           setSalesReturnForm({ ...salesReturnForm, items: updated });
                         }}
-                        className="px-2 py-1 rounded bg-slate-900 border border-slate-805"
+                        className="px-2 py-1 rounded bg-white border border-gray-200"
                       >
                         <option value="EXPIRED">Expired Medicine</option>
                         <option value="WRONG_ITEM">Wrong Dispensing</option>
@@ -2603,8 +2890,8 @@ ${startupReport.join("\n")}
                   </div>
                 ))}
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800/60 mt-4 font-semibold">
-                <button type="button" onClick={() => setIsSalesReturnModalOpen(false)} className="px-4 py-2 rounded bg-slate-955 border border-slate-800 text-slate-355 cursor-pointer">Cancel</button>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-4 font-semibold">
+                <button type="button" onClick={() => setIsSalesReturnModalOpen(false)} className="px-4 py-2 rounded bg-white border border-gray-200 text-gray-600 cursor-pointer">Cancel</button>
                 <button type="submit" className="px-4 py-2 rounded bg-rose-500 text-white font-bold cursor-pointer">Process Returns</button>
               </div>
             </form>
@@ -2614,40 +2901,40 @@ ${startupReport.join("\n")}
 
       {/* Invoice Detail Dialog */}
       {invoiceDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fadeIn font-sans text-xs text-slate-400">
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden my-8">
-            <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
-              <h3 className="font-bold text-white text-lg">Invoice Details: {invoiceDetail.billNumber}</h3>
-              <button onClick={() => setInvoiceDetail(null)} className="text-slate-400 hover:text-white transition-all cursor-pointer">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fadeIn font-sans text-xs text-gray-500">
+          <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden my-8">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="font-bold text-gray-800 text-lg">Invoice Details: {invoiceDetail.billNumber}</h3>
+              <button onClick={() => setInvoiceDetail(null)} className="text-gray-500 hover:text-gray-800 transition-all cursor-pointer">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
             <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-955 p-4 border border-slate-850 rounded-xl">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-4 border border-gray-200 rounded-xl">
                 <div>
-                  <span className="text-slate-500 block">Customer</span>
-                  <span className="font-bold text-slate-200">{invoiceDetail.customer?.name || 'Walk-in Customer'}</span>
+                  <span className="text-gray-400 block">Customer</span>
+                  <span className="font-bold text-gray-700">{invoiceDetail.customer?.name || 'Walk-in Customer'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Date</span>
-                  <span className="font-semibold text-slate-300">{new Date(invoiceDetail.createdAt).toLocaleString()}</span>
+                  <span className="text-gray-400 block">Date</span>
+                  <span className="font-semibold text-gray-600">{new Date(invoiceDetail.createdAt).toLocaleString()}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Total Tax</span>
-                  <span className="font-semibold text-slate-300">₹{invoiceDetail.gstAmount.toFixed(2)}</span>
+                  <span className="text-gray-400 block">Total Tax</span>
+                  <span className="font-semibold text-gray-600">₹{invoiceDetail.gstAmount.toFixed(2)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Status</span>
-                  <span className="font-bold text-teal-400">{invoiceDetail.status}</span>
+                  <span className="text-gray-400 block">Status</span>
+                  <span className="font-bold text-primary">{invoiceDetail.status}</span>
                 </div>
               </div>
 
               {/* Items List */}
               <div className="space-y-2">
-                <h4 className="font-bold text-slate-200">Billed items</h4>
-                <div className="border border-slate-800 rounded-lg overflow-hidden">
-                  <table className="w-full text-left text-slate-300">
-                    <thead className="bg-slate-900/40 text-slate-450 border-b border-slate-800 text-[10px]">
+                <h4 className="font-bold text-gray-700">Billed items</h4>
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-left text-gray-600">
+                    <thead className="bg-white text-gray-500 border-b border-gray-200 text-[10px]">
                       <tr>
                         <th className="py-2.5 px-4">Medicine</th>
                         <th className="py-2.5 px-4">Batch Number</th>
@@ -2658,8 +2945,8 @@ ${startupReport.join("\n")}
                     </thead>
                     <tbody>
                       {invoiceDetail.billItems.map((it: any, i: number) => (
-                        <tr key={i} className="hover:bg-slate-900/10">
-                          <td className="py-2.5 px-4 font-semibold text-slate-200">{it.batch.product.name}</td>
+                        <tr key={i} className="hover:bg-white">
+                          <td className="py-2.5 px-4 font-semibold text-gray-700">{it.batch.product.name}</td>
                           <td className="py-2.5 px-4 font-mono">{it.batch.batchNumber}</td>
                           <td className="py-2.5 px-4">MRP: ₹{it.mrp.toFixed(2)} / Sell: ₹{it.sellingPrice.toFixed(2)}</td>
                           <td className="py-2.5 px-4 font-semibold">{it.quantity}</td>
@@ -2672,28 +2959,28 @@ ${startupReport.join("\n")}
               </div>
 
               {isCancelModalOpen && (
-                <form onSubmit={handleCancelInvoiceSubmit} className="space-y-3 bg-slate-955 p-4 border border-rose-500/25 rounded-xl animate-fadeIn">
-                  <span className="text-rose-455 font-bold block">Invoice Cancellation Offset</span>
+                <form onSubmit={handleCancelInvoiceSubmit} className="space-y-3 bg-white p-4 border border-rose-500/25 rounded-xl animate-fadeIn">
+                  <span className="text-rose-600 font-bold block">Invoice Cancellation Offset</span>
                   <div className="space-y-1">
-                    <label className="text-slate-500 font-semibold">Cancel Reason *</label>
+                    <label className="text-gray-400 font-semibold">Cancel Reason *</label>
                     <input
                       type="text"
                       required
                       value={cancelReason}
                       onChange={(e) => setCancelReason(e.target.value)}
                       placeholder="e.g. Duplicate print check"
-                      className="w-full px-3 py-2 rounded bg-slate-900 border border-slate-800 text-slate-200"
+                      className="w-full px-3 py-2 rounded bg-white border border-gray-200 text-gray-700"
                     />
                   </div>
                   <div className="flex justify-end gap-2 pt-2">
-                    <button type="button" onClick={() => setIsCancelModalOpen(false)} className="px-2.5 py-1.5 rounded bg-slate-900 hover:bg-slate-805 text-slate-355 cursor-pointer">Close</button>
+                    <button type="button" onClick={() => setIsCancelModalOpen(false)} className="px-2.5 py-1.5 rounded bg-white hover:bg-gray-100 text-gray-600 cursor-pointer">Close</button>
                     <button type="submit" className="px-3.5 py-1.5 rounded bg-rose-500 hover:bg-rose-400 text-white font-bold cursor-pointer">Confirm Cancel</button>
                   </div>
                 </form>
               )}
 
               <div className="flex justify-end gap-3 font-semibold">
-                <button onClick={() => setInvoiceDetail(null)} className="px-4 py-2 rounded bg-slate-955 border border-slate-800 text-slate-355 cursor-pointer">Close Window</button>
+                <button onClick={() => setInvoiceDetail(null)} className="px-4 py-2 rounded bg-white border border-gray-200 text-gray-600 cursor-pointer">Close Window</button>
               </div>
             </div>
           </div>
@@ -2702,16 +2989,16 @@ ${startupReport.join("\n")}
 
       {/* Receipt Emulated Output Overlay */}
       {activeReceiptId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fadeIn font-sans text-xs text-slate-400">
-          <div className={`w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden my-8 transition-all duration-300 ${
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fadeIn font-sans text-xs text-gray-500">
+          <div className={`w-full bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden my-8 transition-all duration-300 ${
             receiptWidth === '150x95mm' ? 'max-w-3xl' : 'max-w-md'
           }`}>
-            <div className="px-5 py-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-              <h3 className="font-bold text-white text-xs">Thermal Receipt Preview</h3>
+            <div className="px-5 py-3 border-b border-gray-200 flex justify-between items-center bg-white">
+              <h3 className="font-bold text-gray-800 text-xs">Thermal Receipt Preview</h3>
               <div className="flex gap-2">
-                <button onClick={() => { setReceiptWidth('58mm'); handleFetchReceipt(activeReceiptId, '58mm'); }} className={`px-2 py-0.5 rounded text-[10px] font-bold ${receiptWidth === '58mm' ? 'bg-teal-500 text-slate-955' : 'bg-slate-800 text-slate-400'}`}>58mm</button>
-                <button onClick={() => { setReceiptWidth('80mm'); handleFetchReceipt(activeReceiptId, '80mm'); }} className={`px-2 py-0.5 rounded text-[10px] font-bold ${receiptWidth === '80mm' ? 'bg-teal-500 text-slate-955' : 'bg-slate-800 text-slate-400'}`}>80mm</button>
-                <button onClick={() => { setReceiptWidth('150x95mm'); handleFetchReceipt(activeReceiptId, '150x95mm'); }} className={`px-2 py-0.5 rounded text-[10px] font-bold ${receiptWidth === '150x95mm' ? 'bg-teal-500 text-slate-955' : 'bg-slate-800 text-slate-400'}`}>150mm x 95mm</button>
+                <button onClick={() => { setReceiptWidth('58mm'); handleFetchReceipt(activeReceiptId, '58mm'); }} className={`px-2 py-0.5 rounded text-[10px] font-bold ${receiptWidth === '58mm' ? 'bg-primary text-slate-955' : 'bg-slate-800 text-gray-500'}`}>58mm</button>
+                <button onClick={() => { setReceiptWidth('80mm'); handleFetchReceipt(activeReceiptId, '80mm'); }} className={`px-2 py-0.5 rounded text-[10px] font-bold ${receiptWidth === '80mm' ? 'bg-primary text-slate-955' : 'bg-slate-800 text-gray-500'}`}>80mm</button>
+                <button onClick={() => { setReceiptWidth('150x95mm'); handleFetchReceipt(activeReceiptId, '150x95mm'); }} className={`px-2 py-0.5 rounded text-[10px] font-bold ${receiptWidth === '150x95mm' ? 'bg-primary text-slate-955' : 'bg-slate-800 text-gray-500'}`}>150mm x 95mm</button>
               </div>
             </div>
             <div className="p-4 space-y-4">
@@ -2720,7 +3007,7 @@ ${startupReport.join("\n")}
               </pre>
 
               <div className="flex justify-end gap-3 font-semibold">
-                <button onClick={() => setActiveReceiptId(null)} className="px-3 py-1.5 rounded bg-slate-955 border border-slate-800 text-slate-355 cursor-pointer">Close</button>
+                <button onClick={() => setActiveReceiptId(null)} className="px-3 py-1.5 rounded bg-white border border-gray-200 text-gray-600 cursor-pointer">Close</button>
                 <button
                   onClick={() => {
                     const printWin = window.open('', '', 'width=600,height=400');
@@ -2732,7 +3019,7 @@ ${startupReport.join("\n")}
                       printWin.close();
                     }
                   }}
-                  className="px-4 py-1.5 rounded bg-teal-500 hover:bg-teal-400 text-slate-955 font-extrabold shadow-lg cursor-pointer"
+                  className="px-4 py-1.5 rounded bg-primary hover:bg-primary-hover text-slate-955 font-extrabold shadow-lg cursor-pointer"
                 >
                   Send to Printer
                 </button>
@@ -2744,38 +3031,38 @@ ${startupReport.join("\n")}
 
       {/* Add User Modal */}
       {isUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn font-sans text-xs text-slate-400">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6">
-            <h3 className="font-bold text-white text-sm mb-4">Register User Account</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn font-sans text-xs text-gray-500">
+          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl shadow-2xl p-6">
+            <h3 className="font-bold text-gray-800 text-sm mb-4">Register User Account</h3>
             <form onSubmit={handleSaveUser} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-slate-450 font-semibold">Username *</label>
+                <label className="text-gray-500 font-semibold">Username *</label>
                 <input
                   type="text"
                   required
                   value={userForm.username || ''}
                   onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
                   placeholder="Enter login username"
-                  className="w-full px-3 py-2 rounded bg-slate-955 border border-slate-800 text-slate-200"
+                  className="w-full px-3 py-2 rounded bg-white border border-gray-200 text-gray-700"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-slate-450 font-semibold">Password *</label>
+                <label className="text-gray-500 font-semibold">Password *</label>
                 <input
                   type="password"
                   required
                   value={userForm.passwordHash || ''}
                   onChange={(e) => setUserForm({ ...userForm, passwordHash: e.target.value })}
                   placeholder="Enter password"
-                  className="w-full px-3 py-2 rounded bg-slate-955 border border-slate-800 text-slate-200 font-mono"
+                  className="w-full px-3 py-2 rounded bg-white border border-gray-200 text-gray-700 font-mono"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-slate-450 font-semibold">Role Profile *</label>
+                <label className="text-gray-500 font-semibold">Role Profile *</label>
                 <select
                   value={userForm.role || 'CASHIER'}
                   onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                  className="w-full px-3 py-2 rounded bg-slate-955 border border-slate-800 text-slate-200"
+                  className="w-full px-3 py-2 rounded bg-white border border-gray-200 text-gray-700"
                 >
                   <option value="CASHIER">Cashier (POS checkout only)</option>
                   <option value="PHARMACIST">Pharmacist (MDM + POS billing)</option>
@@ -2784,8 +3071,8 @@ ${startupReport.join("\n")}
                 </select>
               </div>
               <div className="flex justify-end gap-3 mt-6 font-semibold">
-                <button type="button" onClick={() => setIsUserModalOpen(false)} className="px-3.5 py-1.5 rounded bg-slate-955 border border-slate-800 text-slate-350 cursor-pointer">Cancel</button>
-                <button type="submit" className="px-3.5 py-1.5 rounded bg-teal-500 text-slate-955 font-bold cursor-pointer">Save Account</button>
+                <button type="button" onClick={() => setIsUserModalOpen(false)} className="px-3.5 py-1.5 rounded bg-white border border-gray-200 text-gray-600 cursor-pointer">Cancel</button>
+                <button type="submit" className="px-3.5 py-1.5 rounded bg-primary text-slate-955 font-bold cursor-pointer">Save Account</button>
               </div>
             </form>
           </div>
@@ -2794,34 +3081,34 @@ ${startupReport.join("\n")}
 
       {/* Manual Stock Adjust Modal */}
       {isAdjustModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn font-sans text-xs text-slate-400">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6">
-            <h3 className="font-bold text-white text-sm mb-4">Stock Adjustment</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn font-sans text-xs text-gray-500">
+          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl shadow-2xl p-6">
+            <h3 className="font-bold text-gray-800 text-sm mb-4">Stock Adjustment</h3>
             <form onSubmit={handleSaveAdjustment} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-slate-450 font-semibold">Qty to adjust *</label>
+                <label className="text-gray-500 font-semibold">Qty to adjust *</label>
                 <input
                   type="number"
                   min="1"
                   required
                   value={adjustForm.quantity || 1}
                   onChange={(e) => setAdjustForm({ ...adjustForm, quantity: parseInt(e.target.value, 10) || 1 })}
-                  className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-800 text-white"
+                  className="w-full px-3 py-2 rounded bg-white border border-gray-200 text-gray-800"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-slate-450 font-semibold">Remarks *</label>
+                <label className="text-gray-500 font-semibold">Remarks *</label>
                 <input
                   type="text"
                   required
                   value={adjustForm.remarks || ''}
                   onChange={(e) => setAdjustForm({ ...adjustForm, remarks: e.target.value })}
-                  className="w-full px-3 py-2 rounded bg-slate-955 border border-slate-800 text-white"
+                  className="w-full px-3 py-2 rounded bg-white border border-gray-200 text-gray-800"
                 />
               </div>
               <div className="flex justify-end gap-3 font-semibold">
-                <button type="button" onClick={() => setIsAdjustModalOpen(false)} className="px-3.5 py-1.5 rounded bg-slate-955 border border-slate-800 text-slate-355 cursor-pointer">Cancel</button>
-                <button type="submit" className="px-3.5 py-1.5 rounded bg-teal-500 text-slate-955 font-bold cursor-pointer">Save</button>
+                <button type="button" onClick={() => setIsAdjustModalOpen(false)} className="px-3.5 py-1.5 rounded bg-white border border-gray-200 text-gray-600 cursor-pointer">Cancel</button>
+                <button type="submit" className="px-3.5 py-1.5 rounded bg-primary text-slate-955 font-bold cursor-pointer">Save</button>
               </div>
             </form>
           </div>

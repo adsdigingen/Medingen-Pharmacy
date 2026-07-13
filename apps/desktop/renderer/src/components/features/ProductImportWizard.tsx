@@ -964,8 +964,8 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
       const element = document.getElementById(`preview-row-${rowNum}`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        element.classList.add('bg-teal-500/20');
-        setTimeout(() => element.classList.remove('bg-teal-500/20'), 2500);
+        element.classList.add('bg-primary/20');
+        setTimeout(() => element.classList.remove('bg-primary/20'), 2500);
       }
     }, 100);
   };
@@ -1022,20 +1022,20 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => !isImporting && onClose()} />
 
         {/* Dialog Container */}
-        <div className="relative inline-block w-full max-w-[96vw] align-middle transition-all transform bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl text-left my-6 text-slate-200">
+        <div className="relative inline-block w-full max-w-[96vw] align-middle transition-all transform bg-white border border-gray-200 rounded-3xl shadow-2xl text-left my-6 text-gray-700">
           
           {/* Header */}
-          <div className="px-8 py-5 border-b border-slate-800/80 flex justify-between items-center bg-slate-900/60 backdrop-blur-sm sticky top-0 rounded-t-3xl z-10">
+          <div className="px-8 py-5 border-b border-gray-200/80 flex justify-between items-center bg-white/60 backdrop-blur-sm sticky top-0 rounded-t-3xl z-10">
             <div>
-              <h2 className="text-lg font-bold text-white tracking-wide uppercase flex items-center gap-2">
-                <FiUpload className="text-teal-400" /> Universal Product Import Engine
+              <h2 className="text-lg font-bold text-gray-800 tracking-wide uppercase flex items-center gap-2">
+                <FiUpload className="text-primary" /> Universal Product Import Engine
               </h2>
               <p className="text-xs text-slate-455 mt-1">Import medicine databases from any distributor spreadsheet dynamically.</p>
             </div>
             {!isImporting && (
               <button 
                 onClick={onClose} 
-                className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-1.5 rounded-full hover:bg-gray-100 text-muted hover:text-gray-800 transition-colors cursor-pointer"
               >
                 <FiX size={20} />
               </button>
@@ -1043,7 +1043,7 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
           </div>
 
           {/* Wizard Steps Indicator */}
-          <div className="px-8 py-4 bg-slate-950/40 border-b border-slate-850 flex justify-between items-center text-xs font-semibold select-none">
+          <div className="px-8 py-4 bg-white/40 border-b border-gray-200 flex justify-between items-center text-xs font-semibold select-none">
             <div className="flex items-center gap-6 w-full max-w-5xl mx-auto overflow-x-auto scrollbar-none py-1">
               {[
                 { s: 1, label: 'Upload' },
@@ -1057,15 +1057,15 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                 <div key={idx} className="flex items-center gap-2 shrink-0">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center font-mono border text-[10px] transition-all duration-350 ${
                     step >= stepItem.s 
-                      ? 'bg-teal-500 border-teal-500 text-slate-950 font-bold shadow-[0_0_10px_rgba(20,184,166,0.35)]' 
-                      : 'border-slate-850 text-slate-500 bg-slate-955'
+                      ? 'bg-primary border-teal-500 text-slate-950 font-bold shadow-[0_0_10px_rgba(20,184,166,0.35)]' 
+                      : 'border-gray-200 text-gray-500 bg-gray-50'
                   }`}>
                     {stepItem.s}
                   </div>
-                  <span className={`transition-colors duration-300 text-[11px] ${step >= stepItem.s ? 'text-slate-100 font-bold' : 'text-slate-500'}`}>
+                  <span className={`transition-colors duration-300 text-[11px] ${step >= stepItem.s ? 'text-gray-800 font-bold' : 'text-gray-500'}`}>
                     {stepItem.label}
                   </span>
-                  {idx < 6 && <div className={`w-6 h-0.5 rounded transition-all duration-500 ${step > stepItem.s ? 'bg-teal-500' : 'bg-slate-850'}`} />}
+                  {idx < 6 && <div className={`w-6 h-0.5 rounded transition-all duration-500 ${step > stepItem.s ? 'bg-primary' : 'bg-gray-50'}`} />}
                 </div>
               ))}
             </div>
@@ -1081,7 +1081,7 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                   
                   {/* Left block - File Upload Area */}
                   <div className="lg:col-span-2 space-y-4">
-                    <div className="border-2 border-dashed border-slate-800 hover:border-teal-500/50 rounded-3xl p-10 text-center bg-slate-950/20 hover:bg-slate-950/30 transition-all cursor-pointer relative group">
+                    <div className="border-2 border-dashed border-gray-200 hover:border-teal-500/50 rounded-3xl p-10 text-center bg-white/20 hover:bg-white/30 transition-all cursor-pointer relative group">
                       <input 
                         type="file" 
                         accept=".csv, .xls, .xlsx"
@@ -1090,12 +1090,12 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                         disabled={isLoadingFile}
                       />
                       <div className="space-y-4">
-                        <div className="w-14 h-14 rounded-2xl bg-teal-500/10 text-teal-400 flex items-center justify-center mx-auto group-hover:scale-105 transition-transform duration-300">
+                        <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto group-hover:scale-105 transition-transform duration-300">
                           {isLoadingFile ? <FiRefreshCw className="animate-spin text-2xl" /> : <FiUpload className="text-2xl" />}
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-slate-200">{file ? file.name : 'Choose spreadsheet catalog file or drag here'}</p>
-                          <p className="text-xs text-slate-500 mt-1.5">Supports Microsoft Excel (.xlsx, .xls) and CSV sheets.</p>
+                          <p className="text-sm font-bold text-gray-700">{file ? file.name : 'Choose spreadsheet catalog file or drag here'}</p>
+                          <p className="text-xs text-gray-500 mt-1.5">Supports Microsoft Excel (.xlsx, .xls) and CSV sheets.</p>
                         </div>
                         {file && (
                           <Badge variant="success" className="font-mono mt-1 px-3 py-1">
@@ -1106,15 +1106,15 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                     </div>
 
                     {file && worksheets.length > 1 && (
-                      <div className="bg-slate-955/25 border border-slate-850 p-5 rounded-2xl text-left space-y-3">
-                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      <div className="bg-gray-50/25 border border-gray-200 p-5 rounded-2xl text-left space-y-3">
+                        <label className="block text-xs font-bold text-muted uppercase tracking-wider">
                           Select Worksheet to Import
                         </label>
                         <div className="relative">
                           <select
                             value={selectedWorksheet}
                             onChange={handleWorksheetChange}
-                            className="w-full px-4 py-3 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 font-bold focus:outline-none focus:border-teal-500 transition-colors"
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 font-bold focus:outline-none focus:border-primary transition-colors"
                           >
                             {worksheets.map((sheet, i) => (
                               <option key={i} value={sheet}>{sheet}</option>
@@ -1129,53 +1129,53 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                   <div className="space-y-4">
                     {/* Metadata summary display */}
                     {file && (
-                      <div className="bg-slate-955/30 border border-slate-850 rounded-3xl p-5 text-left space-y-4 animate-scale-in">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-850/50 pb-2">Workbook Details</h3>
-                        <div className="space-y-2.5 font-mono text-[11px] text-slate-450 leading-relaxed">
+                      <div className="bg-gray-50/30 border border-gray-200 rounded-3xl p-5 text-left space-y-4 animate-scale-in">
+                        <h3 className="text-xs font-bold text-muted uppercase tracking-widest border-b border-gray-200/50 pb-2">Workbook Details</h3>
+                        <div className="space-y-2.5 font-mono text-[11px] text-gray-500 leading-relaxed">
                           <div className="flex justify-between">
                             <span>Workbook:</span>
-                            <span className="text-slate-200 font-bold truncate max-w-[180px]">{file.name}</span>
+                            <span className="text-gray-700 font-bold truncate max-w-[180px]">{file.name}</span>
                           </div>
                           <div className="flex justify-between">
                             <span>Worksheet:</span>
-                            <span className="text-slate-200 font-bold text-teal-400">{selectedWorksheet || 'Default'}</span>
+                            <span className="text-gray-700 font-bold text-primary">{selectedWorksheet || 'Default'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span>Total Sheets:</span>
-                            <span className="text-slate-200 font-bold">{worksheets.length || 1}</span>
+                            <span className="text-gray-700 font-bold">{worksheets.length || 1}</span>
                           </div>
                           <div className="flex justify-between">
                             <span>Header Row:</span>
-                            <span className="text-slate-200 font-bold">Row {detectedHeaderRow}</span>
+                            <span className="text-gray-700 font-bold">Row {detectedHeaderRow}</span>
                           </div>
                           <div className="flex justify-between">
                             <span>Cols Detected:</span>
-                            <span className="text-slate-200 font-bold">{headers.length}</span>
+                            <span className="text-gray-700 font-bold">{headers.length}</span>
                           </div>
                           <div className="flex justify-between">
                             <span>Rows Detected:</span>
-                            <span className="text-slate-200 font-bold text-emerald-450">{(totalRows ?? 0).toLocaleString()}</span>
+                            <span className="text-gray-700 font-bold text-emerald-450">{(totalRows ?? 0).toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between">
                             <span>File Size:</span>
-                            <span className="text-slate-200 font-bold">{fileSizeFormatted}</span>
+                            <span className="text-gray-700 font-bold">{fileSizeFormatted}</span>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    <div className="bg-slate-955/30 border border-slate-850 rounded-3xl p-5 text-left space-y-4">
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-850/50 pb-2">Import Settings</h3>
+                    <div className="bg-gray-50/30 border border-gray-200 rounded-3xl p-5 text-left space-y-4">
+                      <h3 className="text-xs font-bold text-muted uppercase tracking-widest border-b border-gray-200/50 pb-2">Import Settings</h3>
                       
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
                             Supplier / Template
                           </label>
                           <select
                             value={selectedSupplierId}
                             onChange={handleSupplierChange}
-                            className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 text-xs font-bold focus:outline-none focus:border-teal-500 transition-colors"
+                            className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-700 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
                           >
                             <option value="">-- Auto-Detect (Default) --</option>
                             {allSuppliers.map(s => (
@@ -1185,13 +1185,13 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
                             Duplicate Handling
                           </label>
                           <select
                             value={duplicateMode}
                             onChange={(e) => setDuplicateMode(e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-slate-955 border border-slate-850 rounded-xl text-slate-200 text-xs font-bold focus:outline-none focus:border-teal-500 transition-colors"
+                            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
                           >
                             <option value="SKIP_DUPLICATES">Skip duplicate rows</option>
                             <option value="UPDATE_EXISTING">Update existing profiles</option>
@@ -1210,21 +1210,21 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
             {/* STEP 2: COLUMN MAPPING DIALOG */}
             {step === 2 && (
               <div className="space-y-6 animate-slide-up">
-                <div className="flex justify-between items-center bg-slate-955/40 p-4 border border-slate-850 rounded-2xl select-none">
+                <div className="flex justify-between items-center bg-gray-50/40 p-4 border border-gray-200 rounded-2xl select-none">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wide">Map Columns</h3>
-                    <p className="text-xs text-slate-450 mt-0.5 font-medium">Link spreadsheet headers to target catalog fields. Verify sample values.</p>
+                    <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Map Columns</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 font-medium">Link spreadsheet headers to target catalog fields. Verify sample values.</p>
                   </div>
                   <div className="flex gap-2 font-mono text-[10px]">
-                    <Badge variant="gray" className="text-slate-400 border-slate-800 font-mono px-3">
+                    <Badge variant="gray" className="text-muted border-gray-200 font-mono px-3">
                       Mapped: {Object.values(mapping).filter(Boolean).length} / {TARGET_FIELDS.filter(f => f.required).length} Required
                     </Badge>
                   </div>
                 </div>
 
-                <div className="bg-slate-950/20 border border-slate-850/70 rounded-2xl overflow-hidden shadow-inner">
-                  <table className="w-full text-left text-slate-350">
-                    <thead className="bg-slate-950 text-[10px] text-slate-500 uppercase font-mono font-bold border-b border-slate-850">
+                <div className="bg-white/20 border border-gray-200/70 rounded-2xl overflow-hidden shadow-inner">
+                  <table className="w-full text-left text-gray-600">
+                    <thead className="bg-white text-[10px] text-gray-500 uppercase font-mono font-bold border-b border-gray-200">
                       <tr>
                         <th className="py-3 px-6">Excel Column Header</th>
                         <th className="py-3 px-6 text-center">Maps To Field</th>
@@ -1240,15 +1240,15 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                         const sampleVal = getSampleValue(h);
 
                         return (
-                          <tr key={index} className="hover:bg-slate-950/15">
-                            <td className="py-3.5 px-6 font-mono font-semibold text-slate-200">{h}</td>
+                          <tr key={index} className="hover:bg-white/15">
+                            <td className="py-3.5 px-6 font-mono font-semibold text-gray-700">{h}</td>
                             <td className="py-2.5 px-6 text-center">
                               <div className="flex items-center justify-center gap-3">
                                 <span className="text-slate-600 font-bold text-xs">→</span>
                                 <select
                                   value={dbFieldKey || ''}
                                   onChange={(e) => handleMappingChange(h, e.target.value)}
-                                  className="px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 font-semibold focus:outline-none focus:border-teal-500 transition-colors w-64 text-xs"
+                                  className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 font-semibold focus:outline-none focus:border-primary transition-colors w-64 text-xs"
                                 >
                                   <option value="">-- Ignore Column --</option>
                                   {TARGET_FIELDS.map(f => (
@@ -1259,7 +1259,7 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                                 </select>
                               </div>
                             </td>
-                            <td className="py-3.5 px-6 font-mono text-slate-400 text-xs italic max-w-[200px] truncate">
+                            <td className="py-3.5 px-6 font-mono text-muted text-xs italic max-w-[200px] truncate">
                               {sampleVal}
                             </td>
                             <td className="py-2.5 text-center select-none">
@@ -1275,10 +1275,10 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                 </div>
 
                 {/* Save Mapping Template */}
-                <div className="p-5 bg-slate-955/35 border border-slate-850 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4 text-left">
+                <div className="p-5 bg-gray-50/35 border border-gray-200 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4 text-left">
                   <div>
-                    <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">Save template mapping?</span>
-                    <span className="text-[11px] text-slate-500 font-medium">Easily auto-map columns next time you upload this supplier's catalog sheet.</span>
+                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wide block">Save template mapping?</span>
+                    <span className="text-[11px] text-gray-500 font-medium">Easily auto-map columns next time you upload this supplier's catalog sheet.</span>
                   </div>
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
                     <input
@@ -1286,12 +1286,12 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                       placeholder="Supplier / Distributor Name"
                       value={newSupplierName}
                       onChange={(e) => setNewSupplierName(e.target.value)}
-                      className="px-3.5 py-2.5 bg-slate-955 border border-slate-850 rounded-xl text-slate-200 text-xs font-bold focus:outline-none w-full sm:w-64"
+                      className="px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 text-xs font-bold focus:outline-none w-full sm:w-64"
                     />
                     <Button
                       onClick={handleSaveMapping}
                       variant="outline"
-                      className="flex items-center justify-center gap-1.5 py-2.5 text-teal-450 border-teal-500/20 hover:bg-teal-500/10 cursor-pointer font-bold shrink-0 text-xs"
+                      className="flex items-center justify-center gap-1.5 py-2.5 text-teal-450 border-primary/20 hover:bg-primary/10 cursor-pointer font-bold shrink-0 text-xs"
                     >
                       <FiSave size={13} /> Save Template
                     </Button>
@@ -1307,15 +1307,15 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                 {/* Statistics cards header */}
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
                   {[
-                    { label: 'Total Rows', val: totalRows, color: 'text-slate-300' },
-                    { label: 'Preview Rows', val: Math.min(50, totalRows), color: 'text-teal-400' },
+                    { label: 'Total Rows', val: totalRows, color: 'text-gray-700' },
+                    { label: 'Preview Rows', val: Math.min(50, totalRows), color: 'text-primary' },
                     { label: 'New Products', val: Math.max(0, totalRows - estimatedDuplicates), color: 'text-emerald-450' },
                     { label: 'Duplicates', val: estimatedDuplicates, color: 'text-amber-400' },
-                    { label: 'Skipped', val: duplicateMode === 'SKIP_DUPLICATES' ? estimatedDuplicates : 0, color: 'text-slate-555' },
-                    { label: 'Warnings', val: validationErrors.length, color: 'text-rose-455' }
+                    { label: 'Skipped', val: duplicateMode === 'SKIP_DUPLICATES' ? estimatedDuplicates : 0, color: 'text-gray-500' },
+                    { label: 'Warnings', val: validationErrors.length, color: 'text-rose-600' }
                   ].map((item, idx) => (
-                    <div key={idx} className="bg-slate-955/30 border border-slate-850 p-4 rounded-2xl text-center select-none font-mono">
-                      <span className="text-[9px] font-bold text-slate-555 uppercase tracking-wider block font-sans">{item.label}</span>
+                    <div key={idx} className="bg-gray-50/30 border border-gray-200 p-4 rounded-2xl text-center select-none font-mono">
+                      <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block font-sans">{item.label}</span>
                       <span className={`text-lg font-bold block mt-1 ${item.color}`}>{item.val.toLocaleString()}</span>
                     </div>
                   ))}
@@ -1329,9 +1329,9 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                   <Badge variant="info">Preview Mode</Badge>
                 </div>
 
-                <div className="bg-slate-950/20 border border-slate-850/70 rounded-2xl overflow-x-auto shadow-xl">
-                  <table className="w-full text-left text-slate-350 border-collapse min-w-[800px]">
-                    <thead className="bg-slate-950 text-[10px] text-slate-500 uppercase font-mono font-bold border-b border-slate-850">
+                <div className="bg-white/20 border border-gray-200/70 rounded-2xl overflow-x-auto shadow-xl">
+                  <table className="w-full text-left text-gray-600 border-collapse min-w-[800px]">
+                    <thead className="bg-white text-[10px] text-gray-500 uppercase font-mono font-bold border-b border-gray-200">
                       <tr>
                         <th className="py-3 px-4">Row</th>
                         <th className="py-3 px-4">Medicine Name</th>
@@ -1347,20 +1347,20 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                         <tr 
                           key={idx} 
                           id={`preview-row-${row.row}`}
-                          className={`transition-colors duration-350 ${row.valid ? 'hover:bg-slate-950/20' : 'bg-rose-955/5 hover:bg-rose-955/10 border-l-2 border-rose-500'}`}
+                          className={`transition-colors duration-350 ${row.valid ? 'hover:bg-white/20' : 'bg-rose-955/5 hover:bg-rose-955/10 border-l-2 border-rose-500'}`}
                         >
-                          <td className="py-3 px-4 font-mono text-slate-550">{row.row}</td>
+                          <td className="py-3 px-4 font-mono text-gray-400">{row.row}</td>
                           <td className="py-3 px-4">
-                            <span className="font-bold text-slate-200 block">{row.name || '-'}</span>
-                            <span className="text-[10px] text-slate-500 font-medium block mt-0.5">Mfr: {row.manufacturerName || '-'}</span>
+                            <span className="font-bold text-gray-700 block">{row.name || '-'}</span>
+                            <span className="text-[10px] text-gray-500 font-medium block mt-0.5">Mfr: {row.manufacturerName || '-'}</span>
                           </td>
-                          <td className="py-3 px-4 text-slate-400 font-medium max-w-xs truncate">{row.genericName || '-'}</td>
-                          <td className="py-3 px-4 font-mono text-[10px] text-slate-450 leading-relaxed">
+                          <td className="py-3 px-4 text-muted font-medium max-w-xs truncate">{row.genericName || '-'}</td>
+                          <td className="py-3 px-4 font-mono text-[10px] text-gray-500 leading-relaxed">
                             <div>Bar: {row.barcode || '-'}</div>
-                            <div className="text-slate-550">SKU: {row.sku || '-'}</div>
+                            <div className="text-gray-400">SKU: {row.sku || '-'}</div>
                           </td>
-                          <td className="py-3 px-4 text-right font-mono text-slate-200">₹{parseFloat(row.cost || 0).toFixed(2)}</td>
-                          <td className="py-3 px-4 text-right font-mono text-slate-200">₹{parseFloat(row.mrp || 0).toFixed(2)}</td>
+                          <td className="py-3 px-4 text-right font-mono text-gray-700">₹{parseFloat(row.cost || 0).toFixed(2)}</td>
+                          <td className="py-3 px-4 text-right font-mono text-gray-700">₹{parseFloat(row.mrp || 0).toFixed(2)}</td>
                           <td className="py-3 px-4 text-center select-none">
                             <Badge 
                               variant={row.status === 'DUPLICATE' ? 'warning' : row.status === 'INVALID' ? 'danger' : 'success'}
@@ -1382,38 +1382,38 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
               <div className="space-y-6 animate-slide-up">
                 
                 {/* Active scan progress indicators */}
-                <div className="bg-slate-955/45 border border-slate-850 p-5 rounded-2xl text-left space-y-4">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-mono">Active Validation Checklist</span>
+                <div className="bg-gray-50/45 border border-gray-200 p-5 rounded-2xl text-left space-y-4">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block font-mono">Active Validation Checklist</span>
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-xs font-semibold">
                     <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${valScanActive ? 'bg-teal-500/20 border-teal-500 text-teal-400' : 'border-slate-700 bg-slate-950 text-slate-650'}`}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${valScanActive ? 'bg-primary/20 border-teal-500 text-primary' : 'border-gray-300 bg-white text-slate-650'}`}>
                         <FiCheck className="text-[10px]" />
                       </div>
-                      <span className={valScanActive ? 'text-slate-200' : 'text-slate-550'}>1. Scan spreadsheet</span>
+                      <span className={valScanActive ? 'text-gray-700' : 'text-gray-400'}>1. Scan spreadsheet</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${valDupSkuActive ? 'bg-teal-500/20 border-teal-500 text-teal-400' : 'border-slate-700 bg-slate-950 text-slate-650'}`}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${valDupSkuActive ? 'bg-primary/20 border-teal-500 text-primary' : 'border-gray-300 bg-white text-slate-650'}`}>
                         <FiCheck className="text-[10px]" />
                       </div>
-                      <span className={valDupSkuActive ? 'text-slate-200' : 'text-slate-550'}>2. Check duplicates SKU</span>
+                      <span className={valDupSkuActive ? 'text-gray-700' : 'text-gray-400'}>2. Check duplicates SKU</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${valDupBarcodeActive ? 'bg-teal-500/20 border-teal-500 text-teal-400' : 'border-slate-700 bg-slate-950 text-slate-650'}`}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${valDupBarcodeActive ? 'bg-primary/20 border-teal-500 text-primary' : 'border-gray-300 bg-white text-slate-650'}`}>
                         <FiCheck className="text-[10px]" />
                       </div>
-                      <span className={valDupBarcodeActive ? 'text-slate-200' : 'text-slate-550'}>3. Check duplicates barcode</span>
+                      <span className={valDupBarcodeActive ? 'text-gray-700' : 'text-gray-400'}>3. Check duplicates barcode</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${valPricesActive ? 'bg-teal-500/20 border-teal-500 text-teal-400' : 'border-slate-700 bg-slate-950 text-slate-650'}`}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${valPricesActive ? 'bg-primary/20 border-teal-500 text-primary' : 'border-gray-300 bg-white text-slate-650'}`}>
                         <FiCheck className="text-[10px]" />
                       </div>
-                      <span className={valPricesActive ? 'text-slate-200' : 'text-slate-550'}>4. Pricing checks</span>
+                      <span className={valPricesActive ? 'text-gray-700' : 'text-gray-400'}>4. Pricing checks</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${valRequiredActive ? 'bg-teal-500/20 border-teal-500 text-teal-400' : 'border-slate-700 bg-slate-950 text-slate-650'}`}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${valRequiredActive ? 'bg-primary/20 border-teal-500 text-primary' : 'border-gray-300 bg-white text-slate-650'}`}>
                         <FiCheck className="text-[10px]" />
                       </div>
-                      <span className={valRequiredActive ? 'text-slate-200' : 'text-slate-550'}>5. Check required keys</span>
+                      <span className={valRequiredActive ? 'text-gray-700' : 'text-gray-400'}>5. Check required keys</span>
                     </div>
                   </div>
                 </div>
@@ -1422,21 +1422,21 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                   
                   {/* Left layout stats info */}
                   <div className="space-y-4 lg:col-span-1">
-                    <div className="bg-slate-955/30 border border-slate-850 rounded-2xl p-5 space-y-4 text-left">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-850 pb-2">Validation Summary</h4>
+                    <div className="bg-gray-50/30 border border-gray-200 rounded-2xl p-5 space-y-4 text-left">
+                      <h4 className="text-xs font-bold text-muted uppercase tracking-widest border-b border-gray-200 pb-2">Validation Summary</h4>
                       
                       <div className="space-y-3 font-semibold text-xs leading-relaxed">
                         <div className="flex justify-between">
-                          <span className="text-slate-550 font-medium">Total Rows:</span>
-                          <span className="font-mono text-slate-200 font-bold">{totalRows.toLocaleString()}</span>
+                          <span className="text-gray-400 font-medium">Total Rows:</span>
+                          <span className="font-mono text-gray-700 font-bold">{totalRows.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-555 font-medium">Valid Rows:</span>
+                          <span className="text-gray-500 font-medium">Valid Rows:</span>
                           <span className="font-mono text-emerald-450 font-bold">{(totalRows - validationErrors.length).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-555 font-medium">Invalid Rows:</span>
-                          <span className={`font-mono font-bold ${validationErrors.length > 0 ? 'text-rose-455' : 'text-slate-500'}`}>
+                          <span className="text-gray-500 font-medium">Invalid Rows:</span>
+                          <span className={`font-mono font-bold ${validationErrors.length > 0 ? 'text-rose-600' : 'text-gray-500'}`}>
                             {validationErrors.length.toLocaleString()}
                           </span>
                         </div>
@@ -1451,15 +1451,15 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                   </div>
 
                   {/* Diagnostic Error cards panel */}
-                  <div className="lg:col-span-3 bg-slate-955/30 border border-slate-850 p-5 rounded-2xl max-h-[500px] overflow-y-auto space-y-4 text-left">
-                    <div className="flex justify-between items-center border-b border-slate-850 pb-3 select-none">
-                      <span className="text-[10px] font-bold text-slate-555 uppercase tracking-wider font-mono">
+                  <div className="lg:col-span-3 bg-gray-50/30 border border-gray-200 p-5 rounded-2xl max-h-[500px] overflow-y-auto space-y-4 text-left">
+                    <div className="flex justify-between items-center border-b border-gray-200 pb-3 select-none">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono">
                         Detailed validation warnings ({validationErrors.length} issues detected)
                       </span>
                       {validationErrors.length > 0 && (
                         <button 
                           onClick={downloadErrorReport}
-                          className="text-[10px] font-bold text-teal-450 hover:text-teal-400 flex items-center gap-1 cursor-pointer transition-colors"
+                          className="text-[10px] font-bold text-teal-450 hover:text-primary flex items-center gap-1 cursor-pointer transition-colors"
                         >
                           <FiDownload size={11} /> Download Report
                         </button>
@@ -1467,7 +1467,7 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                     </div>
 
                     {validationErrors.length === 0 ? (
-                      <div className="py-24 text-center text-slate-500 select-none font-bold">
+                      <div className="py-24 text-center text-gray-500 select-none font-bold">
                         <FiCheckCircle className="text-emerald-450 text-3xl mx-auto mb-2.5 animate-bounce" />
                         All uploaded rows are structurally valid! Ready for final import.
                       </div>
@@ -1496,28 +1496,28 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                           }
 
                           return (
-                            <div key={idx} className="bg-slate-955/30 border border-slate-850/80 rounded-2xl p-5 space-y-4 hover:border-rose-500/20 transition-all duration-300 animate-fadeIn">
-                              <div className="flex justify-between items-start border-b border-slate-850/50 pb-2">
+                            <div key={idx} className="bg-gray-50/30 border border-gray-200/80 rounded-2xl p-5 space-y-4 hover:border-rose-500/20 transition-all duration-300 animate-fadeIn">
+                              <div className="flex justify-between items-start border-b border-gray-200/50 pb-2">
                                 <div>
-                                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-mono">Row {err.row}</span>
-                                  <h4 className="text-sm font-bold text-slate-100 mt-1">{err.name || 'Unknown Product'}</h4>
+                                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block font-mono">Row {err.row}</span>
+                                  <h4 className="text-sm font-bold text-gray-800 mt-1">{err.name || 'Unknown Product'}</h4>
                                 </div>
                                 <Badge variant="danger" className="text-[8px] font-bold tracking-wider uppercase px-2 py-0.5">INVALID</Badge>
                               </div>
 
                               {isPriceError && (costRaw || mrpRaw) && (
-                                <div className="grid grid-cols-3 gap-2 bg-slate-955/65 p-3 rounded-xl border border-slate-850/60 font-mono text-[11px] text-left">
+                                <div className="grid grid-cols-3 gap-2 bg-gray-50/65 p-3 rounded-xl border border-gray-200/60 font-mono text-[11px] text-left">
                                   <div>
-                                    <span className="text-[9px] text-slate-500 block uppercase font-sans">Purchase Price</span>
-                                    <span className="text-slate-200 font-bold">{formatCurrency(cost)}</span>
+                                    <span className="text-[9px] text-gray-500 block uppercase font-sans">Purchase Price</span>
+                                    <span className="text-gray-700 font-bold">{formatCurrency(cost)}</span>
                                   </div>
                                   <div>
-                                    <span className="text-[9px] text-slate-500 block uppercase font-sans">MRP</span>
-                                    <span className="text-slate-200 font-bold">{formatCurrency(mrp)}</span>
+                                    <span className="text-[9px] text-gray-500 block uppercase font-sans">MRP</span>
+                                    <span className="text-gray-700 font-bold">{formatCurrency(mrp)}</span>
                                   </div>
                                   <div>
-                                    <span className="text-[9px] text-slate-500 block uppercase font-sans">Difference</span>
-                                    <span className={difference < 0 ? 'text-rose-455 font-bold animate-pulse' : 'text-emerald-450 font-bold'}>
+                                    <span className="text-[9px] text-gray-500 block uppercase font-sans">Difference</span>
+                                    <span className={difference < 0 ? 'text-rose-600 font-bold animate-pulse' : 'text-emerald-450 font-bold'}>
                                       {difference < 0 ? '-' : ''}{formatCurrency(Math.abs(difference))}
                                     </span>
                                   </div>
@@ -1525,8 +1525,8 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                               )}
 
                               <div className="text-xs leading-normal">
-                                <span className="text-[9px] text-slate-550 uppercase font-sans tracking-wide block mb-1">Validation Warnings</span>
-                                <ul className="list-disc pl-4 text-slate-350 space-y-0.5 font-semibold">
+                                <span className="text-[9px] text-gray-400 uppercase font-sans tracking-wide block mb-1">Validation Warnings</span>
+                                <ul className="list-disc pl-4 text-gray-600 space-y-0.5 font-semibold">
                                   {(err.details || err.errors || []).map((d: string, i: number) => (
                                     <li key={i}>{d}</li>
                                   ))}
@@ -1534,23 +1534,23 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                               </div>
 
                               <div className="bg-rose-500/5 p-3 rounded-xl border border-rose-500/10 text-xs text-rose-300 leading-relaxed font-semibold flex gap-2">
-                                <FiAlertTriangle className="text-rose-455 shrink-0 mt-0.5" />
+                                <FiAlertTriangle className="text-rose-600 shrink-0 mt-0.5" />
                                 <div>
                                   <span className="font-bold block text-[10px] text-rose-400 uppercase tracking-wide">Suggested Fix</span>
-                                  <p className="mt-0.5 text-slate-350">{suggestedFix}</p>
+                                  <p className="mt-0.5 text-gray-600">{suggestedFix}</p>
                                 </div>
                               </div>
 
-                              <div className="flex gap-2 justify-end pt-2 border-t border-slate-850/60 text-[10px] font-bold">
+                              <div className="flex gap-2 justify-end pt-2 border-t border-gray-200/60 text-[10px] font-bold">
                                 <button 
                                   onClick={() => locateRow(err.row)} 
-                                  className="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-850 border border-slate-850 rounded-xl text-slate-400 hover:text-white uppercase transition-colors cursor-pointer"
+                                  className="px-3.5 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-muted hover:text-gray-800 uppercase transition-colors cursor-pointer"
                                 >
                                   Locate Row
                                 </button>
                                 <button 
                                   onClick={() => downloadSingleError(err)} 
-                                  className="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-850 border border-slate-850 rounded-xl text-slate-400 hover:text-white uppercase transition-colors cursor-pointer"
+                                  className="px-3.5 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-muted hover:text-gray-800 uppercase transition-colors cursor-pointer"
                                 >
                                   Download Error
                                 </button>
@@ -1576,68 +1576,68 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
             {step === 5 && (
               <div className="space-y-6 max-w-2xl mx-auto py-2 animate-slide-up text-left select-none">
                 <div className="text-center space-y-2 py-4">
-                  <div className="w-12 h-12 rounded-full bg-teal-500/10 text-teal-400 flex items-center justify-center mx-auto mb-2 border border-teal-500/25">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2 border border-teal-500/25">
                     <FiSettings className="text-xl animate-pulse" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-100 uppercase tracking-wide">Confirm Import Execution</h3>
+                  <h3 className="text-base font-bold text-gray-800 uppercase tracking-wide">Confirm Import Execution</h3>
                   <p className="text-xs text-slate-455 font-semibold">Review sheet parameters, database mapping tallies, and estimations before starting.</p>
                 </div>
 
-                <div className="bg-slate-955/35 border border-slate-850 rounded-3xl p-6 space-y-6">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6 border-b border-slate-850 pb-5 text-sm">
+                <div className="bg-gray-50/35 border border-gray-200 rounded-3xl p-6 space-y-6">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6 border-b border-gray-200 pb-5 text-sm">
                     <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Workbook Name</span>
-                      <span className="text-slate-200 font-bold block mt-1 font-mono truncate max-w-[200px]">{file?.name}</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Workbook Name</span>
+                      <span className="text-gray-700 font-bold block mt-1 font-mono truncate max-w-[200px]">{file?.name}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Worksheet Selected</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Worksheet Selected</span>
                       <span className="text-teal-450 font-bold block mt-1">{selectedWorksheet || 'Default'}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Rows Found</span>
-                      <span className="text-slate-200 font-bold block mt-1 font-mono">{totalRows.toLocaleString()}</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Rows Found</span>
+                      <span className="text-gray-700 font-bold block mt-1 font-mono">{totalRows.toLocaleString()}</span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6 border-b border-slate-850 pb-5 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6 border-b border-gray-200 pb-5 text-sm">
                     <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Valid Rows</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Valid Rows</span>
                       <span className="text-emerald-450 font-bold block mt-1 font-mono">{validCount.toLocaleString()}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Invalid Rows</span>
-                      <span className={`font-bold block mt-1 font-mono ${invalidCount > 0 ? 'text-rose-455' : 'text-slate-400'}`}>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Invalid Rows</span>
+                      <span className={`font-bold block mt-1 font-mono ${invalidCount > 0 ? 'text-rose-600' : 'text-muted'}`}>
                         {invalidCount.toLocaleString()}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Duplicate Mode</span>
-                      <span className="text-slate-200 font-bold block mt-1 font-sans">{getDuplicateModeLabel(duplicateMode)}</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Duplicate Mode</span>
+                      <span className="text-gray-700 font-bold block mt-1 font-sans">{getDuplicateModeLabel(duplicateMode)}</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
-                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-850/65 text-center">
-                      <span className="text-[9px] text-slate-550 font-sans block uppercase font-bold">Records to Create</span>
+                    <div className="bg-white p-4 rounded-xl border border-gray-200/65 text-center">
+                      <span className="text-[9px] text-gray-400 font-sans block uppercase font-bold">Records to Create</span>
                       <span className="text-base font-bold text-emerald-450 block mt-1">{confCreateCount.toLocaleString()}</span>
                     </div>
-                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-850/65 text-center">
-                      <span className="text-[9px] text-slate-555 font-sans block uppercase font-bold">Records to Update</span>
+                    <div className="bg-white p-4 rounded-xl border border-gray-200/65 text-center">
+                      <span className="text-[9px] text-gray-500 font-sans block uppercase font-bold">Records to Update</span>
                       <span className="text-base font-bold text-teal-450 block mt-1">{confUpdateCount.toLocaleString()}</span>
                     </div>
-                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-850/65 text-center">
-                      <span className="text-[9px] text-slate-555 font-sans block uppercase font-bold">Skipped (Dup / Err)</span>
+                    <div className="bg-white p-4 rounded-xl border border-gray-200/65 text-center">
+                      <span className="text-[9px] text-gray-500 font-sans block uppercase font-bold">Skipped (Dup / Err)</span>
                       <span className="text-base font-bold text-amber-405 block mt-1">{confSkipCount.toLocaleString()}</span>
                     </div>
-                    <div className="bg-slate-955 p-4 rounded-xl border border-slate-850/65 text-center">
-                      <span className="text-[9px] text-slate-555 font-sans block uppercase font-bold">Estimated Time</span>
-                      <span className="text-base font-bold text-teal-400 block mt-1 font-sans">{estimatedTimeSeconds} Seconds</span>
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200/65 text-center">
+                      <span className="text-[9px] text-gray-500 font-sans block uppercase font-bold">Estimated Time</span>
+                      <span className="text-base font-bold text-primary block mt-1 font-sans">{estimatedTimeSeconds} Seconds</span>
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-850 flex flex-col items-center justify-center text-center space-y-4">
-                    <span className="text-base font-bold text-slate-200">Start Product Catalog Import?</span>
-                    <p className="text-xs text-slate-555 font-medium max-w-md">Clicking Start Import will initiate chunked database writing. Do not shut down or reload during the process.</p>
+                  <div className="pt-4 border-t border-gray-200 flex flex-col items-center justify-center text-center space-y-4">
+                    <span className="text-base font-bold text-gray-700">Start Product Catalog Import?</span>
+                    <p className="text-xs text-gray-500 font-medium max-w-md">Clicking Start Import will initiate chunked database writing. Do not shut down or reload during the process.</p>
                   </div>
                 </div>
               </div>
@@ -1649,24 +1649,24 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                 
                 {/* Real-time speed stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center font-mono">
-                  <div className="bg-slate-955/35 border border-slate-850 p-4 rounded-2xl select-none">
-                    <span className="text-[9px] font-bold text-slate-555 uppercase tracking-wider block font-sans">Processing Speed</span>
-                    <span className="text-lg font-bold text-teal-400 block mt-1">{importSpeed} rows/sec</span>
+                  <div className="bg-gray-50/35 border border-gray-200 p-4 rounded-2xl select-none">
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block font-sans">Processing Speed</span>
+                    <span className="text-lg font-bold text-primary block mt-1">{importSpeed} rows/sec</span>
                   </div>
-                  <div className="bg-slate-955/35 border border-slate-850 p-4 rounded-2xl select-none">
-                    <span className="text-[9px] font-bold text-slate-555 uppercase tracking-wider block font-sans">Elapsed Time</span>
-                    <span className="text-lg font-bold text-slate-200 block mt-1">
+                  <div className="bg-gray-50/35 border border-gray-200 p-4 rounded-2xl select-none">
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block font-sans">Elapsed Time</span>
+                    <span className="text-lg font-bold text-gray-700 block mt-1">
                       {Math.floor(elapsedSeconds / 60)}:{(elapsedSeconds % 60).toString().padStart(2, '0')}
                     </span>
                   </div>
-                  <div className="bg-slate-955/35 border border-slate-850 p-4 rounded-2xl select-none">
-                    <span className="text-[9px] font-bold text-slate-555 uppercase tracking-wider block font-sans">Remaining Time</span>
-                    <span className="text-lg font-bold text-teal-400 block mt-1">
+                  <div className="bg-gray-50/35 border border-gray-200 p-4 rounded-2xl select-none">
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block font-sans">Remaining Time</span>
+                    <span className="text-lg font-bold text-primary block mt-1">
                       {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
                     </span>
                   </div>
-                  <div className="bg-slate-955/35 border border-slate-850 p-4 rounded-2xl select-none">
-                    <span className="text-[9px] font-bold text-slate-555 uppercase tracking-wider block font-sans">Current Chunk</span>
+                  <div className="bg-gray-50/35 border border-gray-200 p-4 rounded-2xl select-none">
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block font-sans">Current Chunk</span>
                     <span className="text-lg font-bold text-emerald-450 block mt-1">
                       {Math.min(totalRows, Math.round((importProgress / 100) * totalRows))} / {totalRows}
                     </span>
@@ -1676,23 +1676,23 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                 {/* Real-time loader */}
                 <div className="py-2 text-center space-y-5 select-none">
                   <div className="space-y-2">
-                    <h3 className="text-base font-bold text-slate-100 uppercase tracking-wide flex items-center justify-center gap-2">
-                      <FiActivity className="text-teal-400 animate-pulse text-base" /> Writing Records
+                    <h3 className="text-base font-bold text-gray-800 uppercase tracking-wide flex items-center justify-center gap-2">
+                      <FiActivity className="text-primary animate-pulse text-base" /> Writing Records
                     </h3>
                     <p className="text-xs text-teal-455 font-mono font-bold animate-pulse">{currentBatchText}</p>
-                    <p className="text-[11px] text-slate-500 font-mono font-semibold max-w-sm mx-auto truncate">
+                    <p className="text-[11px] text-gray-500 font-mono font-semibold max-w-sm mx-auto truncate">
                       Current Item: {currentProductName || 'Processing...'}
                     </p>
                   </div>
 
                   <div className="space-y-1.5 max-w-md mx-auto">
-                    <div className="w-full bg-slate-950 rounded-full h-3.5 overflow-hidden border border-slate-850 p-0.5 shadow-inner">
+                    <div className="w-full bg-white rounded-full h-3.5 overflow-hidden border border-gray-200 p-0.5 shadow-inner">
                       <div 
-                        className="bg-teal-500 h-full rounded-full transition-all duration-350 shadow-[0_0_10px_rgba(20,184,166,0.7)]" 
+                        className="bg-primary h-full rounded-full transition-all duration-350 shadow-[0_0_10px_rgba(20,184,166,0.7)]" 
                         style={{ width: `${importProgress}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-[10px] text-slate-500 font-mono font-bold px-1 select-none">
+                    <div className="flex justify-between text-[10px] text-gray-500 font-mono font-bold px-1 select-none">
                       <span>Import progress: {importProgress}%</span>
                       <span>Transactional boundary active</span>
                     </div>
@@ -1700,44 +1700,44 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                 </div>
 
                 {/* Operations checklist ticks */}
-                <div className="bg-slate-955/30 border border-slate-850 p-5 rounded-3xl space-y-3.5">
-                  <span className="text-[10px] font-bold text-slate-550 uppercase tracking-widest block font-mono">Live Operations Log</span>
+                <div className="bg-gray-50/30 border border-gray-200 p-5 rounded-3xl space-y-3.5">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block font-mono">Live Operations Log</span>
                   <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opValidating ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-slate-800 bg-slate-955 text-slate-600'}`}>
+                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opValidating ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-gray-200 bg-gray-50 text-slate-600'}`}>
                         <FiCheck className="text-[11px]" />
                       </div>
-                      <span className={opValidating ? 'text-slate-200' : 'text-slate-555'}>Validating rows</span>
+                      <span className={opValidating ? 'text-gray-700' : 'text-gray-500'}>Validating rows</span>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opCreatingProduct ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-slate-800 bg-slate-955 text-slate-650'}`}>
+                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opCreatingProduct ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-gray-200 bg-gray-50 text-slate-650'}`}>
                         <FiCheck className="text-[11px]" />
                       </div>
-                      <span className={opCreatingProduct ? 'text-slate-200' : 'text-slate-555'}>Creating catalog profiles</span>
+                      <span className={opCreatingProduct ? 'text-gray-700' : 'text-gray-500'}>Creating catalog profiles</span>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opCreatingCategory ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-slate-800 bg-slate-955 text-slate-650'}`}>
+                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opCreatingCategory ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-gray-200 bg-gray-50 text-slate-650'}`}>
                         <FiCheck className="text-[11px]" />
                       </div>
-                      <span className={opCreatingCategory ? 'text-slate-200' : 'text-slate-555'}>Auto category indexing</span>
+                      <span className={opCreatingCategory ? 'text-gray-700' : 'text-gray-500'}>Auto category indexing</span>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opCreatingManufacturer ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-slate-800 bg-slate-955 text-slate-650'}`}>
+                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opCreatingManufacturer ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-gray-200 bg-gray-50 text-slate-650'}`}>
                         <FiCheck className="text-[11px]" />
                       </div>
-                      <span className={opCreatingManufacturer ? 'text-slate-200' : 'text-slate-555'}>Auto manufacturer resolver</span>
+                      <span className={opCreatingManufacturer ? 'text-gray-700' : 'text-gray-500'}>Auto manufacturer resolver</span>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opWritingAudit ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-slate-800 bg-slate-955 text-slate-650'}`}>
+                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opWritingAudit ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-gray-200 bg-gray-50 text-slate-650'}`}>
                         <FiCheck className="text-[11px]" />
                       </div>
-                      <span className={opWritingAudit ? 'text-slate-200' : 'text-slate-555'}>Writing audit traces</span>
+                      <span className={opWritingAudit ? 'text-gray-700' : 'text-gray-500'}>Writing audit traces</span>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opQueueSync ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-slate-800 bg-slate-955 text-slate-650'}`}>
+                      <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${opQueueSync ? 'bg-emerald-500/20 border-emerald-500 text-emerald-450' : 'border-gray-200 bg-gray-50 text-slate-650'}`}>
                         <FiCheck className="text-[11px]" />
                       </div>
-                      <span className={opQueueSync ? 'text-slate-200' : 'text-slate-555'}>Queuing sync records</span>
+                      <span className={opQueueSync ? 'text-gray-700' : 'text-gray-500'}>Queuing sync records</span>
                     </div>
                   </div>
                 </div>
@@ -1746,7 +1746,7 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                   <button
                     onClick={handleCancelRequest}
                     disabled={cancelRequested}
-                    className="px-6 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-455 hover:text-rose-400 border border-rose-500/20 rounded-xl font-bold text-xs cursor-pointer transition-colors"
+                    className="px-6 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 hover:text-rose-400 border border-rose-500/20 rounded-xl font-bold text-xs cursor-pointer transition-colors"
                   >
                     {cancelRequested ? 'Cancelling on next chunk transaction boundary...' : 'Cancel Import Session'}
                   </button>
@@ -1761,69 +1761,69 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                   <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 flex items-center justify-center mx-auto mb-2 animate-bounce">
                     <FiCheckCircle className="text-2xl" />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-100 uppercase tracking-wide">Import Completed Successfully</h3>
-                  <p className="text-xs text-slate-500 font-bold">Catalog import session finished in {summary.timeTaken} seconds.</p>
+                  <h3 className="text-lg font-bold text-gray-800 uppercase tracking-wide">Import Completed Successfully</h3>
+                  <p className="text-xs text-gray-500 font-bold">Catalog import session finished in {summary.timeTaken} seconds.</p>
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { label: 'Rows Scanned', val: summary.rowsRead, color: 'text-slate-300' },
+                    { label: 'Rows Scanned', val: summary.rowsRead, color: 'text-gray-700' },
                     { label: 'Imported (New)', val: summary.imported, color: 'text-emerald-400 font-bold' },
-                    { label: 'Updated Profiles', val: summary.updated, color: 'text-teal-400 font-bold' },
+                    { label: 'Updated Profiles', val: summary.updated, color: 'text-primary font-bold' },
                     { label: 'Skipped Rows', val: summary.skipped, color: 'text-amber-400 font-bold' }
                   ].map((item, idx) => (
-                    <div key={idx} className="bg-slate-955/35 border border-slate-850 p-4.5 rounded-2xl text-center select-none font-mono">
-                      <span className="text-[9px] font-bold text-slate-550 uppercase tracking-wider block font-sans">{item.label}</span>
+                    <div key={idx} className="bg-gray-50/35 border border-gray-200 p-4.5 rounded-2xl text-center select-none font-mono">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block font-sans">{item.label}</span>
                       <span className={`text-xl font-bold block mt-1 ${item.color}`}>{item.val.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-semibold text-xs leading-normal">
-                  <div className="bg-slate-950/45 border border-slate-850 p-4 rounded-xl flex justify-between items-center text-left">
+                  <div className="bg-white/45 border border-gray-200 p-4 rounded-xl flex justify-between items-center text-left">
                     <div>
-                      <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Write Failures</span>
-                      <span className={`text-base font-bold font-mono block mt-1 ${summary.failed > 0 ? 'text-rose-455' : 'text-slate-405'}`}>
+                      <span className="text-[9px] text-gray-500 uppercase tracking-wider block">Write Failures</span>
+                      <span className={`text-base font-bold font-mono block mt-1 ${summary.failed > 0 ? 'text-rose-600' : 'text-slate-405'}`}>
                         {summary.failed} rows failed
                       </span>
                     </div>
                     {summary.failed > 0 && (
                       <button
                         onClick={downloadErrorReport}
-                        className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-teal-450 hover:text-teal-400 font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-teal-450 hover:text-primary font-bold flex items-center gap-1 transition-colors cursor-pointer"
                       >
                         <FiDownload size={11} /> CSV Report
                       </button>
                     )}
                   </div>
 
-                  <div className="bg-slate-955/45 border border-slate-850 p-4 rounded-xl flex justify-between items-center text-left">
+                  <div className="bg-gray-50/45 border border-gray-200 p-4 rounded-xl flex justify-between items-center text-left">
                     <div>
-                      <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Validation errors</span>
-                      <span className={`text-base font-bold font-mono block mt-1 ${summary.validationErrorsCount > 0 ? 'text-amber-405' : 'text-slate-400'}`}>
+                      <span className="text-[9px] text-gray-500 uppercase tracking-wider block">Validation errors</span>
+                      <span className={`text-base font-bold font-mono block mt-1 ${summary.validationErrorsCount > 0 ? 'text-amber-405' : 'text-muted'}`}>
                         {summary.validationErrorsCount} rows rejected
                       </span>
                     </div>
                     {summary.validationErrorsCount > 0 && (
                       <button
                         onClick={downloadErrorReport}
-                        className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-teal-450 hover:text-teal-400 font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-teal-450 hover:text-primary font-bold flex items-center gap-1 transition-colors cursor-pointer"
                       >
                         <FiDownload size={11} /> CSV Report
                       </button>
                     )}
                   </div>
 
-                  <div className="bg-slate-955/45 border border-slate-850 p-4 rounded-xl flex justify-between items-center text-left">
+                  <div className="bg-gray-50/45 border border-gray-200 p-4 rounded-xl flex justify-between items-center text-left">
                     <div>
-                      <span className="text-[9px] text-slate-550 uppercase tracking-wider block">Import Audit Traces</span>
-                      <span className="text-[10px] font-bold font-mono text-slate-400 block mt-1 max-w-[130px] truncate">
+                      <span className="text-[9px] text-gray-400 uppercase tracking-wider block">Import Audit Traces</span>
+                      <span className="text-[10px] font-bold font-mono text-muted block mt-1 max-w-[130px] truncate">
                         IMP-{new Date().toISOString().slice(0, 10).replace(/-/g, '')}
                       </span>
                     </div>
                     <button
                       onClick={downloadImportLog}
-                      className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-teal-450 hover:text-teal-400 font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      className="px-2.5 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-teal-450 hover:text-primary font-bold flex items-center gap-1 transition-colors cursor-pointer"
                     >
                       <FiFileText size={11} /> Session Log
                     </button>
@@ -1834,13 +1834,13 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                   <div className="p-5 bg-rose-500/5 border border-rose-500/10 rounded-2xl flex items-center justify-between text-left gap-4">
                     <div className="space-y-1">
                       <span className="text-xs font-bold text-rose-400 uppercase tracking-wide block flex items-center gap-1">
-                        <FiAlertOctagon size={13} className="text-rose-455 animate-pulse" /> Catalog Import Warnings ({summary.failedRowsList.length} items failed)
+                        <FiAlertOctagon size={13} className="text-rose-600 animate-pulse" /> Catalog Import Warnings ({summary.failedRowsList.length} items failed)
                       </span>
-                      <p className="text-[11px] text-slate-555 font-medium leading-normal">Download the detailed diagnostics spreadsheet, fix the errors, and reload the retry file to write them.</p>
+                      <p className="text-[11px] text-gray-500 font-medium leading-normal">Download the detailed diagnostics spreadsheet, fix the errors, and reload the retry file to write them.</p>
                     </div>
                     <button
                       onClick={handleRetryFailedRows}
-                      className="px-4.5 py-2.5 bg-teal-500 hover:bg-teal-650 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer shadow-lg hover:shadow-teal-500/20 transition-all shrink-0 uppercase tracking-wider font-bold"
+                      className="px-4.5 py-2.5 bg-primary hover:bg-teal-650 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer shadow-lg hover:shadow-teal-500/20 transition-all shrink-0 uppercase tracking-wider font-bold"
                     >
                       <FiPlay size={11} /> Load & Retry Failed Rows
                     </button>
@@ -1852,12 +1852,12 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
           </div>
 
           {/* Footer Navigation controls */}
-          <div className="px-8 py-4 bg-slate-950/30 border-t border-slate-850/80 flex justify-between items-center select-none text-xs font-bold">
+          <div className="px-8 py-4 bg-white/30 border-t border-gray-200/80 flex justify-between items-center select-none text-xs font-bold">
             <div>
               {step > 1 && step < 6 && (
                 <button
                   onClick={prevStep}
-                  className="px-4.5 py-2.5 border border-slate-800 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  className="px-4.5 py-2.5 border border-gray-200 hover:bg-gray-100 rounded-xl text-muted hover:text-gray-800 transition-colors cursor-pointer"
                 >
                   Back
                 </button>
@@ -1925,7 +1925,7 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
                       resetState();
                     }}
                     variant="outline" 
-                    className="px-5 py-2.5 font-bold flex items-center gap-1 text-xs cursor-pointer text-slate-350 border-slate-800 hover:bg-slate-800"
+                    className="px-5 py-2.5 font-bold flex items-center gap-1 text-xs cursor-pointer text-gray-600 border-gray-200 hover:bg-gray-100"
                   >
                     Import Another File
                   </Button>

@@ -25,7 +25,7 @@ export default function InventoryPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 font-sans text-xs">
+    <div className="min-h-screen bg-background flex items-center justify-center text-slate-400 font-sans text-xs">
       <span>Redirecting...</span>
     </div>
   );

@@ -10,6 +10,7 @@
     "apps/desktop/renderer"
   ],
   "scripts": {
+    "clean": "node scripts/clean.js",
     "db:generate": "npm run -w @medingen/db generate",
     "db:migrate": "npm run -w @medingen/db migrate",
     "desktop:dev": "npm run -w @medingen/desktop dev",

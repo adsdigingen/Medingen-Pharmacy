@@ -42,7 +42,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} footer={footer} maxWidth="max-w-md">
-      <p className="text-sm text-slate-350 leading-relaxed">{message}</p>
+      <p className="text-sm text-gray-600 leading-relaxed">{message}</p>
     </Modal>
   );
 };

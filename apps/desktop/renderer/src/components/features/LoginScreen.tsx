@@ -94,35 +94,35 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-955 flex items-center justify-center p-4 select-none font-sans text-xs">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 select-none font-sans text-xs">
       {/* Background radial highlight */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.03)_0%,transparent_60%)] pointer-events-none" />
 
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800/80 rounded-2xl shadow-2xl overflow-hidden relative z-10 animate-fadeIn">
+      <div className="w-full max-w-md bg-white border border-gray-200/80 rounded-2xl shadow-2xl overflow-hidden relative z-10 animate-fadeIn">
         
         {/* Top brand header */}
-        <div className="p-8 text-center border-b border-slate-850 bg-slate-950/20">
+        <div className="p-8 text-center border-b border-gray-200 bg-white/20">
           <div className="mx-auto w-12 h-12 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-teal-500/20 mb-3">
             <svg className="w-7 h-7 text-slate-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-12h.008v.008H12v-.008z" />
             </svg>
           </div>
-          <h1 className="text-lg font-extrabold text-white tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+          <h1 className="text-lg font-extrabold text-primary tracking-tight">
             Medingen Pharmacy
           </h1>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">ERP & Billing System</p>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">ERP & Billing System</p>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleLogin} className="p-8 space-y-4">
           {error && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-455 rounded-lg text-xs leading-normal font-semibold animate-fadeIn">
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 rounded-lg text-xs leading-normal font-semibold animate-fadeIn">
               {error}
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Username</label>
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Username</label>
             <input
               type="text"
               required
@@ -130,17 +130,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter your username"
               disabled={loading}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none transition-colors"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-gray-200 text-gray-700 text-xs focus:outline-none transition-colors"
             />
           </div>
 
           <div className="space-y-1.5 relative">
             <div className="flex justify-between items-center">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Password</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Password</label>
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="text-[10px] text-teal-400 hover:text-teal-300 hover:underline"
+                className="text-[10px] text-primary hover:text-teal-300 hover:underline"
               >
                 Forgot Password?
               </button>
@@ -153,12 +153,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 disabled={loading}
-                className="w-full pl-3.5 pr-10 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:outline-none transition-colors"
+                className="w-full pl-3.5 pr-10 py-2.5 rounded-lg bg-white border border-gray-200 text-gray-700 text-xs focus:outline-none transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 top-2.5 p-1 text-slate-500 hover:text-slate-300 focus:outline-none transition-colors"
+                className="absolute right-2.5 top-2.5 p-1 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors"
               >
                 {showPassword ? (
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -176,12 +176,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
           {/* Remember Me */}
           <div className="flex items-center">
-            <label className="flex items-center gap-2 text-slate-400 font-semibold cursor-pointer">
+            <label className="flex items-center gap-2 text-muted font-semibold cursor-pointer">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="rounded border-slate-800 bg-slate-950 text-teal-500 focus:ring-0 focus:ring-offset-0"
+                className="rounded border-gray-200 bg-white text-primary focus:ring-0 focus:ring-offset-0"
               />
               <span>Remember me on this station</span>
             </label>
@@ -211,7 +211,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         </form>
 
         {/* Footer info panel */}
-        <div className="px-8 py-4 border-t border-slate-850 bg-slate-950/20 text-slate-500 font-mono text-[9px] flex justify-between items-center">
+        <div className="px-8 py-4 border-t border-gray-200 bg-white/20 text-gray-500 font-mono text-[9px] flex justify-between items-center">
           <div>VERSION 1.0.4 PROD</div>
           <div className="flex gap-3">
             <span className="flex items-center gap-1">

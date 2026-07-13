@@ -23,6 +23,7 @@ interface DataTableProps<T> {
   enableSelection?: boolean;
   onSelectionChange?: (selectedRows: T[]) => void;
   stickyHeader?: boolean;
+  pinnedFirstColumn?: boolean;
   itemsPerPage?: number;
   tableName?: string;
 
@@ -47,6 +48,7 @@ export function DataTable<T>({
   enableSelection = false,
   onSelectionChange,
   stickyHeader = true,
+  pinnedFirstColumn = true,
   itemsPerPage = 10,
   tableName = "export_data",
   serverSide = false,
@@ -74,8 +76,40 @@ export function DataTable<T>({
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Column Resizer states
+  const [columnWidths, setColumnWidths] = useState<Record<number, number>>({});
+
+  const startResize = (index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const th = (e.target as HTMLElement).parentElement;
+    if (!th) return;
+    const startWidth = th.getBoundingClientRect().width;
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const width = startWidth + (moveEvent.clientX - startX);
+      setColumnWidths(prev => ({
+        ...prev,
+        [index]: Math.max(80, width)
+      }));
+    };
+    
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   // Selection
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const getRowKey = (row: T, idx: number): string => {
+    return (row as any).id !== undefined ? String((row as any).id) : String(idx);
+  };
 
   const isServerSide = !!serverSide;
   const currentSearch = isServerSide ? searchTermProp : searchTerm;
@@ -155,7 +189,7 @@ export function DataTable<T>({
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
       const activeDataList = isServerSide ? data : paginatedData;
-      const newSelected = new Set<number>(activeDataList.map((_, idx) => idx));
+      const newSelected = new Set<string>(activeDataList.map((row, idx) => getRowKey(row, idx)));
       setSelectedIds(newSelected);
       if (onSelectionChange) {
         onSelectionChange(activeDataList);
@@ -170,17 +204,18 @@ export function DataTable<T>({
 
   const handleSelectRow = (idx: number, row: T, e: React.MouseEvent) => {
     e.stopPropagation();
+    const key = getRowKey(row, idx);
     const newSelected = new Set(selectedIds);
-    if (newSelected.has(idx)) {
-      newSelected.delete(idx);
+    if (newSelected.has(key)) {
+      newSelected.delete(key);
     } else {
-      newSelected.add(idx);
+      newSelected.add(key);
     }
     setSelectedIds(newSelected);
 
     if (onSelectionChange) {
       const activeDataList = isServerSide ? data : paginatedData;
-      const selectedRows = activeDataList.filter((_, i) => newSelected.has(i));
+      const selectedRows = activeDataList.filter((r, i) => newSelected.has(getRowKey(r, i)));
       onSelectionChange(selectedRows);
     }
   };
@@ -278,7 +313,7 @@ export function DataTable<T>({
   return (
     <div className="space-y-3.5 w-full">
       {/* Action Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/10 p-3.5 border border-slate-850/60 rounded-2xl text-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50 p-3.5 border border-gray-200 rounded-2xl text-xs">
         
         {/* Search */}
         <div className="relative w-full sm:max-w-xs">
@@ -294,9 +329,9 @@ export function DataTable<T>({
               }
             }}
             placeholder={isServerSide ? "Search all products..." : "Search within this page..."}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200"
+            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-800"
           />
-          <svg className="absolute left-2.5 top-2 h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
@@ -308,26 +343,26 @@ export function DataTable<T>({
           <div className="relative">
             <button 
               onClick={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
-              className="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-350 hover:bg-slate-800 hover:text-slate-100 flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-800 flex items-center gap-1.5 cursor-pointer"
             >
               Columns
-              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
             {showVisibilityDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowVisibilityDropdown(false)}></div>
-                <div className="absolute right-0 mt-1.5 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 p-2 space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block px-2 pb-1 border-b border-slate-850">Toggle Columns</span>
+                <div className="absolute right-0 mt-1.5 w-44 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 p-2 space-y-1.5">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block px-2 pb-1 border-b border-gray-100">Toggle Columns</span>
                   <div className="max-h-48 overflow-y-auto space-y-1">
                     {columns.map((c, i) => (
-                      <label key={i} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-800/60 cursor-pointer text-slate-300">
+                      <label key={i} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer text-gray-700">
                         <input
                           type="checkbox"
                           checked={visibleColumns.includes(c.header)}
                           onChange={() => toggleColumnVisibility(c.header)}
-                          className="rounded border-slate-700 text-teal-500 focus:ring-0 focus:ring-offset-0"
+                          className="rounded border-gray-300 text-primary focus:ring-0 focus:ring-offset-0"
                         />
                         <span className="truncate">{c.header}</span>
                       </label>
@@ -339,53 +374,65 @@ export function DataTable<T>({
           </div>
 
           {/* Exporters */}
-          <button onClick={exportCSV} className="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-350 hover:bg-slate-800 hover:text-slate-100 cursor-pointer">CSV</button>
-          <button onClick={exportCSV} className="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-350 hover:bg-slate-800 hover:text-slate-100 cursor-pointer">Excel</button>
-          <button onClick={printTable} className="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-350 hover:bg-slate-800 hover:text-slate-100 cursor-pointer">Print</button>
+          <button onClick={exportCSV} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-800 cursor-pointer">CSV</button>
+          <button onClick={exportCSV} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-800 cursor-pointer">Excel</button>
+          <button onClick={printTable} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-800 cursor-pointer">Print</button>
         </div>
       </div>
 
       {/* Main Table Grid */}
-      <div className="overflow-hidden border border-slate-850/80 rounded-2xl bg-slate-900/10">
+      <div className="overflow-hidden border border-gray-200 rounded-2xl bg-white shadow-sm">
         <div className="overflow-x-auto w-full max-h-[500px]">
-          <table className="min-w-full divide-y divide-slate-850 text-xs">
-            <thead className={`${stickyHeader ? 'sticky top-0 z-10' : ''} bg-slate-900/90 backdrop-blur-md`}>
-              <tr className="border-b border-slate-850/85">
+          <table className="min-w-full divide-y divide-gray-200 text-xs table-fixed">
+            <thead className={`${stickyHeader ? 'sticky top-0 z-20' : ''} bg-gray-50`}>
+              <tr className="border-b border-gray-200">
                 {enableSelection && (
-                  <th scope="col" className="w-12 px-6 py-3 text-left">
+                  <th scope="col" className="w-12 px-6 py-3 text-left bg-gray-50 sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-200">
                     <input
                       type="checkbox"
                       onChange={handleSelectAll}
                       checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length}
-                      className="rounded border-slate-700 text-teal-500 focus:ring-0 focus:ring-offset-0"
+                      className="rounded border-gray-300 text-primary focus:ring-0 focus:ring-offset-0"
                     />
                   </th>
                 )}
-                {activeColumns.map((col, idx) => (
-                  <th
-                    key={idx}
-                    scope="col"
-                    onClick={() => handleSort(col.sortKey)}
-                    className={`px-6 py-3 text-left font-bold text-slate-450 tracking-wider uppercase text-[10px] select-none ${
-                      col.sortKey ? 'cursor-pointer hover:text-slate-100' : ''
-                    } ${col.className || ''}`}
-                  >
-                    <div className="flex items-center gap-1">
-                      {col.header}
-                      {col.sortKey && sortKey === col.sortKey && (
-                        <span className="text-teal-400">
-                          {sortDirection === 'asc' ? '▲' : '▼'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                ))}
+                {activeColumns.map((col, idx) => {
+                  const isPinned = pinnedFirstColumn && idx === 0;
+                  const pinnedClass = isPinned 
+                    ? `sticky ${enableSelection ? 'left-12' : 'left-0'} z-30 bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-200` 
+                    : '';
+                  return (
+                    <th
+                      key={idx}
+                      scope="col"
+                      onClick={() => handleSort(col.sortKey)}
+                      style={{ width: columnWidths[idx] ? `${columnWidths[idx]}px` : undefined }}
+                      className={`relative px-6 py-3 text-left font-bold text-gray-500 tracking-wider uppercase text-[10px] select-none ${
+                        col.sortKey ? 'cursor-pointer hover:text-gray-800' : ''
+                      } ${pinnedClass} ${col.className || ''}`}
+                    >
+                      <div className="flex items-center gap-1">
+                        {col.header}
+                        {col.sortKey && sortKey === col.sortKey && (
+                          <span className="text-primary">
+                            {sortDirection === 'asc' ? '▲' : '▼'}
+                          </span>
+                        )}
+                      </div>
+                      {/* Column Drag Resizer Handle */}
+                      <div 
+                        onMouseDown={(e) => startResize(idx, e)}
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary z-40"
+                      />
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-850/40 bg-slate-955/10">
+            <tbody className="divide-y divide-gray-100 bg-white">
               {errorMessage ? (
                 <tr>
-                  <td colSpan={activeColumns.length + (enableSelection ? 1 : 0)} className="px-6 py-12 text-center text-rose-455 font-bold">
+                  <td colSpan={activeColumns.length + (enableSelection ? 1 : 0)} className="px-6 py-12 text-center text-rose-600 font-bold">
                     Error loading data: {errorMessage}
                   </td>
                 </tr>
@@ -403,30 +450,38 @@ export function DataTable<T>({
                 </tr>
               ) : (
                 paginatedData.map((row, rowIdx) => {
-                  const isSelected = selectedIds.has(rowIdx);
+                  const isSelected = selectedIds.has(getRowKey(row, rowIdx));
                   return (
                     <tr
                       key={rowIdx}
                       onClick={() => onRowClick?.(row)}
-                      className={`hover:bg-slate-800/30 transition-colors ${
+                      className={`hover:bg-gray-50/80 transition-colors group ${
                         onRowClick ? 'cursor-pointer' : ''
-                      } ${isSelected ? 'bg-teal-500/5' : ''}`}
+                      } ${isSelected ? 'bg-primary-light' : ''}`}
                     >
                       {enableSelection && (
-                        <td className="px-6 py-3" onClick={(e) => handleSelectRow(rowIdx, row, e)}>
+                        <td className="px-6 py-3 bg-white sticky left-0 z-10 border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-gray-50/80" onClick={(e) => handleSelectRow(rowIdx, row, e)}>
                           <input
                             type="checkbox"
                             checked={isSelected}
                             readOnly
-                            className="rounded border-slate-700 text-teal-500 focus:ring-0 focus:ring-offset-0"
+                            className="rounded border-gray-300 text-primary focus:ring-0 focus:ring-offset-0"
                           />
                         </td>
                       )}
-                      {activeColumns.map((col, colIdx) => (
-                        <td key={colIdx} className={`px-6 py-3 text-slate-300 leading-normal ${col.className || ''}`}>
-                          {col.accessor(row)}
-                        </td>
-                      ))}
+                      {activeColumns.map((col, colIdx) => {
+                        const isPinned = pinnedFirstColumn && colIdx === 0;
+                        const cellPinnedClass = isPinned 
+                          ? `sticky ${enableSelection ? 'left-12' : 'left-0'} z-10 border-r border-gray-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${
+                              isSelected ? 'bg-[#f4f2fd]' : 'bg-white group-hover:bg-gray-50/80'
+                            }` 
+                          : '';
+                        return (
+                          <td key={colIdx} className={`px-6 py-3 text-gray-700 leading-normal ${cellPinnedClass} ${col.className || ''}`}>
+                            {col.accessor(row)}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })
@@ -437,28 +492,28 @@ export function DataTable<T>({
 
         {/* Pagination Controls */}
         {((isServerSide && totalItemsCount > 0) || (!isServerSide && processedData.length > itemsPerPage)) && !loading && !errorMessage && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-3.5 bg-slate-950/40 border-t border-slate-850/80 gap-4">
-            <div className="flex items-center gap-4 text-slate-400">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-3.5 bg-gray-50 border-t border-gray-200 gap-4">
+            <div className="flex items-center gap-4 text-gray-500">
               <span>
                 Showing{' '}
-                <span className="font-semibold text-slate-200">
+                <span className="font-semibold text-gray-800">
                   {totalItemsCount === 0 ? 0 : (activePage - 1) * activeLimit + 1}
                 </span>{' '}
                 to{' '}
-                <span className="font-semibold text-slate-200">
+                <span className="font-semibold text-gray-800">
                   {Math.min(totalItemsCount, activePage * activeLimit)}
                 </span>{' '}
                 of{' '}
-                <span className="font-semibold text-slate-200">{totalItemsCount.toLocaleString()}</span> records
+                <span className="font-semibold text-gray-800">{totalItemsCount.toLocaleString()}</span> records
               </span>
               
               {isServerSide && onItemsPerPageChange && (
                 <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-slate-550 font-medium">Rows Per Page:</span>
+                  <span className="text-gray-500 font-medium">Rows Per Page:</span>
                   <select
                     value={activeLimit}
                     onChange={(e) => onItemsPerPageChange(parseInt(e.target.value, 10))}
-                    className="bg-slate-950 border border-slate-850 px-2 py-1 rounded text-slate-200 font-bold focus:outline-none"
+                    className="bg-white border border-gray-200 px-2 py-1 rounded text-gray-800 font-bold focus:outline-none"
                   >
                     {itemsPerPageOptions.map(opt => (
                       <option key={opt} value={opt}>{opt}</option>
@@ -497,7 +552,7 @@ export function DataTable<T>({
               >
                 Prev
               </Button>
-              <span className="px-3.5 py-1.5 font-bold font-mono text-slate-350 bg-slate-950 rounded-lg flex items-center border border-slate-850">
+              <span className="px-3.5 py-1.5 font-bold font-mono text-gray-700 bg-white rounded-lg flex items-center border border-gray-200">
                 Page {activePage} of {calculatedTotalPages}
               </span>
               <Button

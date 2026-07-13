@@ -155,8 +155,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       header: 'Medicine Name',
       accessor: (row) => (
         <div onClick={() => { setSelectedInventory(row); setDetailTab('summary'); }} className="cursor-pointer group">
-          <span className="font-bold text-slate-100 block group-hover:text-teal-400 transition-colors">{row.product?.name || 'Unknown Product'}</span>
-          {row.product?.genericName && <span className="text-[10px] text-slate-500 block">{row.product.genericName}</span>}
+          <span className="font-bold text-gray-800 block group-hover:text-primary transition-colors">{row.product?.name || 'Unknown Product'}</span>
+          {row.product?.genericName && <span className="text-[10px] text-gray-500 block">{row.product.genericName}</span>}
         </div>
       ),
       sortKey: 'product.name',
@@ -164,7 +164,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     },
     {
       header: 'Min Alert level',
-      accessor: (row) => <span className="font-mono text-slate-400">{row.product?.minStockLevel || 0} units</span>,
+      accessor: (row) => <span className="font-mono text-muted">{row.product?.minStockLevel || 0} units</span>,
       sortKey: 'product.minStockLevel',
       exportValue: (row) => row.product?.minStockLevel || '0'
     },
@@ -172,7 +172,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       header: 'Available Stock',
       accessor: (row) => (
         <span className={`font-mono font-bold ${
-          row.availableQty <= (row.product?.minStockLevel || 0) ? 'text-rose-400 font-extrabold' : 'text-slate-200'
+          row.availableQty <= (row.product?.minStockLevel || 0) ? 'text-rose-400 font-extrabold' : 'text-gray-700'
         }`}>{row.availableQty} units</span>
       ),
       sortKey: 'availableQty',
@@ -180,13 +180,13 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     },
     {
       header: 'Expired',
-      accessor: (row) => <span className={`font-mono ${row.expiredQty > 0 ? 'text-rose-450 font-bold' : 'text-slate-500'}`}>{row.expiredQty} units</span>,
+      accessor: (row) => <span className={`font-mono ${row.expiredQty > 0 ? 'text-rose-450 font-bold' : 'text-gray-500'}`}>{row.expiredQty} units</span>,
       sortKey: 'expiredQty',
       exportValue: (row) => row.expiredQty
     },
     {
       header: 'Damaged',
-      accessor: (row) => <span className={`font-mono ${row.damagedQty > 0 ? 'text-rose-500' : 'text-slate-500'}`}>{row.damagedQty} units</span>,
+      accessor: (row) => <span className={`font-mono ${row.damagedQty > 0 ? 'text-rose-500' : 'text-gray-500'}`}>{row.damagedQty} units</span>,
       sortKey: 'damagedQty',
       exportValue: (row) => row.damagedQty
     },
@@ -197,7 +197,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           onClick={() => { setSelectedInventory(row); setDetailTab('batches'); }} 
           variant="outline" 
           size="sm"
-          className="py-1 px-2.5 text-[9px] hover:border-teal-500/40 hover:text-teal-400 cursor-pointer"
+          className="py-1 px-2.5 text-[9px] hover:border-teal-500/40 hover:text-primary cursor-pointer"
         >
           View Details
         </Button>
@@ -209,13 +209,13 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const batchColumns: Column<any>[] = [
     {
       header: 'Medicine',
-      accessor: (row) => <span className="font-bold text-slate-100">{row.product?.name || 'Unknown'}</span>,
+      accessor: (row) => <span className="font-bold text-gray-800">{row.product?.name || 'Unknown'}</span>,
       sortKey: 'product.name',
       exportValue: (row) => row.product?.name || ''
     },
     {
       header: 'Batch No.',
-      accessor: (row) => <span className="font-mono font-bold text-teal-400">{row.batchNumber}</span>,
+      accessor: (row) => <span className="font-mono font-bold text-primary">{row.batchNumber}</span>,
       sortKey: 'batchNumber',
       exportValue: (row) => row.batchNumber
     },
@@ -224,7 +224,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       accessor: (row) => {
         const isExpired = new Date(row.expiryDate) < new Date();
         return (
-          <span className={`font-mono font-semibold ${isExpired ? 'text-rose-450 font-extrabold' : 'text-slate-350'}`}>
+          <span className={`font-mono font-semibold ${isExpired ? 'text-rose-450 font-extrabold' : 'text-gray-600'}`}>
             {new Date(row.expiryDate).toLocaleDateString()} {isExpired ? '(EXPIRED)' : ''}
           </span>
         );
@@ -244,7 +244,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     },
     {
       header: 'Available Stock',
-      accessor: (row) => <span className="font-mono font-bold text-slate-200">{row.availableQty} units</span>,
+      accessor: (row) => <span className="font-mono font-bold text-gray-700">{row.availableQty} units</span>,
       sortKey: 'availableQty',
       exportValue: (row) => row.availableQty
     },
@@ -255,7 +255,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           onClick={() => handleOpenAdjustModal(row)} 
           variant="outline" 
           size="sm"
-          className="py-1 px-2.5 text-[9px] hover:border-teal-500/40 hover:text-teal-400 cursor-pointer"
+          className="py-1 px-2.5 text-[9px] hover:border-teal-500/40 hover:text-primary cursor-pointer"
         >
           Adjust Stock
         </Button>
@@ -270,55 +270,55 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   }, [selectedInventory, batches]);
 
   return (
-    <div className="space-y-4 animate-fadeIn text-xs text-slate-400 font-sans relative">
+    <div className="space-y-4 animate-fadeIn text-xs text-muted font-sans relative">
       
       {/* Title / Sub-tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-base font-bold text-white uppercase tracking-wider">Inventory & Ledgers</h2>
-          <p className="text-[11px] text-slate-500 font-medium">Verify stock aggregate quantities, adjust batches, and filter low inventory</p>
+          <h2 className="text-base font-bold text-gray-800 uppercase tracking-wider">Inventory & Ledgers</h2>
+          <p className="text-[11px] text-gray-500 font-medium">Verify stock aggregate quantities, adjust batches, and filter low inventory</p>
         </div>
         
-        <div className="flex gap-1.5 bg-slate-900/40 p-1.5 border border-slate-850 rounded-xl font-bold">
-          <button type="button" onClick={() => setInventorySubTab('stock')} className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${inventorySubTab === 'stock' ? 'bg-teal-500 text-slate-955' : 'text-slate-400 hover:text-slate-200'}`}>Current Stock</button>
-          <button type="button" onClick={() => setInventorySubTab('batches')} className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${inventorySubTab === 'batches' ? 'bg-teal-500 text-slate-955' : 'text-slate-400 hover:text-slate-200'}`}>Batch Details</button>
+        <div className="flex gap-1.5 bg-white/40 p-1.5 border border-gray-200 rounded-xl font-bold">
+          <button type="button" onClick={() => setInventorySubTab('stock')} className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${inventorySubTab === 'stock' ? 'bg-primary text-slate-955' : 'text-muted hover:text-gray-700'}`}>Current Stock</button>
+          <button type="button" onClick={() => setInventorySubTab('batches')} className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${inventorySubTab === 'batches' ? 'bg-primary text-slate-955' : 'text-muted hover:text-gray-700'}`}>Batch Details</button>
         </div>
       </div>
 
       {/* METRICS HEADER BANNER CARDS */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <div className="bg-slate-900 border border-slate-850 p-3 rounded-xl shadow">
-          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Available Stock</span>
-          <span className="text-lg font-bold font-mono text-slate-100 block leading-tight">{metrics.available} <span className="text-[10px] text-slate-500">U</span></span>
+        <div className="bg-white border border-gray-200 p-3 rounded-xl shadow">
+          <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-0.5">Available Stock</span>
+          <span className="text-lg font-bold font-mono text-gray-800 block leading-tight">{metrics.available} <span className="text-[10px] text-gray-500">U</span></span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-850 p-3 rounded-xl shadow">
-          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Reserved Stock</span>
-          <span className="text-lg font-bold font-mono text-slate-250 block leading-tight">{metrics.reserved} <span className="text-[10px] text-slate-500">U</span></span>
+        <div className="bg-white border border-gray-200 p-3 rounded-xl shadow">
+          <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-0.5">Reserved Stock</span>
+          <span className="text-lg font-bold font-mono text-slate-250 block leading-tight">{metrics.reserved} <span className="text-[10px] text-gray-500">U</span></span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-850 p-3 rounded-xl shadow">
-          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Expired Batches</span>
-          <span className={`text-lg font-bold font-mono block leading-tight ${metrics.expired > 0 ? 'text-rose-455' : 'text-slate-400'}`}>{metrics.expired} <span className="text-[10px] text-slate-500">U</span></span>
+        <div className="bg-white border border-gray-200 p-3 rounded-xl shadow">
+          <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-0.5">Expired Batches</span>
+          <span className={`text-lg font-bold font-mono block leading-tight ${metrics.expired > 0 ? 'text-rose-600' : 'text-muted'}`}>{metrics.expired} <span className="text-[10px] text-gray-500">U</span></span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-850 p-3 rounded-xl shadow">
-          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Damaged Qty</span>
-          <span className={`text-lg font-bold font-mono block leading-tight ${metrics.damaged > 0 ? 'text-rose-400' : 'text-slate-400'}`}>{metrics.damaged} <span className="text-[10px] text-slate-500">U</span></span>
+        <div className="bg-white border border-gray-200 p-3 rounded-xl shadow">
+          <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-0.5">Damaged Qty</span>
+          <span className={`text-lg font-bold font-mono block leading-tight ${metrics.damaged > 0 ? 'text-rose-400' : 'text-muted'}`}>{metrics.damaged} <span className="text-[10px] text-gray-500">U</span></span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-850 p-3 rounded-xl shadow flex items-center justify-between col-span-1">
+        <div className="bg-white border border-gray-200 p-3 rounded-xl shadow flex items-center justify-between col-span-1">
           <div>
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Low Stock Alert</span>
-            <span className={`text-lg font-bold font-mono block leading-tight ${metrics.lowStockCount > 0 ? 'text-rose-450' : 'text-slate-400'}`}>{metrics.lowStockCount} <span className="text-[10px] text-slate-500">Items</span></span>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-0.5">Low Stock Alert</span>
+            <span className={`text-lg font-bold font-mono block leading-tight ${metrics.lowStockCount > 0 ? 'text-rose-450' : 'text-muted'}`}>{metrics.lowStockCount} <span className="text-[10px] text-gray-500">Items</span></span>
           </div>
           {metrics.lowStockCount > 0 && <FiAlertCircle className="w-5 h-5 text-rose-450" />}
         </div>
 
-        <div className="bg-slate-900 border border-slate-850 p-3 rounded-xl shadow flex items-center justify-between col-span-1">
+        <div className="bg-white border border-gray-200 p-3 rounded-xl shadow flex items-center justify-between col-span-1">
           <div>
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Soon Expiring</span>
-            <span className={`text-lg font-bold font-mono block leading-tight ${metrics.nearExpiryCount > 0 ? 'text-rose-450' : 'text-slate-400'}`}>{metrics.nearExpiryCount} <span className="text-[10px] text-slate-500">Batches</span></span>
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-0.5">Soon Expiring</span>
+            <span className={`text-lg font-bold font-mono block leading-tight ${metrics.nearExpiryCount > 0 ? 'text-rose-450' : 'text-muted'}`}>{metrics.nearExpiryCount} <span className="text-[10px] text-gray-500">Batches</span></span>
           </div>
           {metrics.nearExpiryCount > 0 && <FiAlertTriangle className="w-5 h-5 text-rose-450" />}
         </div>
@@ -346,32 +346,32 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       {/* ==================== INVENTORY DETAILS MODAL ==================== */}
       {selectedInventory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden font-sans text-xs text-slate-300">
+          <div className="w-full max-w-4xl bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden font-sans text-xs text-gray-700">
             
             {/* Header */}
-            <div className="p-4 bg-slate-950 border-b border-slate-850 flex justify-between items-center">
+            <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
               <div>
-                <span className="text-[10px] font-bold text-teal-400 uppercase tracking-widest block">Inventory Details Console</span>
-                <span className="text-sm font-bold text-white block">{selectedInventory.product?.name}</span>
-                {selectedInventory.product?.genericName && <span className="text-[10px] text-slate-500">{selectedInventory.product.genericName}</span>}
+                <span className="text-[10px] font-bold text-primary uppercase tracking-widest block">Inventory Details Console</span>
+                <span className="text-sm font-bold text-gray-800 block">{selectedInventory.product?.name}</span>
+                {selectedInventory.product?.genericName && <span className="text-[10px] text-gray-500">{selectedInventory.product.genericName}</span>}
               </div>
               <button 
                 type="button"
                 onClick={() => setSelectedInventory(null)} 
-                className="text-slate-500 hover:text-slate-300 font-bold text-sm cursor-pointer"
+                className="text-gray-500 hover:text-gray-700 font-bold text-sm cursor-pointer"
               >
                 Close (ESC)
               </button>
             </div>
 
             {/* Sub-tabs inside modal */}
-            <div className="bg-slate-950/60 border-b border-slate-850 px-4 flex gap-1 font-bold text-[11px] overflow-x-auto">
-              <button onClick={() => setDetailTab('summary')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'summary' ? 'border-teal-500 text-teal-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>Stock Summary</button>
-              <button onClick={() => setDetailTab('batches')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'batches' ? 'border-teal-500 text-teal-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>Batches ({currentProductBatches.length})</button>
-              <button onClick={() => setDetailTab('ledger')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'ledger' ? 'border-teal-500 text-teal-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>Stock Ledger</button>
-              <button onClick={() => setDetailTab('adjustments')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'adjustments' ? 'border-teal-500 text-teal-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>Manual Adjustments</button>
-              <button onClick={() => setDetailTab('purchases')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'purchases' ? 'border-teal-500 text-teal-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>Purchase Orders</button>
-              <button onClick={() => setDetailTab('sales')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'sales' ? 'border-teal-500 text-teal-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>Sales History</button>
+            <div className="bg-white/60 border-b border-gray-200 px-4 flex gap-1 font-bold text-[11px] overflow-x-auto">
+              <button onClick={() => setDetailTab('summary')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'summary' ? 'border-teal-500 text-primary' : 'border-transparent text-muted hover:text-gray-700'}`}>Stock Summary</button>
+              <button onClick={() => setDetailTab('batches')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'batches' ? 'border-teal-500 text-primary' : 'border-transparent text-muted hover:text-gray-700'}`}>Batches ({currentProductBatches.length})</button>
+              <button onClick={() => setDetailTab('ledger')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'ledger' ? 'border-teal-500 text-primary' : 'border-transparent text-muted hover:text-gray-700'}`}>Stock Ledger</button>
+              <button onClick={() => setDetailTab('adjustments')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'adjustments' ? 'border-teal-500 text-primary' : 'border-transparent text-muted hover:text-gray-700'}`}>Manual Adjustments</button>
+              <button onClick={() => setDetailTab('purchases')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'purchases' ? 'border-teal-500 text-primary' : 'border-transparent text-muted hover:text-gray-700'}`}>Purchase Orders</button>
+              <button onClick={() => setDetailTab('sales')} className={`py-3 px-3 border-b-2 transition-all ${detailTab === 'sales' ? 'border-teal-500 text-primary' : 'border-transparent text-muted hover:text-gray-700'}`}>Sales History</button>
             </div>
 
             {/* Modal Body Panels */}
@@ -381,55 +381,55 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               {detailTab === 'summary' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 leading-normal">
-                    <div className="bg-slate-950 p-3 rounded-xl">
-                      <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">SKU / Code</span>
-                      <span className="font-bold text-white font-mono text-[11px]">{selectedInventory.product?.sku || 'Unassigned'}</span>
+                    <div className="bg-white p-3 rounded-xl">
+                      <span className="text-[9px] font-bold text-gray-500 uppercase block mb-1">SKU / Code</span>
+                      <span className="font-bold text-gray-800 font-mono text-[11px]">{selectedInventory.product?.sku || 'Unassigned'}</span>
                     </div>
-                    <div className="bg-slate-955 p-3 rounded-xl">
-                      <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Barcode</span>
-                      <span className="font-bold text-white font-mono text-[11px]">{selectedInventory.product?.barcode || 'No Barcode'}</span>
+                    <div className="bg-gray-50 p-3 rounded-xl">
+                      <span className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Barcode</span>
+                      <span className="font-bold text-gray-800 font-mono text-[11px]">{selectedInventory.product?.barcode || 'No Barcode'}</span>
                     </div>
-                    <div className="bg-slate-955 p-3 rounded-xl">
-                      <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Rack Location</span>
-                      <span className="font-bold text-teal-400 text-[11px]">{selectedInventory.product?.rackLocation || 'Unallocated'}</span>
+                    <div className="bg-gray-50 p-3 rounded-xl">
+                      <span className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Rack Location</span>
+                      <span className="font-bold text-primary text-[11px]">{selectedInventory.product?.rackLocation || 'Unallocated'}</span>
                     </div>
-                    <div className="bg-slate-955 p-3 rounded-xl">
-                      <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Tax Tier</span>
-                      <span className="font-bold text-white font-mono text-[11px]">{selectedInventory.product?.gstPercentage || 0}% GST</span>
+                    <div className="bg-gray-50 p-3 rounded-xl">
+                      <span className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Tax Tier</span>
+                      <span className="font-bold text-gray-800 font-mono text-[11px]">{selectedInventory.product?.gstPercentage || 0}% GST</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Aggregate stocks */}
-                    <div className="p-4 bg-slate-950/40 rounded-xl border border-slate-850 space-y-2">
-                      <h4 className="font-bold text-slate-200 uppercase text-[10px] tracking-wider border-b border-slate-850 pb-1.5 flex items-center gap-1.5"><FiLayers /> Quantity Cache Summary</h4>
+                    <div className="p-4 bg-white/40 rounded-xl border border-gray-200 space-y-2">
+                      <h4 className="font-bold text-gray-700 uppercase text-[10px] tracking-wider border-b border-gray-200 pb-1.5 flex items-center gap-1.5"><FiLayers /> Quantity Cache Summary</h4>
                       <div className="grid grid-cols-2 gap-3 leading-normal font-semibold">
                         <div>
-                          <span className="text-slate-500 block text-[10px]">Available Units:</span>
+                          <span className="text-gray-500 block text-[10px]">Available Units:</span>
                           <span className="font-mono text-xs text-slate-250 font-bold">{selectedInventory.availableQty} units</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block text-[10px]">Reserved Units:</span>
-                          <span className="font-mono text-xs text-slate-350">{selectedInventory.reservedQty} units</span>
+                          <span className="text-gray-500 block text-[10px]">Reserved Units:</span>
+                          <span className="font-mono text-xs text-gray-600">{selectedInventory.reservedQty} units</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block text-[10px]">Expired Count:</span>
-                          <span className="font-mono text-xs text-rose-455">{selectedInventory.expiredQty} units</span>
+                          <span className="text-gray-500 block text-[10px]">Expired Count:</span>
+                          <span className="font-mono text-xs text-rose-600">{selectedInventory.expiredQty} units</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block text-[10px]">Damaged Count:</span>
+                          <span className="text-gray-500 block text-[10px]">Damaged Count:</span>
                           <span className="font-mono text-xs text-rose-500">{selectedInventory.damagedQty} units</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Stock Alert Badge card */}
-                    <div className="p-4 bg-slate-950/40 rounded-xl border border-slate-850 flex flex-col justify-between">
+                    <div className="p-4 bg-white/40 rounded-xl border border-gray-200 flex flex-col justify-between">
                       <div>
-                        <h4 className="font-bold text-slate-200 uppercase text-[10px] tracking-wider border-b border-slate-850 pb-1.5 flex items-center gap-1.5"><FiAlertCircle /> Reorder Trigger Status</h4>
+                        <h4 className="font-bold text-gray-700 uppercase text-[10px] tracking-wider border-b border-gray-200 pb-1.5 flex items-center gap-1.5"><FiAlertCircle /> Reorder Trigger Status</h4>
                         <div className="mt-3 flex items-center gap-2">
-                          <span className="text-slate-400 font-semibold">Alert Trigger level:</span>
-                          <span className="font-bold text-white font-mono">{selectedInventory.product?.minStockLevel || 0} units</span>
+                          <span className="text-muted font-semibold">Alert Trigger level:</span>
+                          <span className="font-bold text-gray-800 font-mono">{selectedInventory.product?.minStockLevel || 0} units</span>
                         </div>
                       </div>
 
@@ -453,12 +453,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               {detailTab === 'batches' && (
                 <div className="space-y-3">
                   {currentProductBatches.length === 0 ? (
-                    <div className="py-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                    <div className="py-8 text-center text-gray-500 border border-dashed border-gray-200 rounded-xl">
                       No stock batches available for this medicine catalog ID.
                     </div>
                   ) : (
-                    <table className="w-full text-left text-slate-350">
-                      <thead className="bg-slate-950 text-[9px] text-slate-500 uppercase border-b border-slate-850 font-mono font-bold">
+                    <table className="w-full text-left text-gray-600">
+                      <thead className="bg-white text-[9px] text-gray-500 uppercase border-b border-gray-200 font-mono font-bold">
                         <tr>
                           <th className="py-2 px-3">Batch Number</th>
                           <th className="py-2 px-3">Expiry Date</th>
@@ -473,14 +473,14 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         {currentProductBatches.map((b: any, idx: number) => {
                           const isExpired = new Date(b.expiryDate) < new Date();
                           return (
-                            <tr key={idx} className="hover:bg-slate-850/10">
-                              <td className="py-2 px-3 font-mono font-bold text-teal-400">{b.batchNumber}</td>
+                            <tr key={idx} className="hover:bg-gray-50/10">
+                              <td className="py-2 px-3 font-mono font-bold text-primary">{b.batchNumber}</td>
                               <td className={`py-2 px-3 font-mono ${isExpired ? 'text-rose-450 font-bold' : ''}`}>
                                 {new Date(b.expiryDate).toLocaleDateString()} {isExpired ? '(EXPIRED)' : ''}
                               </td>
                               <td className="py-2 px-3 text-right font-mono">₹{b.mrp.toFixed(2)}</td>
                               <td className="py-2 px-3 text-right font-mono">₹{b.sellingPrice.toFixed(2)}</td>
-                              <td className="py-2 px-3 text-center font-mono font-bold text-slate-200">{b.availableQty} units</td>
+                              <td className="py-2 px-3 text-center font-mono font-bold text-gray-700">{b.availableQty} units</td>
                               <td className="py-2 px-3 text-center font-mono">{b.damagedQty} units</td>
                               <td className="py-2 px-3 text-center">
                                 <Button 
@@ -505,14 +505,14 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               {detailTab === 'ledger' && (
                 <div className="space-y-3">
                   {ledgerLoading ? (
-                    <div className="text-center py-8 text-slate-500 font-bold">Querying system ledger ledger trail...</div>
+                    <div className="text-center py-8 text-gray-500 font-bold">Querying system ledger ledger trail...</div>
                   ) : productLedger.length === 0 ? (
-                    <div className="py-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                    <div className="py-8 text-center text-gray-500 border border-dashed border-gray-200 rounded-xl">
                       No stock movement audit records logged.
                     </div>
                   ) : (
-                    <table className="w-full text-left text-slate-350">
-                      <thead className="bg-slate-950 text-[9px] text-slate-500 uppercase border-b border-slate-850 font-mono font-bold">
+                    <table className="w-full text-left text-gray-600">
+                      <thead className="bg-white text-[9px] text-gray-500 uppercase border-b border-gray-200 font-mono font-bold">
                         <tr>
                           <th className="py-2 px-3">Date</th>
                           <th className="py-2 px-3">Batch</th>
@@ -525,9 +525,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       </thead>
                       <tbody className="divide-y divide-slate-850/40 font-semibold text-[11px]">
                         {productLedger.map((lg: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-slate-850/10">
-                            <td className="py-2 px-3 font-mono text-[10px] text-slate-500">{new Date(lg.timestamp).toLocaleString()}</td>
-                            <td className="py-2 px-3 font-mono text-teal-400">{lg.batch?.batchNumber || 'N/A'}</td>
+                          <tr key={idx} className="hover:bg-gray-50/10">
+                            <td className="py-2 px-3 font-mono text-[10px] text-gray-500">{new Date(lg.timestamp).toLocaleString()}</td>
+                            <td className="py-2 px-3 font-mono text-primary">{lg.batch?.batchNumber || 'N/A'}</td>
                             <td className="py-2 px-3">
                               <Badge variant={
                                 lg.transactionType === 'PURCHASE' || lg.transactionType === 'SALES_RETURN' ? 'success' :
@@ -536,14 +536,14 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                                 {lg.transactionType}
                               </Badge>
                             </td>
-                            <td className={`py-2 px-3 text-right font-mono font-bold ${lg.quantity > 0 ? 'text-emerald-400' : 'text-rose-455'}`}>
+                            <td className={`py-2 px-3 text-right font-mono font-bold ${lg.quantity > 0 ? 'text-emerald-400' : 'text-rose-600'}`}>
                               {lg.quantity > 0 ? `+${lg.quantity}` : lg.quantity}
                             </td>
-                            <td className="py-2 px-3 text-right font-mono text-slate-200">{lg.balanceQty} units</td>
-                            <td className="py-2 px-3 font-mono text-[10px] text-slate-450">{lg.referenceNumber}</td>
-                            <td className="py-2 px-3 text-slate-400 leading-tight">
+                            <td className="py-2 px-3 text-right font-mono text-gray-700">{lg.balanceQty} units</td>
+                            <td className="py-2 px-3 font-mono text-[10px] text-gray-500">{lg.referenceNumber}</td>
+                            <td className="py-2 px-3 text-muted leading-tight">
                               <div className="max-w-[200px] truncate">{lg.remarks}</div>
-                              <span className="text-[9px] text-slate-550 block font-bold">By: {lg.createdBy || 'SYSTEM'}</span>
+                              <span className="text-[9px] text-gray-400 block font-bold">By: {lg.createdBy || 'SYSTEM'}</span>
                             </td>
                           </tr>
                         ))}
@@ -557,14 +557,14 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               {detailTab === 'adjustments' && (
                 <div className="space-y-3">
                   {ledgerLoading ? (
-                    <div className="text-center py-8 text-slate-500 font-bold">Querying stock adjustments logs...</div>
+                    <div className="text-center py-8 text-gray-500 font-bold">Querying stock adjustments logs...</div>
                   ) : productAdjustments.length === 0 ? (
-                    <div className="py-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                    <div className="py-8 text-center text-gray-500 border border-dashed border-gray-200 rounded-xl">
                       No manual adjustments logs found for this medicine item.
                     </div>
                   ) : (
-                    <table className="w-full text-left text-slate-350">
-                      <thead className="bg-slate-950 text-[9px] text-slate-500 uppercase border-b border-slate-850 font-mono font-bold">
+                    <table className="w-full text-left text-gray-600">
+                      <thead className="bg-white text-[9px] text-gray-500 uppercase border-b border-gray-200 font-mono font-bold">
                         <tr>
                           <th className="py-2 px-3">Date</th>
                           <th className="py-2 px-3">Batch No</th>
@@ -576,21 +576,21 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       </thead>
                       <tbody className="divide-y divide-slate-850/40 text-[11px] font-semibold">
                         {productAdjustments.map((adj: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-slate-850/10">
-                            <td className="py-2 px-3 font-mono text-slate-550 text-[10px]">{new Date(adj.timestamp).toLocaleString()}</td>
-                            <td className="py-2 px-3 font-mono text-teal-400">{adj.batch?.batchNumber}</td>
-                            <td className="py-2 px-3 text-slate-200">
+                          <tr key={idx} className="hover:bg-gray-50/10">
+                            <td className="py-2 px-3 font-mono text-gray-400 text-[10px]">{new Date(adj.timestamp).toLocaleString()}</td>
+                            <td className="py-2 px-3 font-mono text-primary">{adj.batch?.batchNumber}</td>
+                            <td className="py-2 px-3 text-gray-700">
                               {adj.quantity > 0 ? (
                                 <span className="text-emerald-400 flex items-center gap-1"><FiTrendingUp /> INCREASE</span>
                               ) : (
-                                <span className="text-rose-455 flex items-center gap-1"><FiTrendingDown /> DECREASE</span>
+                                <span className="text-rose-600 flex items-center gap-1"><FiTrendingDown /> DECREASE</span>
                               )}
                             </td>
-                            <td className="py-2 px-3 text-right font-mono font-bold text-slate-100">{adj.quantity} units</td>
-                            <td className="py-2 px-3 font-mono text-[10px] text-slate-450">{adj.referenceNumber}</td>
+                            <td className="py-2 px-3 text-right font-mono font-bold text-gray-800">{adj.quantity} units</td>
+                            <td className="py-2 px-3 font-mono text-[10px] text-gray-500">{adj.referenceNumber}</td>
                             <td className="py-2 px-3 leading-normal">
-                              <span className="font-bold text-slate-300 block">{adj.remarks || 'Adjustment audit count'}</span>
-                              <span className="text-[9px] text-slate-500 font-bold block">Operator: {adj.createdBy}</span>
+                              <span className="font-bold text-gray-700 block">{adj.remarks || 'Adjustment audit count'}</span>
+                              <span className="text-[9px] text-gray-500 font-bold block">Operator: {adj.createdBy}</span>
                             </td>
                           </tr>
                         ))}
@@ -604,12 +604,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               {detailTab === 'purchases' && (
                 <div className="space-y-3">
                   {productPurchases.length === 0 ? (
-                    <div className="py-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                    <div className="py-8 text-center text-gray-500 border border-dashed border-gray-200 rounded-xl">
                       No supplier purchases found for this medicine item.
                     </div>
                   ) : (
-                    <table className="w-full text-left text-slate-350">
-                      <thead className="bg-slate-950 text-[9px] text-slate-500 uppercase border-b border-slate-850 font-mono font-bold">
+                    <table className="w-full text-left text-gray-600">
+                      <thead className="bg-white text-[9px] text-gray-500 uppercase border-b border-gray-200 font-mono font-bold">
                         <tr>
                           <th className="py-2 px-3">PO Code</th>
                           <th className="py-2 px-3">Supplier Name</th>
@@ -621,13 +621,13 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       </thead>
                       <tbody className="divide-y divide-slate-850/40 text-[11px] font-semibold">
                         {productPurchases.map((pc: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-slate-850/10">
-                            <td className="py-2 px-3 font-mono text-teal-400 font-bold">{pc.poNumber}</td>
-                            <td className="py-2 px-3 text-slate-200">{pc.supplierName}</td>
-                            <td className="py-2 px-3 font-mono text-slate-500">{new Date(pc.purchaseDate).toLocaleDateString()}</td>
+                          <tr key={idx} className="hover:bg-gray-50/10">
+                            <td className="py-2 px-3 font-mono text-primary font-bold">{pc.poNumber}</td>
+                            <td className="py-2 px-3 text-gray-700">{pc.supplierName}</td>
+                            <td className="py-2 px-3 font-mono text-gray-500">{new Date(pc.purchaseDate).toLocaleDateString()}</td>
                             <td className="py-2 px-3 font-mono">{pc.batchNumber}</td>
                             <td className="py-2 px-3 text-right font-mono">₹{pc.purchasePrice.toFixed(2)}</td>
-                            <td className="py-2 px-3 text-center font-mono text-slate-200">{pc.quantity} units</td>
+                            <td className="py-2 px-3 text-center font-mono text-gray-700">{pc.quantity} units</td>
                           </tr>
                         ))}
                       </tbody>
@@ -640,12 +640,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               {detailTab === 'sales' && (
                 <div className="space-y-3">
                   {productSales.length === 0 ? (
-                    <div className="py-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                    <div className="py-8 text-center text-gray-500 border border-dashed border-gray-200 rounded-xl">
                       No patient sales checkouts found for this medicine item.
                     </div>
                   ) : (
-                    <table className="w-full text-left text-slate-350">
-                      <thead className="bg-slate-950 text-[9px] text-slate-500 uppercase border-b border-slate-850 font-mono font-bold">
+                    <table className="w-full text-left text-gray-600">
+                      <thead className="bg-white text-[9px] text-gray-500 uppercase border-b border-gray-200 font-mono font-bold">
                         <tr>
                           <th className="py-2 px-3">Invoice Code</th>
                           <th className="py-2 px-3">Customer Mobile</th>
@@ -658,14 +658,14 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       </thead>
                       <tbody className="divide-y divide-slate-850/40 text-[11px] font-semibold">
                         {productSales.map((sl: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-slate-850/10">
-                            <td className="py-2 px-3 font-mono text-teal-400 font-bold">{sl.billNumber}</td>
-                            <td className="py-2 px-3 text-slate-200">{sl.customerMobile}</td>
-                            <td className="py-2 px-3 font-mono text-slate-550">{new Date(sl.createdAt).toLocaleString()}</td>
-                            <td className="py-2 px-3 font-mono text-slate-350">{sl.batchNumber}</td>
+                          <tr key={idx} className="hover:bg-gray-50/10">
+                            <td className="py-2 px-3 font-mono text-primary font-bold">{sl.billNumber}</td>
+                            <td className="py-2 px-3 text-gray-700">{sl.customerMobile}</td>
+                            <td className="py-2 px-3 font-mono text-gray-400">{new Date(sl.createdAt).toLocaleString()}</td>
+                            <td className="py-2 px-3 font-mono text-gray-600">{sl.batchNumber}</td>
                             <td className="py-2 px-3 text-right font-mono">₹{sl.sellingPrice.toFixed(2)}</td>
-                            <td className="py-2 px-3 text-center font-mono text-slate-200">{sl.quantity} units</td>
-                            <td className="py-2 px-3 text-right font-mono font-bold text-slate-100">₹{sl.totalAmount.toFixed(2)}</td>
+                            <td className="py-2 px-3 text-center font-mono text-gray-700">{sl.quantity} units</td>
+                            <td className="py-2 px-3 text-right font-mono font-bold text-gray-800">₹{sl.totalAmount.toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -677,7 +677,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-slate-950 border-t border-slate-850 flex justify-end">
+            <div className="p-4 bg-white border-t border-gray-200 flex justify-end">
               <Button onClick={() => setSelectedInventory(null)} variant="primary" className="px-5 cursor-pointer">
                 Close details
               </Button>

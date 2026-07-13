@@ -17,7 +17,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
   return (
-    <div className="flex items-center justify-between px-5 py-3.5 bg-slate-900/30 border border-slate-800/80 rounded-xl sm:px-6">
+    <div className="flex items-center justify-between px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-xl sm:px-6">
       <div className="flex justify-between flex-1 sm:hidden gap-2">
         <Button
           variant="outline"
@@ -36,10 +36,10 @@ export const Pagination: React.FC<PaginationProps> = ({
       </div>
       <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between text-xs">
         <div>
-          <p className="text-slate-400">
-            Showing <span className="font-semibold text-slate-200">{Math.min(totalItems, (currentPage - 1) * itemsPerPage + 1)}</span> to{' '}
-            <span className="font-semibold text-slate-200">{Math.min(totalItems, currentPage * itemsPerPage)}</span> of{' '}
-            <span className="font-semibold text-slate-200">{totalItems}</span> results
+          <p className="text-gray-500">
+            Showing <span className="font-semibold text-gray-800">{Math.min(totalItems, (currentPage - 1) * itemsPerPage + 1)}</span> to{' '}
+            <span className="font-semibold text-gray-800">{Math.min(totalItems, currentPage * itemsPerPage)}</span> of{' '}
+            <span className="font-semibold text-gray-800">{totalItems}</span> results
           </p>
         </div>
         <div>
@@ -60,7 +60,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             >
               Prev
             </Button>
-            <span className="px-3 py-1.5 border border-slate-800 bg-slate-950 text-slate-300 font-bold font-mono rounded-lg flex items-center">
+            <span className="px-3 py-1.5 border border-gray-200 bg-white text-gray-700 font-bold font-mono rounded-lg flex items-center">
               Page {currentPage} of {totalPages}
             </span>
             <Button

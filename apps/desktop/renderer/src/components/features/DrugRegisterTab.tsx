@@ -368,7 +368,7 @@ export default function DrugRegisterTab({ currentUser, allUsers }: DrugRegisterT
       {/* Top Banner & Header */}
       <div className="flex justify-between items-center bg-white border border-gray-200 p-6 rounded-2xl">
         <div>
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
+          <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
             <FiShield className="text-primary" size={24} />
             Drug Schedule Register
           </h2>
@@ -464,7 +464,7 @@ export default function DrugRegisterTab({ currentUser, allUsers }: DrugRegisterT
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 placeholder="Product, Bill, Presc, Patient..."
-                className="w-full pl-8 pr-3 py-2 rounded-lg bg-white border border-gray-200 text-white placeholder-slate-600 focus:outline-none focus:border-primary text-xs"
+                className="w-full pl-8 pr-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 placeholder-slate-500 focus:outline-none focus:border-primary text-xs font-semibold"
               />
               <FiSearch className="absolute left-2.5 top-3 text-slate-600" />
             </div>
@@ -475,7 +475,7 @@ export default function DrugRegisterTab({ currentUser, allUsers }: DrugRegisterT
             <select
               value={scheduleType}
               onChange={(e) => { setScheduleType(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-white focus:outline-none focus:border-primary text-xs font-semibold"
+              className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 focus:outline-none focus:border-primary text-xs font-semibold"
             >
               <option value="All">All Schedules</option>
               <option value="Schedule G">G</option>
@@ -491,7 +491,7 @@ export default function DrugRegisterTab({ currentUser, allUsers }: DrugRegisterT
             <select
               value={status}
               onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-white focus:outline-none focus:border-primary text-xs font-semibold"
+              className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 focus:outline-none focus:border-primary text-xs font-semibold"
             >
               <option value="All">All Statuses</option>
               <option value="PENDING">Pending Check</option>
@@ -506,7 +506,7 @@ export default function DrugRegisterTab({ currentUser, allUsers }: DrugRegisterT
               type="date"
               value={startDate}
               onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-white focus:outline-none focus:border-primary text-xs font-mono"
+              className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 focus:outline-none focus:border-primary text-xs font-mono font-semibold"
             />
           </div>
 
@@ -516,7 +516,7 @@ export default function DrugRegisterTab({ currentUser, allUsers }: DrugRegisterT
               type="date"
               value={endDate}
               onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-white focus:outline-none focus:border-primary text-xs font-mono"
+              className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 focus:outline-none focus:border-primary text-xs font-mono font-semibold"
             />
           </div>
 
@@ -784,7 +784,7 @@ export default function DrugRegisterTab({ currentUser, allUsers }: DrugRegisterT
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2 grid grid-cols-2 gap-x-4 text-[10px]">
                 <div className="col-span-2 border-b border-gray-200 pb-2 mb-1">
                   <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold block">Medicine details</span>
-                  <span className="text-xs font-black text-white">
+                  <span className="text-xs font-black text-gray-800">
                     {verifyingItem.medicines ? verifyingItem.medicines.map((m: any) => m.product.name).join(', ') : verifyingItem.product.name}
                   </span>
                 </div>

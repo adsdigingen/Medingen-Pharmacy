@@ -10,6 +10,9 @@ interface PurchasesTabProps {
   allProducts: any[];
   fetchPurchaseOrders: () => Promise<void>;
   API_BASE: string;
+  onPOSaved?: (savedPO: any, mode: 'create' | 'edit') => void;
+  onPODeleted?: (poId: string) => void;
+  onPOStatusChanged?: (updatedPO: any) => void;
 }
 
 export const PurchasesTab: React.FC<PurchasesTabProps> = ({
@@ -18,6 +21,9 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
   allProducts,
   fetchPurchaseOrders,
   API_BASE,
+  onPOSaved,
+  onPODeleted,
+  onPOStatusChanged,
 }) => {
   const [subTab, setSubTab] = useState<'list' | 'create' | 'returns'>('list');
 
@@ -334,6 +340,8 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
       });
 
       if (!res.ok) throw new Error("Purchase Order creation failed");
+      const envelope = await res.json().catch(() => ({}));
+      const savedPO = envelope.data || envelope;
       
       alert(`Purchase Order logged successfully as ${poStatus}!`);
       // Reset Form
@@ -343,7 +351,11 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
       setInvoiceDate('');
       setNotes('');
       setSubTab('list');
-      fetchPurchaseOrders();
+      if (onPOSaved) {
+        onPOSaved(savedPO, 'create');
+      } else {
+        fetchPurchaseOrders();
+      }
     } catch (e: any) {
       alert("Error: " + e.message);
     }
@@ -364,9 +376,16 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
       });
 
       if (!res.ok) throw new Error("Approval failed");
+      const envelope = await res.json().catch(() => ({}));
+      const updatedPO = envelope.data || envelope;
+
       alert("PO Approved & Stocks fully received in inventory batches!");
       setReceivePO(null);
-      fetchPurchaseOrders();
+      if (onPOStatusChanged) {
+        onPOStatusChanged(updatedPO);
+      } else {
+        fetchPurchaseOrders();
+      }
     } catch (e: any) {
       alert(e.message);
     }
@@ -378,7 +397,11 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
       const res = await fetch(`${API_BASE}/purchase-orders/${id}`, { method: 'DELETE' });
       if (res.ok) {
         alert("Purchase Order removed.");
-        fetchPurchaseOrders();
+        if (onPODeleted) {
+          onPODeleted(id);
+        } else {
+          fetchPurchaseOrders();
+        }
       } else {
         throw new Error("Unable to delete PO");
       }
@@ -525,7 +548,8 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
   ];
 
   return (
-    <div className="space-y-4 animate-fadeIn text-xs text-muted font-sans relative">
+    <div className="space-y-4 text-xs text-muted font-sans relative">
+      <div className="space-y-4 animate-fadeIn">
       
       {/* Tab bar header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -701,7 +725,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-gray-600 select-none">
+                <table className="w-full text-left text-gray-600">
                   <thead className="bg-gray-50 text-[10px] text-gray-400 uppercase border-b border-gray-200 font-mono font-bold">
                     <tr>
                       <th className="py-2 px-3 font-semibold">Medicine</th>
@@ -916,7 +940,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-gray-600 select-none">
+                <table className="w-full text-left text-gray-600">
                   <thead className="bg-gray-50 text-[10px] text-gray-400 uppercase border-b border-gray-200 font-mono font-bold">
                     <tr>
                       <th className="py-2 px-3 font-semibold">Medicine</th>
@@ -986,11 +1010,13 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
         </form>
       )}
 
+      </div>
+
       {/* ==================== DIALOGS & OVERLAYS ==================== */}
 
       {/* 1. VIEW PO MODAL / DETAIL DRAWER */}
       {activePO && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-transparent animate-fadeIn">
           <div className="w-full max-w-3xl bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden font-sans text-xs text-gray-600">
             
             {/* Header info */}
@@ -1084,7 +1110,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
 
       {/* 2. RECEIVE INVOICE DIALOG */}
       {receivePO && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-transparent animate-fadeIn">
           <form onSubmit={handleApproveReceiveSubmit} className="w-full max-w-md bg-white border border-gray-200 rounded-2xl p-6 space-y-4 shadow-2xl relative text-slate-355">
             <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
               <FiCheckSquare className="text-primary" /> Confirm Stock Shipment Receipt
@@ -1131,7 +1157,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
 
       {/* 3. CONFIGURE ITEM DETAILS POPUP MODAL */}
       {editItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-transparent animate-fadeIn">
           <div className="w-full max-w-md bg-white border border-gray-200 rounded-2xl p-6 space-y-4 shadow-2xl relative text-gray-600 text-left">
             <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
               <FiEdit className="text-primary" /> Configure {editItem.name}

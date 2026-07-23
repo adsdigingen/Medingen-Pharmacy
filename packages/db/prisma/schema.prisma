@@ -400,6 +400,7 @@ model Bill {
   status         String      @default("COMPLETED") // COMPLETED, CANCELLED
   cancelReason   String?     @map("cancel_reason")
   invoiceType    String      @default("TAX") @map("invoice_type") // TAX, RETAIL
+  doctorName     String?     @map("doctor_name")
   
   billItems      BillItem[]
   payments       Payment[]
@@ -653,4 +654,14 @@ model DrugScheduleRegister {
   updatedAt          DateTime   @updatedAt @map("updated_at")
 
   @@map("drug_schedule_registers")
+}
+
+model Doctor {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  mobile    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("doctors")
 }

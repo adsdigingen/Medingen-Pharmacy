@@ -13,9 +13,11 @@ interface SettingsTabProps {
   
   density: 'comfortable' | 'compact';
   setDensity: (val: 'comfortable' | 'compact') => void;
+  currentUser?: any;
+  handleResetDatabase?: (target: string) => Promise<void>;
 }
 
-type SettingSection = 'preferences' | 'general' | 'billing' | 'printer' | 'gst' | 'pricing' | 'sync' | 'backup' | 'license' | 'about';
+type SettingSection = 'preferences' | 'general' | 'billing' | 'printer' | 'gst' | 'pricing' | 'sync' | 'backup' | 'license' | 'about' | 'maintenance';
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
   settingsForm,
@@ -26,9 +28,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   activationKey,
   setActivationKey,
   handleActivateLicense,
-  
   density,
   setDensity,
+  currentUser,
+  handleResetDatabase,
 }) => {
   const [activeSection, setActiveSection] = useState<SettingSection>('preferences');
 
@@ -42,6 +45,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     { id: 'sync', label: 'Cloud Sync Engine', icon: '☁️' },
     { id: 'backup', label: 'Auto Backups', icon: '💾' },
     { id: 'license', label: 'License Activation', icon: '🔑' },
+    ...(currentUser?.role === 'ADMIN' ? [{ id: 'maintenance', label: 'Maintenance & Reset', icon: '🛠️' }] : []),
     { id: 'about', label: 'About Desk ERP', icon: 'ℹ️' },
   ];
 
@@ -114,116 +118,125 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             )}
 
-            {/* 1. General Config */}
+            {/* General Store Config */}
             {activeSection === 'general' && (
               <div className="space-y-4 animate-fadeIn">
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">🏪 General Store Configuration</h3>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">🏪 General Store Information</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Store / Pharmacy Name *</label>
+                    <label className="text-muted font-semibold">Pharmacy / Store Name *</label>
                     <input
                       type="text"
                       required
                       value={settingsForm.storeName || ''}
                       onChange={(e) => setSettingsForm({ ...settingsForm, storeName: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 text-xs focus:outline-none"
+                      placeholder="e.g. Medingen Pharmacy"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Phone Contact</label>
+                    <label className="text-muted font-semibold">Store Phone Contact *</label>
                     <input
                       type="text"
+                      required
                       value={settingsForm.phone || ''}
                       onChange={(e) => setSettingsForm({ ...settingsForm, phone: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 text-xs focus:outline-none"
+                      placeholder="e.g. +91 98765 43210"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none font-mono"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Support Email</label>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-muted font-semibold">Registered Store Email</label>
                     <input
                       type="email"
                       value={settingsForm.email || ''}
                       onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 text-xs"
+                      placeholder="e.g. info@medingen.com"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Physical Location Address</label>
-                    <input
-                      type="text"
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-muted font-semibold">Physical Location / Address *</label>
+                    <textarea
+                      required
+                      rows={2}
                       value={settingsForm.address || ''}
                       onChange={(e) => setSettingsForm({ ...settingsForm, address: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 text-xs"
+                      placeholder="Enter full store address"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none"
                     />
                   </div>
                 </div>
               </div>
             )}
 
-            {/* 2. Billing Prefix settings */}
+            {/* Billing & Prefixes */}
             {activeSection === 'billing' && (
               <div className="space-y-4 animate-fadeIn">
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">🧾 Billing & Invoice Config</h3>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">🧾 Billing Code Prefixes</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Invoice Number Prefix</label>
+                    <label className="text-muted font-semibold">Invoice Number Prefix *</label>
                     <input
                       type="text"
+                      required
                       value={settingsForm.invoicePrefix || ''}
                       onChange={(e) => setSettingsForm({ ...settingsForm, invoicePrefix: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 font-mono text-xs"
+                      placeholder="e.g. INV-"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none font-mono"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Purchase Order Prefix</label>
+                    <label className="text-muted font-semibold">Purchase Order Prefix *</label>
                     <input
                       type="text"
+                      required
                       value={settingsForm.poPrefix || ''}
                       onChange={(e) => setSettingsForm({ ...settingsForm, poPrefix: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 font-mono text-xs"
+                      placeholder="e.g. PO-"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none font-mono"
                     />
                   </div>
                 </div>
               </div>
             )}
 
-            {/* 3. Printer width Setup */}
+            {/* Thermal Printer Setup */}
             {activeSection === 'printer' && (
               <div className="space-y-4 animate-fadeIn">
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">🖨️ Thermal Printer Specifications</h3>
-                <div className="max-w-md space-y-3">
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">🖨️ Thermal Printer Configuration</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Thermal Paper Roll Width</label>
+                    <label className="text-muted font-semibold">Active Receipt Printer Type</label>
                     <select
                       value={settingsForm.printerType || '80mm'}
                       onChange={(e) => setSettingsForm({ ...settingsForm, printerType: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none font-semibold"
                     >
-                      <option value="80mm">80mm Standard paper width (Desktop standard)</option>
-                      <option value="58mm">58mm Compact paper width (Handheld standard)</option>
+                      <option value="58mm">58mm (2-inch Receipt)</option>
+                      <option value="80mm">80mm (3-inch Standard Receipt)</option>
+                      <option value="150x95mm">150x95mm (A4 Half-Slip Grid)</option>
                     </select>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-normal">Thermal emulation dynamically prints formatted plaintext receipt files wrapping invoices with proper character widths matching these boundaries.</p>
                 </div>
               </div>
             )}
 
-            {/* 4. GST Setup */}
+            {/* GST Tax parameters */}
             {activeSection === 'gst' && (
               <div className="space-y-4 animate-fadeIn">
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">📊 GST Tax Parameters</h3>
-                <div className="max-w-md space-y-3">
-                  <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Pharmacy GSTIN identification</label>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">📊 GSTIN Tax Identification</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-muted font-semibold">Store GST Registration Number (GSTIN)</label>
                     <input
                       type="text"
                       value={settingsForm.gstin || ''}
                       onChange={(e) => setSettingsForm({ ...settingsForm, gstin: e.target.value })}
-                      placeholder="e.g. 29AAAAA1111A1Z1"
-                      className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 font-mono text-xs"
+                      placeholder="e.g. 33AAAAA1111A1Z1"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none font-mono"
                     />
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-normal">The registered GSTIN is embedded on thermal printed headers and sales return tax receipts. All transactions are logged with CGST (50%) and SGST (50%) components automatically.</p>
                 </div>
               </div>
             )}
@@ -231,142 +244,88 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             {/* Pricing Defaults */}
             {activeSection === 'pricing' && (
               <div className="space-y-4 animate-fadeIn">
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">💰 Global Pricing Defaults</h3>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">💰 Retail Pricing Defaults</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Default Offline Store Markup (%)</label>
+                    <label className="text-muted font-semibold">Default Margin Markup (%)</label>
                     <input
                       type="number"
-                      step="0.1"
-                      required
-                      value={settingsForm.defaultOfflineMarkup ?? 50.0}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultOfflineMarkup: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-slate-105 text-xs font-mono focus:outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Default Online Store Markup (%)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      required
-                      value={settingsForm.defaultOnlineMarkup ?? 85.0}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultOnlineMarkup: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-slate-105 text-xs font-mono focus:outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Default GST tax (%)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      required
-                      value={settingsForm.defaultGst ?? 12.0}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultGst: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-slate-105 text-xs font-mono focus:outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Default Retail Discount (%)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      required
-                      value={settingsForm.defaultRetailDiscount ?? 0.0}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultRetailDiscount: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200 text-slate-105 text-xs font-mono focus:outline-none"
+                      value={settingsForm.defaultMargin || 15}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultMargin: parseFloat(e.target.value) })}
+                      placeholder="e.g. 15"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none font-mono"
                     />
                   </div>
                 </div>
-                <p className="text-[10px] text-gray-500 leading-normal">
-                  These markups and tax policies serve as the initialization template when creating new products or when resetting pricing books. Individual products can override these rules locally.
-                </p>
               </div>
             )}
 
-            {/* 5. Cloud Sync */}
+            {/* Cloud Sync Engine */}
             {activeSection === 'sync' && (
               <div className="space-y-4 animate-fadeIn">
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">☁️ Hybrid Cloud Synchronization</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-white p-4 border border-gray-200 rounded-xl">
-                    <div>
-                      <span className="font-bold text-gray-700 block">Cloud Status: Active Sync</span>
-                      <span className="text-[10px] text-gray-500 mt-0.5">Automatically syncs invoices & products in the background</span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIVE</span>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">☁️ Cloud Synchronization Engine</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-muted font-semibold">Remote Cloud Gateway Endpoint</label>
+                    <input
+                      type="text"
+                      value={settingsForm.cloudUrl || ''}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, cloudUrl: e.target.value })}
+                      placeholder="e.g. https://cloud.medingen.com/api"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none font-mono"
+                    />
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-normal">Medingen operates on a hybrid architecture. If internet disconnects, billing handles locally offline, and queues sync jobs automatically when connection restores.</p>
                 </div>
               </div>
             )}
 
-            {/* 6. Database Auto backups */}
+            {/* Auto Backups */}
             {activeSection === 'backup' && (
               <div className="space-y-4 animate-fadeIn">
                 <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">💾 Database Backups Schedule</h3>
-                <div className="max-w-md space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-muted font-semibold">Auto-Backup Frequency</label>
+                    <label className="text-muted font-semibold">Automatic Backup Cycle</label>
                     <select
                       value={settingsForm.backupInterval || 'DAILY'}
                       onChange={(e) => setSettingsForm({ ...settingsForm, backupInterval: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700"
+                      className="w-full px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-850 focus:outline-none font-semibold"
                     >
-                      <option value="DAILY">Once every 24 Hours (Recommended)</option>
-                      <option value="WEEKLY">Once every 7 Days</option>
+                      <option value="HOURLY">Hourly Snapshots</option>
+                      <option value="DAILY">Daily Snapshots</option>
+                      <option value="WEEKLY">Weekly Archive</option>
+                      <option value="NEVER">Disable Auto Backups</option>
                     </select>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-normal">Database backups are automatically stored to local snapshots folder under the workspace directory, or downloadable as complete JSON files in the Admin Tab.</p>
                 </div>
               </div>
             )}
 
-            {/* 7. License activation form */}
+            {/* License Activation */}
             {activeSection === 'license' && (
               <div className="space-y-4 animate-fadeIn">
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">🔑 License Status & Offline Activation</h3>
-                
-                {licenseInfo ? (
-                  <div className="space-y-4">
-                    <div className="bg-white p-4 border border-gray-200 rounded-xl space-y-3.5 font-mono text-[10px] text-muted">
-                      <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                        <span>Active Key:</span>
-                        <span className="font-bold text-gray-800">{licenseInfo.licenseKey}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                        <span>License Status:</span>
-                        <span className={`font-bold ${licenseInfo.status === 'ACTIVE' ? 'text-emerald-450' : 'text-rose-600'}`}>{licenseInfo.status}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                        <span>Activated On:</span>
-                        <span>{licenseInfo.activatedAt ? new Date(licenseInfo.activatedAt).toLocaleDateString() : 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Expires On:</span>
-                        <span>{licenseInfo.expiresAt ? new Date(licenseInfo.expiresAt).toLocaleDateString() : 'N/A'}</span>
-                      </div>
-                    </div>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">🔑 Desk ERP License Info</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white/40 p-4 border border-gray-200 rounded-xl leading-relaxed">
+                  <div className="space-y-1 text-gray-500 font-semibold">
+                    <div>Product Name: <span className="text-gray-700">Medingen Desk ERP Pro</span></div>
+                    <div>License Status: <span className={licenseInfo?.active ? "text-teal-600 font-bold" : "text-rose-600 font-bold"}>{licenseInfo?.active ? "ACTIVATED" : "NOT ACTIVATED"}</span></div>
+                    <div>Expires On: <span className="text-gray-700">{licenseInfo?.expiryDate ? new Date(licenseInfo.expiryDate).toLocaleDateString() : 'N/A'}</span></div>
+                    <div>Client UUID: <span className="text-gray-500 font-mono text-[10px]">{licenseInfo?.clientUuid || 'N/A'}</span></div>
                   </div>
-                ) : (
-                  <div className="text-gray-500 py-4 text-center">No license details found in database registry.</div>
-                )}
+                </div>
               </div>
             )}
 
-            {/* 8. About Section */}
+            {/* About Desk ERP */}
             {activeSection === 'about' && (
               <div className="space-y-4 animate-fadeIn">
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">ℹ️ About Medingen Pharmacy ERP</h3>
-                
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">ℹ️ About Medingen Desk ERP</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-white/40 p-4 border border-gray-200 rounded-xl space-y-2 leading-relaxed">
-                    <span className="font-bold text-gray-700 block text-xs">Environment Specs</span>
-                    <div className="space-y-1 font-mono text-[10px] text-gray-500">
-                      <div>Application: <span className="text-gray-700">Medingen Pharmacy ERP</span></div>
-                      <div>App Version: <span className="text-gray-700">1.0.4 PROD</span></div>
-                      <div>Next.js Server: <span className="text-gray-700">v16.2.9</span></div>
-                      <div>React Renderer: <span className="text-gray-700">v19.2.4</span></div>
+                    <span className="font-bold text-gray-700 block text-xs">System Details</span>
+                    <div className="space-y-1 text-gray-500 font-semibold">
+                      <div>Software Version: <span className="text-gray-750">v1.2.4-stable</span></div>
+                      <div>Engine Runtime: <span className="text-gray-750">Electron / Next.js SPA</span></div>
                       <div>Tailwind Style: <span className="text-gray-700">v4.0.0</span></div>
                     </div>
                   </div>
@@ -384,10 +343,160 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             )}
 
+            {/* Database Maintenance & Reset */}
+            {activeSection === 'maintenance' && (
+              <div className="space-y-6 animate-fadeIn">
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2 text-rose-600">🛠️ Database Maintenance & Reset</h3>
+                <p className="text-gray-500 font-semibold text-[11px] leading-relaxed">
+                  Select a section below to reset local database tables. Each reset is isolated to that specific module.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Wipe Sales */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition-all">
+                    <div>
+                      <span className="font-bold text-gray-800 block text-xs">🧾 Clear Invoices & Sales</span>
+                      <p className="text-gray-450 text-[10px] mt-1">Deletes all customer bills, payment details, and records. Users, inventory, and suppliers remain untouched.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (confirm("Are you sure you want to clear all invoice bills and payments? This action is irreversible.")) {
+                          if (handleResetDatabase) await handleResetDatabase('sales');
+                        }
+                      }}
+                      className="w-fit px-3.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-150 hover:bg-rose-600 hover:text-white rounded font-bold transition-all text-[10px] cursor-pointer"
+                    >
+                      Clear Sales
+                    </button>
+                  </div>
+
+                  {/* Wipe Purchases */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition-all">
+                    <div>
+                      <span className="font-bold text-gray-800 block text-xs">📦 Clear Purchase Orders (PO)</span>
+                      <p className="text-gray-455 text-[10px] mt-1">Wipes all PO records and purchase returns. Products and sales remain untouched.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (confirm("Are you sure you want to clear all Purchase Orders? This action is irreversible.")) {
+                          if (handleResetDatabase) await handleResetDatabase('purchases');
+                        }
+                      }}
+                      className="w-fit px-3.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-150 hover:bg-rose-600 hover:text-white rounded font-bold transition-all text-[10px] cursor-pointer"
+                    >
+                      Clear Purchases
+                    </button>
+                  </div>
+
+                  {/* Wipe Products */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition-all">
+                    <div>
+                      <span className="font-bold text-gray-800 block text-xs">💊 Clear Products & Inventory</span>
+                      <p className="text-gray-450 text-[10px] mt-1">Clears all medicine items, active batches, inventory quantities, stock adjustments, and categories.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (confirm("Are you sure you want to delete all products and inventory data? This action is irreversible.")) {
+                          if (handleResetDatabase) await handleResetDatabase('products');
+                        }
+                      }}
+                      className="w-fit px-3.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-150 hover:bg-rose-600 hover:text-white rounded font-bold transition-all text-[10px] cursor-pointer"
+                    >
+                      Clear Catalog
+                    </button>
+                  </div>
+
+                  {/* Wipe Contacts */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition-all">
+                    <div>
+                      <span className="font-bold text-gray-800 block text-xs">👥 Clear Customers & Doctors</span>
+                      <p className="text-gray-450 text-[10px] mt-1">Deletes all registered profiles from customer and doctor registries. Bills and stocks remain.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (confirm("Are you sure you want to delete all registered customers and doctors? This action is irreversible.")) {
+                          if (handleResetDatabase) await handleResetDatabase('contacts');
+                        }
+                      }}
+                      className="w-fit px-3.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-150 hover:bg-rose-600 hover:text-white rounded font-bold transition-all text-[10px] cursor-pointer"
+                    >
+                      Clear Contacts
+                    </button>
+                  </div>
+
+                  {/* Wipe Drug Schedule Register */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition-all">
+                    <div>
+                      <span className="font-bold text-gray-800 block text-xs">📒 Clear Drug Register</span>
+                      <p className="text-gray-450 text-[10px] mt-1">Deletes all patient drug logs and prescriptions in the /drugRegister module.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (confirm("Are you sure you want to clear all drug registers? This action is irreversible.")) {
+                          if (handleResetDatabase) await handleResetDatabase('drugRegister');
+                        }
+                      }}
+                      className="w-fit px-3.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-150 hover:bg-rose-600 hover:text-white rounded font-bold transition-all text-[10px] cursor-pointer"
+                    >
+                      Clear Drug Register
+                    </button>
+                  </div>
+
+                  {/* Wipe Hold Bills */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition-all">
+                    <div>
+                      <span className="font-bold text-gray-800 block text-xs">⏳ Clear Hold Bills</span>
+                      <p className="text-gray-450 text-[10px] mt-1">Wipes all sales records currently kept on hold in the billing panel.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (confirm("Are you sure you want to clear all hold bills? This action is irreversible.")) {
+                          if (handleResetDatabase) await handleResetDatabase('holdBills');
+                        }
+                      }}
+                      className="w-fit px-3.5 py-1.5 bg-rose-50 text-rose-700 border border-rose-150 hover:bg-rose-600 hover:text-white rounded font-bold transition-all text-[10px] cursor-pointer"
+                    >
+                      Clear Hold Bills
+                    </button>
+                  </div>
+                </div>
+
+                {/* Master Reset Section */}
+                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-3 mt-6 animate-fadeIn">
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg">⚠️</span>
+                    <div>
+                      <h4 className="font-bold text-rose-700 text-xs uppercase tracking-wide">Danger Zone: Complete System Reset</h4>
+                      <p className="text-rose-600 text-[10.5px] mt-0.5 font-semibold">
+                        Clears absolutely everything (invoices, POs, inventory, registers, accounts) and returns to factory default state.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (confirm("CRITICAL WARNING:\n\nAre you absolutely sure you want to perform a Complete System Reset?\n\nThis will permanently delete ALL pharmacy records, bills, stock, settings, and users.\n\nType 'OK' if you want to proceed.")) {
+                        if (handleResetDatabase) await handleResetDatabase('all');
+                      }
+                    }}
+                    className="w-full sm:w-auto px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold transition-all shadow cursor-pointer text-xs"
+                  >
+                    Trigger Master Reset Now
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
 
-          {/* Action bar (Hide if on About/License section which are read-only or handled separately) */}
-          {activeSection !== 'about' && activeSection !== 'license' && (
+          {/* Action bar (Hide if on About/License/Maintenance section which are read-only or handled separately) */}
+          {activeSection !== 'about' && activeSection !== 'license' && activeSection !== 'maintenance' && (
             <div className="flex justify-end pt-5 border-t border-gray-200">
               <Button 
                 type="submit" 

@@ -42,11 +42,15 @@ export default function RootLayout({
             opacity: 0;
             pointer-events: none;
           }
-          #app-loader svg {
-            animation: spin 1s linear infinite;
+          .circle-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(20, 184, 166, 0.15);
+            border-radius: 50%;
+            border-top-color: #14b8a6;
+            animation: spin 0.8s ease-in-out infinite;
           }
           @keyframes spin {
-            from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
           }
         `}} />
@@ -80,11 +84,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background" style={{ fontFamily: "'Open Sans', system-ui, sans-serif" }}>
         {/* Instant splash: visible immediately, before React hydrates */}
         <div id="app-loader">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="#14b8a6" strokeWidth="4" strokeOpacity="0.25" />
-            <path fill="#14b8a6" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span>Initializing Medingen ERP desk environment...</span>
+          <div className="circle-spinner"></div>
+          <span style={{ marginTop: '6px' }}>Initializing Medingen ERP desk environment...</span>
           <div id="startup-trace-log" style={{
             marginTop: '15px',
             fontFamily: 'monospace',

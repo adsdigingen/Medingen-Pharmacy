@@ -202,6 +202,7 @@ export class BillingService {
           status: 'COMPLETED',
           cashierId: '00000000-0000-0000-0000-000000000000', // default cash desk uuid
           syncStatus: SyncStatus.PENDING,
+          doctorName: dto.doctorName || null,
           billItems: {
             create: billItemsToCreate,
           },
@@ -436,6 +437,39 @@ export class BillingService {
     }
 
     return bill;
+  }
+
+  async createDoctor(data: { name: string; mobile?: string }) {
+    const nameTrim = data.name.trim();
+    const existing = await this.prisma.doctor.findUnique({
+      where: { name: nameTrim }
+    });
+    if (existing) {
+      return existing;
+    }
+    return this.prisma.doctor.create({
+      data: {
+        name: nameTrim,
+        mobile: data.mobile ? data.mobile.trim() : null
+      }
+    });
+  }
+
+  async searchDoctors(search?: string) {
+    if (!search) {
+      return this.prisma.doctor.findMany({
+        take: 10,
+        orderBy: { name: 'asc' }
+      });
+    }
+    const cleanSearch = search.trim();
+    return this.prisma.doctor.findMany({
+      where: {
+        name: { contains: cleanSearch, mode: 'insensitive' }
+      },
+      take: 10,
+      orderBy: { name: 'asc' }
+    });
   }
 
   async cancelBill(id: string, reason: string) {

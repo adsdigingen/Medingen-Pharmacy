@@ -47,7 +47,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn text-xs text-muted font-sans select-none">
+    <div className="space-y-6 animate-fadeIn text-xs text-muted font-sans">
       
       {/* Title */}
       <div className="flex justify-between items-center">

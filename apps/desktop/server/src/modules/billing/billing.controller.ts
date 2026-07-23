@@ -24,6 +24,16 @@ export class BillingController {
     return this.billingService.getHoldBills();
   }
 
+  @Post('doctors')
+  createDoctor(@Body() dto: { name: string; mobile?: string }) {
+    return this.billingService.createDoctor(dto);
+  }
+
+  @Get('doctors')
+  searchDoctors(@Query('search') search?: string) {
+    return this.billingService.searchDoctors(search);
+  }
+
   @Delete('hold/:id')
   deleteHoldBill(@Param('id') id: string) {
     return this.billingService.deleteHoldBill(id);

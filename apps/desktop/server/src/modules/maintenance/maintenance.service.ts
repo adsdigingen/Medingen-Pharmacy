@@ -251,4 +251,115 @@ export class MaintenanceService {
       return { status: 'RESTORE_SUCCESSFUL' };
     }, { timeout: 60000, maxWait: 10000 });
   }
+
+  async resetDatabase(target: string) {
+    return this.prisma.$transaction(async (tx) => {
+      switch (target) {
+        case 'sales':
+          await tx.payment.deleteMany();
+          await tx.billItem.deleteMany();
+          await tx.bill.deleteMany();
+          break;
+
+        case 'purchases':
+          await tx.purchaseReturnItem.deleteMany();
+          await tx.purchaseReturn.deleteMany();
+          await tx.purchaseOrderItem.deleteMany();
+          await tx.purchaseOrder.deleteMany();
+          break;
+
+        case 'products':
+          await tx.stockLedger.deleteMany();
+          await tx.stockAdjustment.deleteMany();
+          await tx.inventory.deleteMany();
+          await tx.batch.deleteMany();
+          await tx.product.deleteMany();
+          await tx.category.deleteMany();
+          await tx.manufacturer.deleteMany();
+          break;
+
+        case 'contacts':
+          await tx.customer.deleteMany();
+          await tx.doctor.deleteMany();
+          await tx.supplier.deleteMany();
+          break;
+
+        case 'drugRegister':
+          await tx.drugScheduleRegister.deleteMany();
+          break;
+
+        case 'holdBills':
+          await tx.holdBillItem.deleteMany();
+          await tx.holdBill.deleteMany();
+          break;
+
+        case 'all':
+        default:
+          // 1. Clean transactional and log tables
+          await tx.auditLog.deleteMany();
+          await tx.syncHistory.deleteMany();
+          await tx.syncConflict.deleteMany();
+          await tx.syncQueue.deleteMany();
+          await tx.notification.deleteMany();
+
+          await tx.holdBillItem.deleteMany();
+          await tx.holdBill.deleteMany();
+
+          await tx.payment.deleteMany();
+          await tx.billItem.deleteMany();
+          await tx.bill.deleteMany();
+
+          await tx.purchaseReturnItem.deleteMany();
+          await tx.purchaseReturn.deleteMany();
+
+          await tx.purchaseOrderItem.deleteMany();
+          await tx.purchaseOrder.deleteMany();
+
+          // 2. Clean inventory tables
+          await tx.stockLedger.deleteMany();
+          await tx.stockAdjustment.deleteMany();
+          await tx.inventory.deleteMany();
+          await tx.batch.deleteMany();
+          await tx.product.deleteMany();
+
+          // 3. Clean registries
+          await tx.customer.deleteMany();
+          await tx.supplier.deleteMany();
+          await tx.manufacturer.deleteMany();
+          await tx.category.deleteMany();
+          await tx.systemSettings.deleteMany();
+          await tx.syncSettings.deleteMany();
+          
+          // Clean new custom tables
+          await tx.doctor.deleteMany();
+          await tx.drugScheduleRegister.deleteMany();
+
+          // 4. Seed default system settings
+          await tx.systemSettings.create({
+            data: {
+              id: 'singleton',
+              storeName: 'Medingen Pharmacy',
+              address: 'Default Store Address',
+              phone: '9876543210',
+              email: 'admin@medingen.com',
+              gstin: '',
+              invoicePrefix: 'INV-',
+              poPrefix: 'PO-',
+              printerType: '80mm',
+              backupInterval: 'DAILY'
+            }
+          });
+
+          // 5. Clean users other than admin
+          await tx.user.deleteMany({
+            where: {
+              username: { not: 'admin' }
+            }
+          });
+          break;
+      }
+
+      return { status: 'RESET_SUCCESSFUL', target };
+    }, { timeout: 30000 });
+  }
 }

@@ -192,7 +192,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
 
 
   return (
-    <div className="fixed inset-0 z-50 bg-white/80 backdrop-blur-md flex items-center justify-center p-4 font-sans text-xs text-muted select-none">
+    <div className="fixed inset-0 z-50 bg-white/80 backdrop-blur-md flex items-center justify-center p-4 font-sans text-xs text-muted">
       <div className="w-full max-w-lg bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden animate-fadeIn relative">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.03)_0%,transparent_60%)] pointer-events-none" />
         

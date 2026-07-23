@@ -78,6 +78,10 @@ export class CheckoutBillDto {
   @IsString()
   @IsOptional()
   holdBillId?: string;
+
+  @IsString()
+  @IsOptional()
+  doctorName?: string;
 }
 
 export class HoldBillDto {

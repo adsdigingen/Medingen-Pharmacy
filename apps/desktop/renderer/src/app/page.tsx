@@ -114,6 +114,9 @@ export default function Home() {
   // Navigation tab states
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const mainScrollRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [localDbConnected, setLocalDbConnected] = useState<boolean>(true);
 
@@ -155,7 +158,7 @@ export default function Home() {
   const [selectedBatchId, setSelectedBatchId] = useState<string>('');
   const [posQty, setPosQty] = useState<number>(1);
   const [posDiscount, setPosDiscount] = useState<number>(0);
-  
+
   // Customer selection
   const [customerSearch, setCustomerSearch] = useState<string>('');
   const [customerResults, setCustomerResults] = useState<any[]>([]);
@@ -172,7 +175,8 @@ export default function Home() {
     { method: 'CARD', amount: 0 }
   ]);
   const [invoiceType, setInvoiceType] = useState<string>('TAX');
-  
+  const [doctorName, setDoctorName] = useState<string>('');
+
   // Hold bills
   const [holdBills, setHoldBills] = useState<any[]>([]);
   const [holdLabel, setHoldLabel] = useState<string>('');
@@ -222,7 +226,7 @@ export default function Home() {
 
   // --- ADMIN PANEL STATE ---
   const [adminTab, setAdminTab] = useState<'users' | 'backups' | 'maintenance' | 'audit'>('users');
-  
+
   // Users list
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState<boolean>(false);
@@ -278,7 +282,7 @@ export default function Home() {
   const [inventoryPage, setInventoryPage] = useState<number>(1);
   const [inventorySearch, setInventorySearch] = useState<string>('');
   const [inventoryLowStockFilter, setInventoryLowStockFilter] = useState<boolean>(false);
-  
+
   const [batches, setBatches] = useState<any[]>([]);
   const [batchPage, setBatchPage] = useState<number>(1);
   const [batchSearch, setBatchSearch] = useState<string>('');
@@ -415,9 +419,9 @@ export default function Home() {
   const sidebarCategories = useMemo(() => {
     const categories = ['POS Registry', 'Stocks & Items', 'Cloud Sync', 'System Admin'];
     return categories.map(cat => {
-      const items = sidebarItems.filter(item => 
-        item.category === cat && 
-        currentUser && 
+      const items = sidebarItems.filter(item =>
+        item.category === cat &&
+        currentUser &&
         item.roles.includes(currentUser.role)
       );
       return { categoryName: cat, items };
@@ -457,7 +461,7 @@ export default function Home() {
           const endTime = Date.now();
           const duration = endTime - startTime;
           console.log(`[API Request End] URL: ${url}, End Time: ${new Date(endTime).toLocaleTimeString()}, Duration: ${duration}ms, Status: ${res.status}`);
-          
+
           try {
             const cloned = res.clone();
             const bodyText = await cloned.text();
@@ -506,7 +510,7 @@ export default function Home() {
           const parsed = JSON.parse(cached);
           startupToken = parsed.token;
         }
-      } catch (_) {}
+      } catch (_) { }
 
       logTrace("========== APPLICATION STARTUP ==========");
 
@@ -646,7 +650,7 @@ ${startupReport.join("\n")}
         if (cachedSession) {
           const parsedUser = JSON.parse(cachedSession);
           setCurrentUser(parsedUser);
-          
+
           // Read tab parameter from URL query if logged in
           const params = new URLSearchParams(window.location.search);
           const tabParam = params.get('tab') as Tab;
@@ -680,7 +684,7 @@ ${startupReport.join("\n")}
             }
           }
         }
-      } catch(e: any) {
+      } catch (e: any) {
         logTrace("[Medingen Init] error parsing session or handling tabParam: " + e.message);
       } finally {
         logTrace("Leaving Splash Screen");
@@ -762,7 +766,7 @@ ${startupReport.join("\n")}
       if (activeToken) {
         headers['Authorization'] = `Bearer ${activeToken}`;
       }
-      const res = await fetch(`${API_BASE}/users-management?limit=200`, { 
+      const res = await fetch(`${API_BASE}/users-management?limit=200`, {
         signal: controller.signal,
         headers
       });
@@ -782,7 +786,7 @@ ${startupReport.join("\n")}
         logTrace("[Medingen Init] fetchAllUsers returned non-ok status: " + res.status);
         setAllUsers([{ id: 'admin-default', username: 'admin', role: 'ADMIN', status: true }]);
       }
-    } catch(err: any) {
+    } catch (err: any) {
       logTrace("[Medingen Init] fetchAllUsers encountered error or aborted: " + err.message);
       // Fallback local mock user in case DB is offline/initializing or timed out
       setAllUsers([{ id: 'admin-default', username: 'admin', role: 'ADMIN', status: true }]);
@@ -878,7 +882,7 @@ ${startupReport.join("\n")}
       setPosSearchResults([]);
       return;
     }
-    const filtered = allProducts.filter(p => 
+    const filtered = allProducts.filter(p =>
       p.name.toLowerCase().includes(posSearch.toLowerCase()) ||
       (p.genericName && p.genericName.toLowerCase().includes(posSearch.toLowerCase())) ||
       (p.brandName && p.brandName.toLowerCase().includes(posSearch.toLowerCase())) ||
@@ -1057,13 +1061,13 @@ ${startupReport.join("\n")}
           setPosSearch('');
           return;
         }
-        
+
         // Add directly to cart
         setCart(prevCart => {
           const existingIndex = prevCart.findIndex(it => it.batchId === activeBatch.id);
           const isOnline = modeOfSell === 'ONLINE';
           const priceToUse = isOnline ? activeBatch.mrp : activeBatch.sellingPrice;
-          
+
           if (existingIndex > -1) {
             const updatedCart = [...prevCart];
             const newQty = updatedCart[existingIndex].quantity + 1;
@@ -1073,12 +1077,12 @@ ${startupReport.join("\n")}
             }
             const item = { ...updatedCart[existingIndex] };
             item.quantity = newQty;
-            
+
             const subtotal = newQty * item.sellingPrice;
             const gstAmt = subtotal * (item.gstPercentage / 100);
             item.gstAmount = gstAmt;
             item.totalAmount = subtotal - (subtotal * (item.discountPercentage / 100)) + gstAmt;
-            
+
             updatedCart[existingIndex] = item;
             return updatedCart;
           } else {
@@ -1139,7 +1143,7 @@ ${startupReport.join("\n")}
     setPosSearchResults([]);
     setPosQty(1);
     setPosDiscount(0);
-    
+
     try {
       const res = await fetch(`${API_BASE}/batches/fefo/${product.id}`);
       if (res.ok) {
@@ -1166,7 +1170,7 @@ ${startupReport.join("\n")}
     }
 
     const existingIndex = cart.findIndex(it => it.batchId === batch.id);
-    
+
     const isOnline = modeOfSell === 'ONLINE';
     const priceToUse = isOnline ? batch.mrp : batch.sellingPrice;
 
@@ -1179,12 +1183,12 @@ ${startupReport.join("\n")}
       }
       const item = { ...updatedCart[existingIndex] };
       item.quantity = newQty;
-      
+
       const subtotal = newQty * item.sellingPrice;
       const gstAmt = subtotal * (item.gstPercentage / 100);
       item.gstAmount = gstAmt;
       item.totalAmount = subtotal - (subtotal * (item.discountPercentage / 100)) + gstAmt;
-      
+
       updatedCart[existingIndex] = item;
       setCart(updatedCart);
     } else {
@@ -1229,13 +1233,13 @@ ${startupReport.join("\n")}
     const updated = [...cart];
     const item = { ...updated[index] };
     item.quantity = newQty;
-    
+
     // Recalculate line total and gst
     const subtotal = newQty * item.sellingPrice;
     const gstAmt = subtotal * (item.gstPercentage / 100);
     item.gstAmount = gstAmt;
     item.totalAmount = subtotal - (subtotal * (item.discountPercentage / 100)) + gstAmt;
-    
+
     updated[index] = item;
     setCart(updated);
   };
@@ -1298,6 +1302,7 @@ ${startupReport.join("\n")}
       const oldCustomer = selectedCustomer;
       setCart([]);
       setSelectedCustomer(null);
+      setDoctorName('');
       setPaymentMethod('CASH');
       setAmountPaid(0);
       setMixedPayments([
@@ -1317,6 +1322,7 @@ ${startupReport.join("\n")}
     } else {
       setCart([]);
       setSelectedCustomer(null);
+      setDoctorName('');
       setPaymentMethod('CASH');
       setAmountPaid(0);
       setMixedPayments([
@@ -1329,12 +1335,87 @@ ${startupReport.join("\n")}
     searchInputRef.current?.focus();
   };
 
-  const handleCheckoutSubmit = async () => {
+  const handleSearchDoctors = async (query: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/billing/doctors?search=${encodeURIComponent(query)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const envelope = await res.json();
+        return envelope.data || [];
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  };
+
+  const handleRegisterDoctor = async (name: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/billing/doctors`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name })
+      });
+      if (res.ok) {
+        const envelope = await res.json();
+        const saved = envelope.data;
+        showToast(`Doctor "${saved.name}" registered successfully!`, "success");
+        return saved;
+      } else {
+        const err = await res.json();
+        showToast(err.message || "Failed to register doctor", "error");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Connection error registering doctor", "error");
+    }
+    return null;
+  };
+
+  const handleRegisterCustomerInline = async (name: string, mobile: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/customers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name, mobile })
+      });
+      if (res.ok) {
+        const envelope = await res.json();
+        const added = envelope.data || envelope;
+        setSelectedCustomer(added);
+        setCustomerSearch('');
+        setCustomerResults([]);
+        showToast(`Customer "${added.name}" registered and selected!`, "success");
+        return added;
+      } else {
+        const err = await res.json();
+        showToast(err.message || "Failed to register customer", "error");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Connection error registering customer", "error");
+    }
+    return null;
+  };
+
+  const handleCheckoutSubmit = async (shouldPrint: boolean = true) => {
     if (cart.length === 0) return;
-    
-    // Enforce customer registration for CREDIT checkouts only
-    if (paymentMethod === 'CREDIT' && !selectedCustomer) {
-      alert("A registered customer is required for purchases on Credit. Please select or register a customer first.");
+
+    // Enforce customer registration for ALL checkouts
+    if (!selectedCustomer) {
+      alert("A registered customer is required to complete the checkout. Please select or register a customer first.");
       return;
     }
 
@@ -1357,6 +1438,7 @@ ${startupReport.join("\n")}
         paymentStatus: paymentMethod === 'CREDIT' ? 'PENDING' : 'PAID',
         amountPaid: paymentMethod === 'MIXED' ? cartSummary.total : (amountPaid || cartSummary.total),
         invoiceType,
+        doctorName: doctorName.trim() || undefined,
         items: cart.map(it => ({
           productId: it.productId,
           quantity: it.quantity,
@@ -1377,8 +1459,13 @@ ${startupReport.join("\n")}
       if (!res.ok) throw new Error("Checkout transaction failed");
       const envelope = await res.json();
       const completedBill = envelope.data;
-      
-      handleFetchReceipt(completedBill.id);
+
+      // Update invoices list locally
+      setInvoices(prev => [completedBill, ...prev]);
+
+      if (shouldPrint) {
+        handleFetchReceipt(completedBill.id);
+      }
       handleNewBill();
       fetchCatalogs();
     } catch (e: any) {
@@ -1391,7 +1478,7 @@ ${startupReport.join("\n")}
     try {
       const res = await fetch(`${API_BASE}/billing/hold`);
       if (res.ok) setHoldBills((await res.json()).data || []);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleHoldBillSubmit = async (e: React.FormEvent) => {
@@ -1417,6 +1504,12 @@ ${startupReport.join("\n")}
       });
 
       if (!res.ok) throw new Error("Hold transaction failed");
+      const envelope = await res.json();
+      const heldBill = envelope.data || envelope;
+
+      // Update holdBills locally
+      setHoldBills(prev => [heldBill, ...prev]);
+
       setIsHoldModalOpen(false);
       setHoldLabel('');
       handleNewBill();
@@ -1436,7 +1529,7 @@ ${startupReport.join("\n")}
         setReceiptText(envelope.data.text);
         setActiveReceiptId(billId);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // --- BILL HISTORY ---
@@ -1449,7 +1542,7 @@ ${startupReport.join("\n")}
         setInvoices(envelope.data || []);
         setInvoiceTotal(envelope.meta?.total || 0);
       }
-    } catch (e) {}
+    } catch (e) { }
     finally { setInvoiceLoading(false); }
   };
 
@@ -1550,7 +1643,7 @@ ${startupReport.join("\n")}
   const exportToCSV = (data: any[], filename: string) => {
     if (data.length === 0) return;
     const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(row => 
+    const rows = data.map(row =>
       Object.values(row).map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')
     );
     const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join('\n');
@@ -1577,7 +1670,7 @@ ${startupReport.join("\n")}
       if (activeToken) {
         headers['Authorization'] = `Bearer ${activeToken}`;
       }
-      const res = await fetch(`${API_BASE}/system-settings`, { 
+      const res = await fetch(`${API_BASE}/system-settings`, {
         signal: controller.signal,
         headers
       });
@@ -1618,7 +1711,7 @@ ${startupReport.join("\n")}
     try {
       const res = await fetch(`${API_BASE}/license`);
       if (res.ok) setLicenseInfo((await res.json()).data);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleActivateLicense = async (e: React.FormEvent) => {
@@ -1642,6 +1735,36 @@ ${startupReport.join("\n")}
     }
   };
 
+  const handleResetDatabase = async (target: string) => {
+    try {
+      setSettingsLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/maintenance/reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ target })
+      });
+      if (res.ok) {
+        showToast(`Reset of "${target}" database tables completed successfully!`, "success");
+        await fetchSettings();
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        const err = await res.json();
+        showToast(err.message || `Reset of "${target}" failed`, "error");
+      }
+    } catch (e: any) {
+      console.error(e);
+      showToast(`Connection error resetting "${target}"`, "error");
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   // --- ADMIN LOGIC ---
   const fetchAdminUsers = async () => {
     try {
@@ -1651,7 +1774,7 @@ ${startupReport.join("\n")}
         setAdminUsers(data.data || []);
         setAllUsers(data.data || []);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
@@ -1678,7 +1801,7 @@ ${startupReport.join("\n")}
           let cached = JSON.parse(localStorage.getItem('medingen_user_passwords') || '{}');
           cached[userForm.username] = userForm.passwordHash;
           localStorage.setItem('medingen_user_passwords', JSON.stringify(cached));
-        } catch(err){}
+        } catch (err) { }
       }
 
       setIsUserModalOpen(false);
@@ -1694,7 +1817,7 @@ ${startupReport.join("\n")}
     try {
       const res = await fetch(`${API_BASE}/maintenance/health`);
       if (res.ok) setDbHealth((await res.json()).data);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const triggerOptimize = async () => {
@@ -1722,7 +1845,7 @@ ${startupReport.join("\n")}
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `medingen_backup_${new Date().toISOString().slice(0,10)}.json`;
+        a.download = `medingen_backup_${new Date().toISOString().slice(0, 10)}.json`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -1735,7 +1858,7 @@ ${startupReport.join("\n")}
   const triggerBackupRestore = async (file: File) => {
     const isConfirm = confirm("Are you sure you want to RESTORE? This deletes active local tables.");
     if (!isConfirm) return;
-    
+
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
@@ -1761,7 +1884,7 @@ ${startupReport.join("\n")}
         setAuditLogs(envelope.data || []);
         setAuditTotal(envelope.meta?.total || 0);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // --- SYNC CENTER SERVICES ---
@@ -1769,14 +1892,14 @@ ${startupReport.join("\n")}
     try {
       const res = await fetch(`${API_BASE}/sync/status`);
       if (res.ok) setSyncStatus((await res.json()).data);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const fetchSyncConflicts = async () => {
     try {
       const res = await fetch(`${API_BASE}/sync/conflicts`);
       if (res.ok) setSyncConflicts((await res.json()).data || []);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const triggerForceSync = async () => {
@@ -1807,7 +1930,7 @@ ${startupReport.join("\n")}
         fetchSyncConflicts();
         fetchSyncStatus();
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // Minimal CRUD fetching for MDM components to maintain code dependencies
@@ -1824,37 +1947,103 @@ ${startupReport.join("\n")}
         setProducts(envelope.data || []);
         setProductTotal(envelope.meta?.total || 0);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
   const fetchPurchaseOrders = async () => {
     try {
       const res = await fetch(`${API_BASE}/purchase-orders?page=${purchasePage}&limit=100&search=${purchaseSearch}`);
       if (res.ok) setPurchaseOrders((await res.json()).data || []);
-    } catch (e) {}
+    } catch (e) { }
   };
   const fetchInventories = async () => {
     try {
       const res = await fetch(`${API_BASE}/inventory?page=${inventoryPage}&search=${inventorySearch}&lowStock=${inventoryLowStockFilter}`);
       if (res.ok) setInventories((await res.json()).data || []);
-    } catch (e) {}
+    } catch (e) { }
   };
   const fetchBatches = async () => {
     try {
       const res = await fetch(`${API_BASE}/batches?page=${batchPage}&search=${batchSearch}&status=${batchStatusFilter}`);
       if (res.ok) setBatches((await res.json()).data || []);
-    } catch (e) {}
+    } catch (e) { }
   };
   const fetchLedgers = async () => {
     try {
       const res = await fetch(`${API_BASE}/inventory/ledger?page=${ledgerPage}&productId=${ledgerProductFilter}`);
       if (res.ok) setLedgers((await res.json()).data || []);
-    } catch (e) {}
+    } catch (e) { }
   };
   const fetchAdjustments = async () => {
     try {
       const res = await fetch(`${API_BASE}/inventory/adjustments?page=${adjustmentPage}`);
       if (res.ok) setAdjustments((await res.json()).data || []);
-    } catch (e) {}
+    } catch (e) { }
+  };
+
+  // --- INSTANT STATE SYNCHRONIZERS FOR CRUD MUTATIONS ---
+  const handleProductSaved = (savedProduct: any, mode: 'create' | 'edit') => {
+    setProducts(prev => {
+      if (mode === 'create') {
+        return [savedProduct, ...prev].slice(0, productLimit);
+      } else {
+        return prev.map(p => p.id === savedProduct.id ? savedProduct : p);
+      }
+    });
+    setAllProducts(prev => {
+      const exists = prev.some(p => p.id === savedProduct.id);
+      if (exists) {
+        return prev.map(p => p.id === savedProduct.id ? savedProduct : p);
+      } else {
+        return [savedProduct, ...prev];
+      }
+    });
+    fetchCatalogs();
+  };
+
+  const handleProductDeleted = (productId: string) => {
+    setProducts(prev => prev.filter(p => p.id !== productId));
+    setAllProducts(prev => prev.filter(p => p.id !== productId));
+    fetchCatalogs();
+  };
+
+  const handleSupplierSaved = (savedSupplier: any, mode: 'create' | 'edit') => {
+    setAllSuppliers(prev => {
+      const exists = prev.some(s => s.id === savedSupplier.id);
+      if (exists) {
+        return prev.map(s => s.id === savedSupplier.id ? savedSupplier : s);
+      } else {
+        return [savedSupplier, ...prev];
+      }
+    });
+    fetchCatalogs();
+  };
+
+  const handleSupplierDeleted = (supplierId: string) => {
+    setAllSuppliers(prev => prev.filter(s => s.id !== supplierId));
+    fetchCatalogs();
+  };
+
+  const handlePOSaved = (savedPO: any, mode: 'create' | 'edit') => {
+    setPurchaseOrders(prev => {
+      const exists = prev.some(p => p.id === savedPO.id);
+      if (exists) {
+        return prev.map(p => p.id === savedPO.id ? savedPO : p);
+      } else {
+        return [savedPO, ...prev];
+      }
+    });
+  };
+
+  const handlePODeleted = (poId: string) => {
+    setPurchaseOrders(prev => prev.filter(p => p.id !== poId));
+  };
+
+  const handlePOStatusChanged = (updatedPO: any) => {
+    setPurchaseOrders(prev => prev.map(p => p.id === updatedPO.id ? updatedPO : p));
+    if (updatedPO.status === 'FULLY_RECEIVED') {
+      fetchInventories();
+      fetchBatches();
+    }
   };
 
   const handleOpenAdjustModal = (batch: any) => {
@@ -1883,10 +2072,16 @@ ${startupReport.join("\n")}
         })
       });
       if (!res.ok) throw new Error("Adjustment failed.");
+      const envelope = await res.json().catch(() => ({}));
+      const resultData = envelope.data || envelope;
+      const updatedBatch = resultData.batch;
+
+      // Update batches locally
+      setBatches(prev => prev.map(b => b.id === updatedBatch.id ? { ...b, ...updatedBatch } : b));
       setIsAdjustModalOpen(false);
+      alert("Stock adjusted successfully!");
       fetchBatches();
       fetchInventories();
-      alert("Stock adjusted successfully!");
     } catch (e: any) {
       alert(e.message);
     }
@@ -1900,30 +2095,68 @@ ${startupReport.join("\n")}
     setProfileDropdownOpen(false);
   };
 
+  const handleMainScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    if (scrollTop > 10) {
+      setIsScrolled(true);
+    } else {
+      setIsScrolled(false);
+    }
+  };
+
+  const handleSidebarToggle = () => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 768) {
+        setIsMobileOpen(!isMobileOpen);
+      } else {
+        setSidebarCollapsed(!sidebarCollapsed);
+      }
+    }
+  };
+
+  const getTabTitle = (tab: Tab) => {
+    switch (tab) {
+      case 'dashboard': return 'Dashboard';
+      case 'pos': return 'POS Billing';
+      case 'history': return 'Transaction History';
+      case 'reports': return 'Reports & Analytics';
+      case 'settings': return 'System Settings';
+      case 'admin': return 'Administration';
+      case 'purchases': return 'Purchase Orders';
+      case 'inventory': return 'Inventory Management';
+      case 'products': return 'Product Directory';
+      case 'suppliers': return 'Suppliers';
+      case 'sync': return 'Cloud Synchronization';
+      case 'owner': return 'Owner Dashboard';
+      case 'drugRegister': return 'Drug Schedule Register';
+      default: return 'Medingen ERP';
+    }
+  };
+
   const handleChangePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (userProfilePassword.new !== userProfilePassword.confirm) {
       alert("Passwords do not match!");
       return;
     }
-    
+
     // Perform simulated password change on client
     try {
       let cached = JSON.parse(localStorage.getItem('medingen_user_passwords') || '{}');
       cached[currentUser.username] = userProfilePassword.new;
       localStorage.setItem('medingen_user_passwords', JSON.stringify(cached));
-      
+
       // Update backend record
       fetch(`${API_BASE}/users-management/${currentUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passwordHash: userProfilePassword.new })
       });
-      
+
       alert("Your password has been changed successfully.");
       setActiveDialog(null);
       setUserProfilePassword({ current: '', new: '', confirm: '' });
-    } catch(err) {
+    } catch (err) {
       alert("Failed to update password");
     }
   };
@@ -1955,14 +2188,14 @@ ${startupReport.join("\n")}
 
   const flatSearchResults = useMemo(() => {
     const q = globalQuery.toLowerCase().trim();
-    
+
     // Filter Commands
-    const filteredCommands = q.startsWith('>') 
+    const filteredCommands = q.startsWith('>')
       ? navCommands.filter(c => c.name.toLowerCase().includes(q.substring(1).trim()))
       : navCommands.filter(c => c.name.toLowerCase().includes(q));
 
     if (!q) {
-      return filteredCommands.map(c => ({ ...c, uniqueKey: `cmd-${c.name}` }));
+      return filteredCommands.map(c => ({ ...c, uniqueKey: `cmd-${c.name}`, subtitle: '' }));
     }
 
     // Filter Products
@@ -2005,7 +2238,7 @@ ${startupReport.join("\n")}
       ...matchedProducts,
       ...matchedSuppliers,
       ...matchedInvoices,
-      ...filteredCommands.map(c => ({ ...c, uniqueKey: `cmd-${c.name}` }))
+      ...filteredCommands.map(c => ({ ...c, uniqueKey: `cmd-${c.name}`, subtitle: '' }))
     ];
   }, [globalQuery, allProducts, allSuppliers, invoices, navCommands]);
 
@@ -2058,7 +2291,7 @@ ${startupReport.join("\n")}
   const showSetupWizard = currentUser && currentUser.role === 'ADMIN' && (!settingsForm || !settingsForm.gstin || settingsForm.gstin.trim() === '');
 
   return (
-    <div className={`min-h-screen bg-white text-gray-800 flex flex-col font-sans select-none antialiased ${density === 'compact' ? 'density-compact' : 'density-comfortable'}`}>
+    <div className={`h-screen w-screen overflow-hidden bg-white text-gray-800 flex font-sans antialiased ${density === 'compact' ? 'density-compact' : 'density-comfortable'}`}>
       {showSetupWizard && (
         <SetupWizardModal
           settingsForm={settingsForm}
@@ -2069,191 +2302,234 @@ ${startupReport.join("\n")}
           currentUser={currentUser}
         />
       )}
-      {/* Top Header Navigation */}
-      <header className="border-b border-gray-200 bg-white sticky top-0 z-50 px-5 py-3 flex items-center justify-between">
-        
-        {/* Brand section */}
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
-            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-          
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-12h.008v.008H12v-.008z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-sm font-bold tracking-tight text-gray-800">{settingsForm.storeName || 'Medingen Pharmacy'}</h1>
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-none">ERP Desk</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Global Toolbar Controls */}
-        <div className="flex items-center gap-4">
-          
-          {/* Quick billing screen trigger */}
-          <button 
-            onClick={() => setActiveTab('pos')} 
-            className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-lg active:scale-95 flex items-center gap-1.5 cursor-pointer"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Billing Screen (F2)
-          </button>
+      {/* Backdrop overlay for mobile drawer */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
 
-          {/* Universal search trigger button */}
-          <button 
-            onClick={() => setSearchOpen(true)}
-            className="p-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer hidden md:flex items-center gap-2"
-          >
-            <FiSearch className="text-gray-400 shrink-0" size={16} />
-            <span className="text-xs text-gray-400 font-semibold pr-2">Search ERP...</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] text-gray-400 font-bold">Ctrl+K</kbd>
-          </button>
-
-          {/* Notification bell center */}
-          <div className="relative">
-            <button 
-              onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors relative cursor-pointer"
-            >
-              <FiBell className="shrink-0" size={20} />
-              {unreadNotificationCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 text-white rounded-full flex items-center justify-center text-[9px] font-extrabold shadow-sm animate-pulse">
-                  {unreadNotificationCount}
-                </span>
-              )}
-            </button>
-            
-            {notificationsOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} />
-                <div className="absolute right-0 mt-2.5 w-80 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-xs">
-                  <div className="p-3.5 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                    <span className="font-bold text-gray-600 uppercase tracking-wider text-[10px]">Notification Center</span>
-                    <button onClick={clearAllNotifications} className="text-[10px] text-rose-600 hover:underline">Clear all</button>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
-                    {notifications.length === 0 ? (
-                      <div className="p-6 text-center text-gray-400">No new updates or alerts.</div>
-                    ) : (
-                      notifications.map(n => (
-                        <div key={n.id} className={`p-3.5 hover:bg-gray-50 flex justify-between gap-2.5 items-start ${n.read ? 'opacity-60' : ''}`}>
-                          <div className="space-y-0.5">
-                            <span className={`font-bold block ${n.type === 'STOCK_WARN' ? 'text-amber-400' : 'text-rose-600'}`}>{n.title}</span>
-                            <p className="text-gray-500 leading-normal">{n.message}</p>
-                          </div>
-                          {!n.read && (
-                            <button onClick={() => markNotificationRead(n.id)} className="text-[9px] text-primary hover:underline shrink-0">Read</button>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* User profile dropdown menu */}
-          <div className="relative">
-            <button 
-              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-            >
-              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm border border-primary/20">
-                {currentUser?.username?.charAt(0).toUpperCase()}
-              </div>
-              <div className="hidden lg:block text-left text-xs leading-none">
-                <div className="font-bold text-gray-800">{currentUser?.username}</div>
-                <div className="text-[9px] text-gray-400 mt-0.5">{currentUser?.role}</div>
-              </div>
-              <svg className="w-3.5 h-3.5 text-gray-400 hidden lg:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {profileDropdownOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setProfileDropdownOpen(false)} />
-                <div className="absolute right-0 mt-2.5 w-52 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-xs text-gray-600">
-                  <div className="p-3 bg-gray-50 border-b border-gray-200 flex flex-col gap-0.5">
-                    <span className="font-bold text-gray-800 leading-none">{currentUser?.username}</span>
-                    <span className="text-[10px] text-gray-400">{currentUser?.role}</span>
-                  </div>
-                  <div className="p-1.5 space-y-0.5">
-                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('profile'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> My Profile</button>
-                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('password'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m-5-2a2 2 0 00-2 2m5 0a2 2 0 012 2m-5-2a2 2 0 00-2 2m5 4a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Change Password</button>
-                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('preferences'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg> Preferences</button>
-                    <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('about'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> About ERP</button>
-                    <div className="border-t border-gray-100 my-1.5" />
-                    <button onClick={handleLogout} className="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-500/10 text-rose-600 hover:text-rose-400 flex items-center gap-2"><FiLogOut className="w-4 h-4" /> Sign Out</button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-        </div>
-      </header>
-
-      {/* Main Workspace Frame */}
-      <div className="flex-1 flex overflow-hidden">
-        
-        {/* Navigation Sidebar */}
-        <aside className={`border-r border-gray-200 bg-primary transition-all duration-300 flex flex-col justify-between ${
-          sidebarCollapsed ? 'w-16' : 'w-64'
+      {/* Navigation Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-50 md:relative md:flex flex-col bg-primary border-r border-gray-200 transition-all duration-300 shrink-0 h-full ${sidebarCollapsed ? 'md:w-16' : 'md:w-64'
+        } ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'
         }`}>
-          <div className="p-3.5 space-y-6 overflow-y-auto overflow-x-hidden flex-1">
-            
-            {sidebarCategories.map((cat, catIdx) => (
-              <div key={catIdx}>
-                {!sidebarCollapsed && (
-                  <p className="text-[10px] font-bold text-white/60 tracking-wider uppercase px-3.5 mb-2.5">
-                    {cat.categoryName}
-                  </p>
-                )}
-                <nav className="space-y-1">
-                  {cat.items.map(item => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        className={`w-full flex items-center gap-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
-                          sidebarCollapsed ? 'justify-center px-0' : 'px-3.5'
-                        } ${
-                          activeTab === item.id
-                            ? 'bg-white/20 text-white border border-white/30 font-semibold'
-                            : 'text-white/80 hover:bg-white/10 hover:text-white'
+        {/* Top Logo / Brand section */}
+        <div className="p-4 border-b border-white/10 flex items-center gap-2.5 shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-12h.008v.008H12v-.008z" />
+            </svg>
+          </div>
+          {(!sidebarCollapsed || isMobileOpen) && (
+            <div className="truncate">
+              <h2 className="text-xs font-bold tracking-tight text-white truncate">{settingsForm.storeName || 'Medingen Pharmacy'}</h2>
+              <p className="text-[9px] text-white/50 font-bold uppercase tracking-widest leading-none">ERP Desk</p>
+            </div>
+          )}
+        </div>
+
+        {/* Scrollable menu categories */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-6 scrollbar-thin scrollbar-thumb-white/10">
+          {sidebarCategories.map((cat, catIdx) => (
+            <div key={catIdx}>
+              {(!sidebarCollapsed || isMobileOpen) && (
+                <p className="text-[10px] font-bold text-white/60 tracking-wider uppercase px-3.5 mb-2.5">
+                  {cat.categoryName}
+                </p>
+              )}
+              <nav className="space-y-1">
+                {cat.items.map(item => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        setIsMobileOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${(sidebarCollapsed && !isMobileOpen) ? 'justify-center px-0' : 'px-3.5'
+                        } ${activeTab === item.id
+                          ? 'bg-white/20 text-white border border-white/30 font-semibold'
+                          : 'text-white/80 hover:bg-white/10 hover:text-white'
                         }`}
-                        title={item.title}
-                      >
-                        <Icon className="transition-all duration-200 shrink-0" size={sidebarCollapsed ? 18 : 20} />
-                        {!sidebarCollapsed && <span>{item.title}</span>}
-                      </button>
-                    );
-                  })}
-                </nav>
+                      title={item.title}
+                    >
+                      <Icon className="transition-all duration-200 shrink-0" size={(sidebarCollapsed && !isMobileOpen) ? 18 : 20} />
+                      {(!sidebarCollapsed || isMobileOpen) && <span>{item.title}</span>}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          ))}
+        </div>
+
+        {/* Pinned user profile & sign out at bottom */}
+        <div className="p-3 border-t border-white/10 bg-white/5 space-y-1 shrink-0">
+          <div className="flex items-center gap-2.5 px-2.5 py-2">
+            <div className="w-8 h-8 rounded-lg bg-white/20 text-white flex items-center justify-center font-bold text-xs shrink-0">
+              {currentUser?.username?.charAt(0).toUpperCase()}
+            </div>
+            {(!sidebarCollapsed || isMobileOpen) && (
+              <div className="text-left text-xs leading-none truncate flex-1">
+                <div className="font-bold text-white truncate">{currentUser?.username}</div>
+                <div className="text-[9px] text-white/50 mt-0.5">{currentUser?.role}</div>
               </div>
-            ))}
+            )}
+          </div>
+          <button
+            onClick={handleLogout}
+            className={`w-full flex items-center gap-3 py-2 px-2.5 rounded-lg text-xs font-bold transition-all text-white/70 hover:bg-rose-500/20 hover:text-rose-200 cursor-pointer ${(sidebarCollapsed && !isMobileOpen) ? 'justify-center' : ''
+              }`}
+            title="Sign Out"
+          >
+            <FiLogOut size={16} className="shrink-0" />
+            {(!sidebarCollapsed || isMobileOpen) && <span>Sign Out</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* Right Column: Flexible Main View area */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+
+        {/* Sticky Header with scrolling shadow check */}
+        <header className={`border-b border-gray-200 bg-white sticky top-0 z-30 px-5 py-3 flex items-center justify-between transition-shadow duration-200 ${isScrolled ? 'shadow-sm border-b-transparent' : ''
+          }`}>
+          {/* Header left: dynamic active tab title + toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSidebarToggle}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
+              title="Toggle Sidebar"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <h1 className="text-sm font-bold text-gray-850 tracking-tight leading-none">
+              {getTabTitle(activeTab)}
+            </h1>
+          </div>
+
+          {/* Global Toolbar Controls */}
+          <div className="flex items-center gap-4">
+
+            {/* Quick billing screen trigger */}
+            <button
+              onClick={() => setActiveTab('pos')}
+              className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-lg active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Billing Screen (F2)
+            </button>
+
+            {/* Universal search trigger button */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="p-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer hidden md:flex items-center gap-2"
+            >
+              <FiSearch className="text-gray-400 shrink-0" size={16} />
+              <span className="text-xs text-gray-400 font-semibold pr-2">Search ERP...</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] text-gray-400 font-bold">Ctrl+K</kbd>
+            </button>
+
+            {/* Notification bell center */}
+            <div className="relative">
+              <button
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors relative cursor-pointer"
+              >
+                <FiBell className="shrink-0" size={20} />
+                {unreadNotificationCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 text-white rounded-full flex items-center justify-center text-[9px] font-extrabold shadow-sm animate-pulse">
+                    {unreadNotificationCount}
+                  </span>
+                )}
+              </button>
+
+              {notificationsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} />
+                  <div className="absolute right-0 mt-2.5 w-80 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-xs">
+                    <div className="p-3.5 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                      <span className="font-bold text-gray-600 uppercase tracking-wider text-[10px]">Notification Center</span>
+                      <button onClick={clearAllNotifications} className="text-[10px] text-rose-600 hover:underline">Clear all</button>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center text-gray-400">No new updates or alerts.</div>
+                      ) : (
+                        notifications.map(n => (
+                          <div key={n.id} className={`p-3.5 hover:bg-gray-50 flex justify-between gap-2.5 items-start ${n.read ? 'opacity-60' : ''}`}>
+                            <div className="space-y-0.5">
+                              <span className={`font-bold block ${n.type === 'STOCK_WARN' ? 'text-amber-400' : 'text-rose-600'}`}>{n.title}</span>
+                              <p className="text-gray-500 leading-normal">{n.message}</p>
+                            </div>
+                            {!n.read && (
+                              <button onClick={() => markNotificationRead(n.id)} className="text-[9px] text-primary hover:underline shrink-0">Read</button>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* User profile dropdown menu */}
+            <div className="relative">
+              <button
+                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm border border-primary/20">
+                  {currentUser?.username?.charAt(0).toUpperCase()}
+                </div>
+                <div className="hidden lg:block text-left text-xs leading-none">
+                  <div className="font-bold text-gray-800">{currentUser?.username}</div>
+                  <div className="text-[9px] text-gray-400 mt-0.5">{currentUser?.role}</div>
+                </div>
+                <svg className="w-3.5 h-3.5 text-gray-400 hidden lg:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {profileDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setProfileDropdownOpen(false)} />
+                  <div className="absolute right-0 mt-2.5 w-52 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-xs text-gray-600">
+                    <div className="p-3 bg-gray-50 border-b border-gray-200 flex flex-col gap-0.5">
+                      <span className="font-bold text-gray-800 leading-none">{currentUser?.username}</span>
+                      <span className="text-[10px] text-gray-400">{currentUser?.role}</span>
+                    </div>
+                    <div className="p-1.5 space-y-0.5">
+                      <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('profile'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> My Profile</button>
+                      <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('password'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m-5-2a2 2 0 00-2 2m5 0a2 2 0 012 2m-5-2a2 2 0 00-2 2m5 4a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Change Password</button>
+                      <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('preferences'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg> Preferences</button>
+                      <button onClick={() => { setProfileDropdownOpen(false); setActiveDialog('about'); }} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center gap-2"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> About ERP</button>
+                      <div className="border-t border-gray-100 my-1.5" />
+                      <button onClick={handleLogout} className="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-500/10 text-rose-600 hover:text-rose-400 flex items-center gap-2"><FiLogOut className="w-4 h-4" /> Sign Out</button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
           </div>
-        </aside>
+        </header>
 
-        {/* Workspace Display Grid */}
-        <main className="flex-1 p-6 overflow-y-auto bg-gray-50">
-          
+        {/* Scrollable Main Content area */}
+        <main
+          ref={mainScrollRef}
+          onScroll={handleMainScroll}
+          className="flex-1 p-6 overflow-y-auto bg-gray-50 min-h-0"
+        >
+
           {activeTab === 'dashboard' && (
             <DashboardTab
               dashboardStats={dashboardStats}
@@ -2301,7 +2577,7 @@ ${startupReport.join("\n")}
               cartSummary={cartSummary}
               modeOfSell={modeOfSell}
               setModeOfSell={setModeOfSell}
-              
+
               searchInputRef={searchInputRef}
               customerInputRef={customerInputRef}
               qtyInputRef={qtyInputRef}
@@ -2315,6 +2591,11 @@ ${startupReport.join("\n")}
               setIsHoldModalOpen={setIsHoldModalOpen}
               setIsCustomerModalOpen={setIsCustomerModalOpen}
               setNewCustomerForm={setNewCustomerForm}
+              doctorName={doctorName}
+              setDoctorName={setDoctorName}
+              handleSearchDoctors={handleSearchDoctors}
+              handleRegisterDoctor={handleRegisterDoctor}
+              handleRegisterCustomerInline={handleRegisterCustomerInline}
             />
           )}
 
@@ -2334,6 +2615,7 @@ ${startupReport.join("\n")}
               handleFetchReceipt={handleFetchReceipt}
               setIsCancelModalOpen={setIsCancelModalOpen}
               handleOpenSalesReturnModal={handleOpenSalesReturnModal}
+              settingsForm={settingsForm}
             />
           )}
 
@@ -2366,6 +2648,8 @@ ${startupReport.join("\n")}
               handleActivateLicense={handleActivateLicense}
               density={density}
               setDensity={setDensity}
+              currentUser={currentUser}
+              handleResetDatabase={handleResetDatabase}
             />
           )}
 
@@ -2419,6 +2703,9 @@ ${startupReport.join("\n")}
               allProducts={allProducts}
               fetchPurchaseOrders={fetchPurchaseOrders}
               API_BASE={API_BASE}
+              onPOSaved={handlePOSaved}
+              onPODeleted={handlePODeleted}
+              onPOStatusChanged={handlePOStatusChanged}
             />
           )}
 
@@ -2467,6 +2754,8 @@ ${startupReport.join("\n")}
               setProductPrescriptionRequiredFilter={setProductPrescriptionRequiredFilter}
               productControlledDrugFilter={productControlledDrugFilter}
               setProductControlledDrugFilter={setProductControlledDrugFilter}
+              onProductSaved={handleProductSaved}
+              onProductDeleted={handleProductDeleted}
             />
           )}
 
@@ -2475,6 +2764,8 @@ ${startupReport.join("\n")}
               suppliers={allSuppliers}
               fetchSuppliers={fetchCatalogs}
               API_BASE={API_BASE}
+              onSupplierSaved={handleSupplierSaved}
+              onSupplierDeleted={handleSupplierDeleted}
             />
           )}
 
@@ -2486,33 +2777,33 @@ ${startupReport.join("\n")}
           )}
 
         </main>
-      </div>
 
-      {/* Sticky Bottom Status Bar */}
-      <footer className="border-t border-gray-200 bg-white px-5 py-2 text-[10px] font-mono text-gray-400 flex flex-wrap justify-between items-center gap-2">
-        <div className="flex gap-4">
-          <span className="flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${localDbConnected ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30' : 'bg-rose-500'}`} />
-            DB: {localDbConnected ? 'CONNECTED' : 'DISCONNECTED'}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${syncStatus?.activeWorkers ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30' : 'bg-slate-700'}`} />
-            CLOUD SYNC: {syncStatus?.activeWorkers ? 'ONLINE' : 'OFFLINE'}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${dbHealth?.status === 'HEALTHY' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-            WORKER STATUS: OK
-          </span>
-        </div>
-        <div className="flex gap-4">
-          <span>OPERATOR: <span className="text-gray-600 font-bold uppercase">{currentUser?.username} ({currentUser?.role})</span></span>
-          <span>SHIFT: <span className="text-gray-600 font-bold uppercase">{currentShift.split(' ')[0]} SHIFT</span></span>
-          <span>PRINTER: <span className="text-gray-600 font-bold">{settingsForm.printerType || '80MM'}</span></span>
-          <span>LICENSE: <span className={licenseInfo?.status === 'ACTIVE' ? 'text-emerald-400 font-bold' : 'text-rose-400'}>{licenseInfo?.status || 'N/A'}</span></span>
-          <span>VERSION: <span className="text-gray-600 font-bold">1.0.4</span></span>
-          <span className="text-gray-500 font-semibold border-l border-gray-200 pl-4">{currentTime}</span>
-        </div>
-      </footer>
+        {/* Sticky Bottom Status Bar */}
+        <footer className="border-t border-gray-200 bg-white px-5 py-2 text-[10px] font-mono text-gray-400 flex flex-wrap justify-between items-center gap-2 shrink-0">
+          <div className="flex gap-4">
+            <span className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${localDbConnected ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30' : 'bg-rose-500'}`} />
+              DB: {localDbConnected ? 'CONNECTED' : 'DISCONNECTED'}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${syncStatus?.activeWorkers ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30' : 'bg-slate-700'}`} />
+              CLOUD SYNC: {syncStatus?.activeWorkers ? 'ONLINE' : 'OFFLINE'}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${dbHealth?.status === 'HEALTHY' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              WORKER STATUS: OK
+            </span>
+          </div>
+          <div className="flex gap-4">
+            <span>OPERATOR: <span className="text-gray-600 font-bold uppercase">{currentUser?.username} ({currentUser?.role})</span></span>
+            <span>SHIFT: <span className="text-gray-600 font-bold uppercase">{currentShift.split(' ')[0]} SHIFT</span></span>
+            <span>PRINTER: <span className="text-gray-600 font-bold">{settingsForm.printerType || '80MM'}</span></span>
+            <span>LICENSE: <span className={licenseInfo?.status === 'ACTIVE' ? 'text-emerald-400 font-bold' : 'text-rose-400'}>{licenseInfo?.status || 'N/A'}</span></span>
+            <span>VERSION: <span className="text-gray-600 font-bold">1.0.4</span></span>
+            <span className="text-gray-500 font-semibold border-l border-gray-200 pl-4">{currentTime}</span>
+          </div>
+        </footer>
+      </div>
 
       {/* ==================== DIALOGS & OVERLAYS ==================== */}
 
@@ -2535,7 +2826,7 @@ ${startupReport.join("\n")}
               </svg>
               <kbd className="absolute right-4 top-4.5 px-2 py-0.5 rounded bg-white border border-gray-200 text-[10px] text-gray-400 font-bold">ESC</kbd>
             </div>
-            
+
             <div className="p-2 max-h-[380px] overflow-y-auto space-y-1.5 bg-gray-50/50">
               {flatSearchResults.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
@@ -2553,19 +2844,17 @@ ${startupReport.join("\n")}
                         setSearchOpen(false);
                         setGlobalQuery('');
                       }}
-                      className={`p-3 rounded-xl cursor-pointer flex justify-between items-center transition-all ${
-                        isSelected 
-                          ? 'bg-primary-light border-l-4 border-primary text-gray-850 translate-x-1 shadow-sm' 
+                      className={`p-3 rounded-xl cursor-pointer flex justify-between items-center transition-all ${isSelected
+                          ? 'bg-primary-light border-l-4 border-primary text-gray-850 translate-x-1 shadow-sm'
                           : 'bg-white hover:bg-gray-50 text-gray-600 border-l-4 border-transparent'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase ${
-                          item.type === 'PRODUCT' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/25' :
-                          item.type === 'SUPPLIER' ? 'bg-orange-50 text-orange-600 border border-orange-200/25' :
-                          item.type === 'INVOICE' ? 'bg-sky-50 text-sky-600 border border-sky-200/25' :
-                          'bg-primary-light text-primary border border-primary/20'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase ${item.type === 'PRODUCT' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/25' :
+                            item.type === 'SUPPLIER' ? 'bg-orange-50 text-orange-600 border border-orange-200/25' :
+                              item.type === 'INVOICE' ? 'bg-sky-50 text-sky-600 border border-sky-200/25' :
+                                'bg-primary-light text-primary border border-primary/20'
+                          }`}>
                           {item.type || 'COMMAND'}
                         </span>
                         <div>
@@ -2581,7 +2870,7 @@ ${startupReport.join("\n")}
                 })
               )}
             </div>
-            
+
             <div className="px-4 py-2 border-t border-gray-200 bg-white text-[9px] text-gray-400 font-mono flex justify-between items-center">
               <span>↑↓ Navigation</span>
               <span>⏎ Trigger Command</span>
@@ -2715,7 +3004,7 @@ ${startupReport.join("\n")}
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] text-gray-400 font-bold">Receipt Layout Size</label>
-                <select 
+                <select
                   value={receiptWidth}
                   onChange={(e: any) => setReceiptWidth(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700"
@@ -2743,7 +3032,7 @@ ${startupReport.join("\n")}
               <h4 className="text-sm font-bold text-gray-800">Medingen Pharmacy ERP</h4>
               <p className="text-[10px] text-gray-400 font-bold">Hybrid Desktop & Billing Suite</p>
             </div>
-            
+
             <div className="space-y-1.5 bg-white p-4 border border-gray-200 rounded-xl font-mono text-[10px] text-gray-500">
               <div className="flex justify-between"><span>App Version:</span><span className="text-gray-700">1.0.4</span></div>
               <div className="flex justify-between"><span>Prisma Engine:</span><span className="text-gray-700">v5.12.0</span></div>
@@ -2990,9 +3279,8 @@ ${startupReport.join("\n")}
       {/* Receipt Emulated Output Overlay */}
       {activeReceiptId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fadeIn font-sans text-xs text-gray-500">
-          <div className={`w-full bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden my-8 transition-all duration-300 ${
-            receiptWidth === '150x95mm' ? 'max-w-3xl' : 'max-w-md'
-          }`}>
+          <div className={`w-full bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden my-8 transition-all duration-300 ${receiptWidth === '150x95mm' ? 'max-w-3xl' : 'max-w-md'
+            }`}>
             <div className="px-5 py-3 border-b border-gray-200 flex justify-between items-center bg-white">
               <h3 className="font-bold text-gray-800 text-xs">Thermal Receipt Preview</h3>
               <div className="flex gap-2">

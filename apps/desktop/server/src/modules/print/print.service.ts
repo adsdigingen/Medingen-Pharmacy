@@ -51,26 +51,28 @@ export class PrintService {
       };
 
       // 1. Header
-      lines.push(center(settings?.storeName?.toUpperCase() || "MEDINGEN PHARMACY (MAIN ROAD BRANCH)"));
-      lines.push(center(settings?.address || "No. 12, GST Road, Guindy, Chennai 600032"));
-      lines.push(center(`DL No: 123/A/2020  Phone: ${settings?.phone || "+91 98765 43210"}`));
-      lines.push(center(`GST NO      ${settings?.gstin || "33AAAAA1111A1Z1"}`));
+      lines.push(center(settings?.storeName?.toUpperCase() || "MEDINGEN PHARMACY"));
+      if (settings?.address) {
+        lines.push(center(settings.address));
+      }
+      if (settings?.phone) {
+        lines.push(center(`Phone: ${settings.phone}`));
+      }
       
       const timeStr = new Date(bill.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       lines.push(padLeftRight("  SALES BILL", timeStr));
 
       // 2. Metadata
-      const patName = `Pat.name:  ${bill.customer?.name || 'Walk-in Customer'}`;
-      const billNo = `Bill No:  ${bill.billNumber}`;
+      const patName = `Pat.Name:  ${bill.customer?.name || 'Registered Customer'}`;
+      const billNo = `Bill No:   ${bill.billNumber}`;
       lines.push(padLeftRight(patName, billNo));
 
-      const drName = `Dr.Name:   DR. SELF / REFERRAL`;
-      const billDate = `Bill Date:${new Date(bill.createdAt).toLocaleDateString('en-GB')}`;
+      const drName = `Dr.Name:   ${bill.doctorName || 'Self / Referral'}`;
+      const billDate = `Bill Date: ${new Date(bill.createdAt).toLocaleDateString('en-GB')}`;
       lines.push(padLeftRight(drName, billDate));
 
-      const regdNo = `Regd.No:   N/A`;
-      const cusPhone = `Cus.Phone : ${bill.customer?.mobile || 'N/A'}`;
-      lines.push(padLeftRight(regdNo, cusPhone));
+      const cusPhone = `Cus.Phone: ${bill.customer?.mobile || '-'}`;
+      lines.push(padLeftRight(cusPhone, ""));
       lines.push(separator());
 
       // 3. Columns header
@@ -145,23 +147,21 @@ export class PrintService {
 
     // 1. Header
     lines.push(center(settings?.storeName?.toUpperCase() || "MEDINGEN PHARMACY"));
-    lines.push(center("Offline-First ERP POS System"));
-    lines.push(center(settings?.address || "No. 12, GST Road, Guindy, Chennai"));
-    lines.push(center(`GSTIN: ${settings?.gstin || "33AAAAA1111A1Z1"}`));
-    lines.push(center(settings?.phone ? `Ph: ${settings.phone}` : "Ph: +91 98765 43210"));
+    if (settings?.address) {
+      lines.push(center(settings.address));
+    }
+    if (settings?.phone) {
+      lines.push(center(`Ph: ${settings.phone}`));
+    }
     lines.push(separator());
 
     // 2. Metadata
     lines.push(`Invoice #: ${bill.billNumber}`);
     lines.push(`Date: ${new Date(bill.createdAt).toLocaleString()}`);
     lines.push(`Cashier: ADMIN`);
-    lines.push(`Type: ${bill.invoiceType} INVOICE`);
-    if (bill.customer) {
-      lines.push(`Customer: ${bill.customer.name}`);
-      lines.push(`Mobile: ${bill.customer.mobile}`);
-    } else {
-      lines.push(`Customer: Walk-in Customer`);
-    }
+    lines.push(`Customer: ${bill.customer?.name || 'Registered Customer'}`);
+    lines.push(`Mobile: ${bill.customer?.mobile || '-'}`);
+    lines.push(`Doctor: ${bill.doctorName || 'Self / Referral'}`);
     lines.push(separator());
 
     // 3. Items list

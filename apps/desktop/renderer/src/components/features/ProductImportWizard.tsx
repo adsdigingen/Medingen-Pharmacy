@@ -1574,7 +1574,7 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
 
             {/* STEP 5: CONFIRMATION REVIEW SCREEN */}
             {step === 5 && (
-              <div className="space-y-6 max-w-2xl mx-auto py-2 animate-slide-up text-left select-none">
+              <div className="space-y-6 max-w-2xl mx-auto py-2 animate-slide-up text-left">
                 <div className="text-center space-y-2 py-4">
                   <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2 border border-teal-500/25">
                     <FiSettings className="text-xl animate-pulse" />
@@ -1756,7 +1756,7 @@ export const ProductImportWizard: React.FC<ProductImportWizardProps> = ({
 
             {/* STEP 7: IMPORT COMPLETED */}
             {step === 7 && summary && (
-              <div className="space-y-6 max-w-4xl mx-auto py-2 animate-scale-in text-left select-none">
+              <div className="space-y-6 max-w-4xl mx-auto py-2 animate-scale-in text-left">
                 <div className="text-center space-y-2 py-4">
                   <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 flex items-center justify-center mx-auto mb-2 animate-bounce">
                     <FiCheckCircle className="text-2xl" />

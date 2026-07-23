@@ -45,10 +45,15 @@ interface PosTabProps {
   handleAddToCart: () => void;
   handleUpdateCartQty: (index: number, qty: number) => void;
   handleRemoveCartItem: (index: number) => void;
-  handleCheckoutSubmit: () => Promise<void>;
+  handleCheckoutSubmit: (shouldPrint: boolean) => Promise<void>;
   setIsHoldModalOpen: (val: boolean) => void;
   setIsCustomerModalOpen: (val: boolean) => void;
   setNewCustomerForm: React.Dispatch<React.SetStateAction<{ name: string; mobile: string }>>;
+  doctorName?: string;
+  setDoctorName: (val: string) => void;
+  handleSearchDoctors: (query: string) => Promise<any[]>;
+  handleRegisterDoctor: (name: string) => Promise<any>;
+  handleRegisterCustomerInline: (name: string, mobile: string) => Promise<any>;
 }
 
 export const PosTab: React.FC<PosTabProps> = ({
@@ -97,12 +102,52 @@ export const PosTab: React.FC<PosTabProps> = ({
   setIsHoldModalOpen,
   setIsCustomerModalOpen,
   setNewCustomerForm,
+  doctorName,
+  setDoctorName,
+  handleSearchDoctors,
+  handleRegisterDoctor,
+  handleRegisterCustomerInline,
 }) => {
   const [productSelectedIndex, setProductSelectedIndex] = useState(0);
   const [customerSelectedIndex, setCustomerSelectedIndex] = useState(0);
+  const [doctorResults, setDoctorResults] = useState<any[]>([]);
+  const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+  const [doctorSelectedIndex, setDoctorSelectedIndex] = useState(0);
+  const [inlineCustomerName, setInlineCustomerName] = useState('');
+  const [inlineCustomerMobile, setInlineCustomerMobile] = useState('');
 
   const productItemRefs = useRef<HTMLButtonElement[]>([]);
   const customerItemRefs = useRef<HTMLButtonElement[]>([]);
+  const doctorItemRefs = useRef<HTMLButtonElement[]>([]);
+
+  // Update inline registration fields when search query changes
+  useEffect(() => {
+    const query = customerSearch.trim();
+    if (/^\d+$/.test(query)) {
+      setInlineCustomerMobile(query);
+      setInlineCustomerName('');
+    } else {
+      setInlineCustomerName(query);
+      setInlineCustomerMobile('');
+    }
+  }, [customerSearch]);
+
+  // Query doctors when input changes
+  useEffect(() => {
+    const docNameStr = doctorName || '';
+    if (docNameStr.trim().length >= 2) {
+      const delayDebounceFn = setTimeout(async () => {
+        const results = await handleSearchDoctors(docNameStr);
+        setDoctorResults(results || []);
+        setShowDoctorDropdown(true);
+        setDoctorSelectedIndex(0);
+      }, 300);
+      return () => clearTimeout(delayDebounceFn);
+    } else {
+      setDoctorResults([]);
+      setShowDoctorDropdown(false);
+    }
+  }, [doctorName]);
 
   useEffect(() => {
     setProductSelectedIndex(0);
@@ -467,9 +512,47 @@ export const PosTab: React.FC<PosTabProps> = ({
                           );
                         })
                       ) : (
-                        <div className="p-4 text-center text-gray-400 space-y-2">
-                          <p className="font-bold text-rose-600">No registered customer matched</p>
-                          <p className="text-[10px] leading-normal text-slate-600">Mobile number not registered. Click "+ New Profile" above to register first.</p>
+                        <div className="p-4 bg-gray-50 border-t border-gray-150/40 text-left space-y-2.5">
+                          <p className="font-bold text-rose-600 text-center uppercase tracking-wide text-[10px]">No Registered Customer Matched</p>
+                          <div className="space-y-2">
+                            <div>
+                              <label className="text-[9px] font-bold text-gray-500 block mb-0.5">Mobile Number *</label>
+                              <input
+                                type="text"
+                                placeholder="Enter 10-digit mobile"
+                                value={inlineCustomerMobile}
+                                onChange={(e) => setInlineCustomerMobile(e.target.value)}
+                                className="w-full px-2.5 py-1.5 border border-gray-200 rounded bg-white text-gray-705 font-mono focus:outline-none focus:border-primary text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-gray-500 block mb-0.5">Customer Name *</label>
+                              <input
+                                type="text"
+                                placeholder="Enter customer name"
+                                value={inlineCustomerName}
+                                onChange={(e) => setInlineCustomerName(e.target.value)}
+                                className="w-full px-2.5 py-1.5 border border-gray-200 rounded bg-white text-gray-705 focus:outline-none focus:border-primary text-xs"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!inlineCustomerName.trim() || !inlineCustomerMobile.trim()) {
+                                  alert("Both Customer Name and Mobile Number are required to register!");
+                                  return;
+                                }
+                                const saved = await handleRegisterCustomerInline(inlineCustomerName, inlineCustomerMobile);
+                                if (saved) {
+                                  setInlineCustomerName('');
+                                  setInlineCustomerMobile('');
+                                }
+                              }}
+                              className="w-full py-1.5 bg-primary text-slate-955 rounded font-bold hover:bg-primary/95 transition-all shadow cursor-pointer text-xs"
+                            >
+                              + Register & Select
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -506,6 +589,87 @@ export const PosTab: React.FC<PosTabProps> = ({
                 Online Mode
               </button>
             </div>
+          </div>
+
+          {/* Doctor Name configuration */}
+          <div className="space-y-1.5 relative">
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Doctor Name</label>
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                value={doctorName || ''}
+                onChange={(e) => setDoctorName(e.target.value)}
+                placeholder="e.g. Dr. John Doe / Self"
+                className="w-full px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700 text-xs focus:outline-none focus:border-primary transition-colors font-medium"
+              />
+              {(doctorName || '').trim() && !doctorResults.some(d => d && d.name && d.name.toLowerCase() === (doctorName || '').toLowerCase().trim()) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const saved = await handleRegisterDoctor(doctorName || '');
+                    if (saved) {
+                      setDoctorName(saved.name);
+                      setDoctorResults([]);
+                      setShowDoctorDropdown(false);
+                    }
+                  }}
+                  className="px-2.5 py-1.5 bg-primary text-slate-955 rounded-lg text-[10px] font-bold hover:bg-primary/90 transition-colors shadow cursor-pointer whitespace-nowrap"
+                  title="Save Doctor to Registry"
+                >
+                  + Save
+                </button>
+              )}
+            </div>
+
+            {/* Doctor Autocomplete Query dropdown */}
+            {showDoctorDropdown && (doctorResults.length > 0 || ((doctorName || '').trim().length >= 2)) && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-xs max-h-48 overflow-y-auto">
+                <div className="p-2 bg-gray-50 text-[10px] font-bold text-gray-500 border-b border-border uppercase tracking-wider font-semibold">
+                  Matching Doctors
+                </div>
+                {doctorResults.length > 0 ? (
+                  doctorResults.map((doc, idx) => {
+                    const isSelected = idx === doctorSelectedIndex;
+                    return (
+                      <button
+                        ref={el => { doctorItemRefs.current[idx] = el!; }}
+                        key={doc.id}
+                        type="button"
+                        onClick={() => {
+                          setDoctorName(doc.name);
+                          setDoctorResults([]);
+                          setShowDoctorDropdown(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2 transition-colors border-b border-gray-200/40 flex justify-between items-center cursor-pointer ${
+                          isSelected ? 'bg-primary-light text-primary font-bold' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <span>{doc.name}</span>
+                        <span className="text-[10px] text-gray-400 font-bold">Select</span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="p-3 text-center">
+                    <p className="text-gray-400 mb-2 font-medium">No registered doctor matched.</p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const saved = await handleRegisterDoctor(doctorName || '');
+                        if (saved) {
+                          setDoctorName(saved.name);
+                          setDoctorResults([]);
+                          setShowDoctorDropdown(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-primary text-slate-955 rounded-lg text-[10px] font-bold hover:bg-primary/95 transition-all shadow cursor-pointer"
+                    >
+                      + Save & Select "{doctorName || ''}"
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Invoice Type & Payment Method Side-by-Side */}
@@ -617,19 +781,27 @@ export const PosTab: React.FC<PosTabProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 font-semibold">
+          <div className="grid grid-cols-3 gap-2 font-semibold">
             <button 
               type="button"
               onClick={() => setIsHoldModalOpen(true)}
-              className="py-2.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-800 transition-all text-[11px] font-bold cursor-pointer"
+              className="py-2.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-800 transition-all text-[10px] font-bold cursor-pointer text-center"
             >
-              Hold Bill (F6)
+              Hold (F6)
             </button>
             <button 
               type="button"
-              onClick={handleCheckoutSubmit}
+              onClick={() => handleCheckoutSubmit(false)}
               disabled={cart.length === 0}
-              className="py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white transition-all shadow-lg text-[11px] font-extrabold disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              className="py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-all shadow-sm text-[10px] font-extrabold disabled:opacity-40 disabled:pointer-events-none cursor-pointer text-center"
+            >
+              Save
+            </button>
+            <button 
+              type="button"
+              onClick={() => handleCheckoutSubmit(true)}
+              disabled={cart.length === 0}
+              className="py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white transition-all shadow-lg text-[10px] font-extrabold disabled:opacity-40 disabled:pointer-events-none cursor-pointer text-center"
             >
               Save & Print (F5)
             </button>
@@ -639,7 +811,7 @@ export const PosTab: React.FC<PosTabProps> = ({
           <div className="text-[9px] text-gray-400 font-mono text-center flex justify-center gap-3">
             <span>F2: New Bill</span>
             <span>F4: Customer</span>
-            <span>F5: Save</span>
+            <span>F5: Print</span>
             <span>F6: Hold</span>
             <span>Esc: Close</span>
           </div>

@@ -40,6 +40,8 @@ interface ProductsTabProps {
   setProductPrescriptionRequiredFilter: (val: string) => void;
   productControlledDrugFilter: string;
   setProductControlledDrugFilter: (val: string) => void;
+  onProductSaved?: (savedProduct: any, mode: 'create' | 'edit') => void;
+  onProductDeleted?: (productId: string) => void;
 }
 
 export const ProductsTab: React.FC<ProductsTabProps> = ({
@@ -72,6 +74,8 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   setProductPrescriptionRequiredFilter,
   productControlledDrugFilter,
   setProductControlledDrugFilter,
+  onProductSaved,
+  onProductDeleted,
 }) => {
   // Modes: 'list' | 'create' | 'edit' | 'detail'
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit' | 'detail'>('list');
@@ -634,13 +638,18 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
         body: JSON.stringify(payload),
       });
 
+      const envelope = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to save product.");
+        throw new Error(envelope.message || "Failed to save product.");
       }
+      const resData = envelope.data || envelope;
 
       alert("Product saved successfully!");
-      fetchProducts();
+      if (onProductSaved) {
+        onProductSaved(resData, viewMode === 'edit' ? 'edit' : 'create');
+      } else {
+        fetchProducts();
+      }
       
       if (saveAndNew) {
         handleOpenCreateMode();
@@ -671,7 +680,11 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       const res = await fetch(`${API_BASE}/products/${selectedProduct.id}`, { method: 'DELETE' });
       if (res.ok) {
         alert("Product record soft-deleted.");
-        fetchProducts();
+        if (onProductDeleted) {
+          onProductDeleted(selectedProduct.id);
+        } else {
+          fetchProducts();
+        }
         setViewMode('list');
       } else {
         throw new Error("Deletion failed.");
@@ -1654,7 +1667,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
                 </div>
 
                 {/* Price Summary Panel */}
-                <div className="col-span-1 md:col-span-4 bg-white/80 p-3.5 rounded-xl border border-gray-200 grid grid-cols-2 sm:grid-cols-4 gap-4 select-none font-bold text-[11px]">
+                <div className="col-span-1 md:col-span-4 bg-white/80 p-3.5 rounded-xl border border-gray-200 grid grid-cols-2 sm:grid-cols-4 gap-4 font-bold text-[11px]">
                   <div className="border-r border-gray-200/60 pr-2">
                     <span className="text-gray-500 block text-[8px] uppercase tracking-wider font-sans">Offline Store Margin</span>
                     <span className="font-mono text-emerald-400 block mt-0.5">₹{marginSummary.offline.absolute.toFixed(2)} / unit</span>
@@ -1745,7 +1758,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
             </div>
 
             {/* Section 5: Status Option */}
-            <div className="bg-gray-50/25 p-4 rounded-xl border border-gray-200/80 col-span-1 md:col-span-2 flex items-center justify-between font-bold select-none text-[11px]">
+            <div className="bg-gray-50/25 p-4 rounded-xl border border-gray-200/80 col-span-1 md:col-span-2 flex items-center justify-between font-bold text-[11px]">
               <div>
                 <span className="text-gray-800 block">Active Catalog Listing Status</span>
                 <span className="text-gray-500 block font-semibold text-[10px] uppercase mt-0.5">Inactive items are hidden from active checkout desks</span>
@@ -1765,7 +1778,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
 
       {/* ==================== PRODUCT DETAILS CONSOLE VIEW ==================== */}
       {viewMode === 'detail' && selectedProduct && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-6 shadow-xl relative text-left select-none font-sans">
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-6 shadow-xl relative text-left font-sans">
           
           {/* Header Action Bar */}
           <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-gray-200 pb-4 gap-4">

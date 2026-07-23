@@ -94,7 +94,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 select-none font-sans text-xs">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans text-xs">
       {/* Background radial highlight */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.03)_0%,transparent_60%)] pointer-events-none" />
 

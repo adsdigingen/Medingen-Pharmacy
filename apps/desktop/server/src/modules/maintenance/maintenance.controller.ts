@@ -30,4 +30,9 @@ export class MaintenanceController {
   restore(@Body() backupObj: any) {
     return this.maintenanceService.restoreDatabase(backupObj);
   }
+
+  @Post('reset')
+  reset(@Body() body: { target?: string }) {
+    return this.maintenanceService.resetDatabase(body.target || 'all');
+  }
 }

@@ -12,7 +12,7 @@
     "dev:renderer": "npm run -w @medingen/desktop-ui dev",
     "dev:server": "npm run -w @medingen/desktop-server start:dev",
     "dev:main": "tsc -p tsconfig.main.json && electron dist/main.js",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:renderer\" \"wait-on http://localhost:3000 && npm run dev:main\""
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:renderer\" \"wait-on http-get://localhost:3000 && npm run dev:main\""
   },
   "dependencies": {
     "@medingen/db": "*",

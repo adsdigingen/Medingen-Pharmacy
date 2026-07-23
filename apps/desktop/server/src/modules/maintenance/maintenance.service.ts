@@ -269,6 +269,23 @@ export class MaintenanceService {
           break;
 
         case 'products':
+          // Clean sales & hold bills first (since they point to batches/products)
+          await tx.auditLog.deleteMany();
+          await tx.payment.deleteMany();
+          await tx.billItem.deleteMany();
+          await tx.bill.deleteMany();
+          
+          await tx.holdBillItem.deleteMany();
+          await tx.holdBill.deleteMany();
+
+          await tx.purchaseReturnItem.deleteMany();
+          await tx.purchaseReturn.deleteMany();
+          await tx.purchaseOrderItem.deleteMany();
+          await tx.purchaseOrder.deleteMany();
+
+          await tx.drugScheduleRegister.deleteMany();
+
+          // Now clean inventory/products
           await tx.stockLedger.deleteMany();
           await tx.stockAdjustment.deleteMany();
           await tx.inventory.deleteMany();
@@ -279,6 +296,21 @@ export class MaintenanceService {
           break;
 
         case 'contacts':
+          // Disconnect bills & hold bills from customer
+          await tx.bill.updateMany({
+            data: { customerId: null }
+          });
+          await tx.holdBill.updateMany({
+            data: { customerId: null }
+          });
+
+          // Delete purchase returns and POs since they depend on suppliers
+          await tx.purchaseReturnItem.deleteMany();
+          await tx.purchaseReturn.deleteMany();
+          await tx.purchaseOrderItem.deleteMany();
+          await tx.purchaseOrder.deleteMany();
+
+          // Now delete contacts
           await tx.customer.deleteMany();
           await tx.doctor.deleteMany();
           await tx.supplier.deleteMany();

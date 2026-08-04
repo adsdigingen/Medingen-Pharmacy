@@ -133,6 +133,27 @@ export class ProductsService {
 
     const defaults = await this.getPricingDefaults();
     
+    let resolvedManufacturerId = createProductDto.manufacturerId;
+    if (resolvedManufacturerId && resolvedManufacturerId.trim()) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(resolvedManufacturerId.trim());
+      if (!isUuid) {
+        const mName = resolvedManufacturerId.trim();
+        let m = await this.prisma.manufacturer.findFirst({
+          where: { name: { equals: mName, mode: 'insensitive' } },
+        });
+        if (!m) {
+          m = await this.prisma.manufacturer.create({
+            data: {
+              name: mName,
+              status: true,
+              syncStatus: SyncStatus.PENDING,
+            },
+          });
+        }
+        resolvedManufacturerId = m.id;
+      }
+    }
+
     const purchasePrice = createProductDto.purchasePrice ?? 0.0;
     const mrp = createProductDto.mrp ?? 0.0;
     const gstPercentage = createProductDto.gstPercentage ?? defaults.defaultGst;
@@ -166,7 +187,7 @@ export class ProductsService {
       barcode: createProductDto.barcode || null,
       sku: createProductDto.sku || null,
       categoryId: createProductDto.categoryId || null,
-      manufacturerId: createProductDto.manufacturerId || null,
+      manufacturerId: resolvedManufacturerId || null,
       supplierId: createProductDto.supplierId || null,
       hsnCode: createProductDto.hsnCode,
       gstPercentage,
@@ -200,6 +221,21 @@ export class ProductsService {
     });
 
     if (result) {
+      try {
+        await this.prisma.inventory.create({
+          data: {
+            productId: result.id,
+            availableQty: 0,
+            reservedQty: 0,
+            damagedQty: 0,
+            expiredQty: 0,
+            syncStatus: SyncStatus.PENDING,
+          },
+        });
+      } catch (err: any) {
+        console.error('[ProductsService] Failed to create default inventory for product:', err.message);
+      }
+
       this.eventEmitter.emit(
         'product.created',
         new ProductCreatedEvent(result.id, result.name, result.sku, result.barcode),
@@ -212,6 +248,27 @@ export class ProductsService {
   private async restoreProduct(id: string, dto: CreateProductDto) {
     const defaults = await this.getPricingDefaults();
     
+    let resolvedManufacturerId = dto.manufacturerId;
+    if (resolvedManufacturerId && resolvedManufacturerId.trim()) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(resolvedManufacturerId.trim());
+      if (!isUuid) {
+        const mName = resolvedManufacturerId.trim();
+        let m = await this.prisma.manufacturer.findFirst({
+          where: { name: { equals: mName, mode: 'insensitive' } },
+        });
+        if (!m) {
+          m = await this.prisma.manufacturer.create({
+            data: {
+              name: mName,
+              status: true,
+              syncStatus: SyncStatus.PENDING,
+            },
+          });
+        }
+        resolvedManufacturerId = m.id;
+      }
+    }
+
     const purchasePrice = dto.purchasePrice ?? 0.0;
     const mrp = dto.mrp ?? 0.0;
     const gstPercentage = dto.gstPercentage ?? defaults.defaultGst;
@@ -246,7 +303,7 @@ export class ProductsService {
       barcode: dto.barcode || null,
       sku: dto.sku || null,
       categoryId: dto.categoryId || null,
-      manufacturerId: dto.manufacturerId || null,
+      manufacturerId: resolvedManufacturerId || null,
       supplierId: dto.supplierId || null,
       hsnCode: dto.hsnCode,
       gstPercentage,
@@ -1995,6 +2052,30 @@ export class ProductsService {
         data: { supplierName, mapping }
       });
     }
+  }
+
+  async search(q: string) {
+    const query = (q || '').trim();
+    if (!query) return [];
+
+    return this.prisma.product.findMany({
+      where: {
+        deletedAt: null,
+        status: true,
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { genericName: { contains: query, mode: 'insensitive' } },
+          { brandName: { contains: query, mode: 'insensitive' } },
+          { barcode: { contains: query, mode: 'insensitive' } },
+          { hsnCode: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      include: {
+        category: true,
+        manufacturer: true,
+      },
+      take: 20,
+    });
   }
 }
 

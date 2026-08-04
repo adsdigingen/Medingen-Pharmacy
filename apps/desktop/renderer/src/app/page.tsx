@@ -934,7 +934,7 @@ ${startupReport.join("\n")}
         id: `stock-${item.id}`,
         type: 'STOCK_WARN',
         title: 'Low Stock Alert',
-        message: `${item.name} is running low. Current Stock: ${item.quantity}`,
+        message: `${item.productName || item.name} is running low. Current Stock: ${item.availableQty !== undefined ? item.availableQty : item.quantity}`,
         read: false,
         time: new Date()
       });

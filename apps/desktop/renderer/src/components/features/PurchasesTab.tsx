@@ -27,6 +27,33 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
 }) => {
   const [subTab, setSubTab] = useState<'list' | 'create' | 'returns'>('list');
 
+  // Quick Create Modal & Debounced Search states
+  const [showQuickCreateModal, setShowQuickCreateModal] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [manufacturers, setManufacturers] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchIndex, setSearchIndex] = useState(-1);
+  const [quickCreateLoading, setQuickCreateLoading] = useState(false);
+  const [quickForm, setQuickForm] = useState({
+    name: '',
+    genericName: '',
+    brandName: '',
+    manufacturerId: '',
+    categoryId: '',
+    packing: '',
+    purchasePrice: '',
+    mrp: '',
+    sellingPrice: '',
+    discountPercentage: '0',
+    gstPercentage: '12',
+    hsnCode: '',
+    minimumStock: '0',
+    schedule: 'OTC',
+    barcode: '',
+    status: true
+  });
+
   // Creation State
   const [supplierId, setSupplierId] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().slice(0, 10));
@@ -58,17 +85,303 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
   const [creditNoteNumber, setCreditNoteNumber] = useState('');
   const [returnRemarks, setReturnRemarks] = useState('');
 
-  // Auto-complete filters (Search by name, generic name, barcode or SKU)
-  const filteredProducts = useMemo(() => {
-    if (!productSearch.trim()) return [];
-    const query = productSearch.toLowerCase();
-    return allProducts.filter(p => 
-      p.name.toLowerCase().includes(query) ||
-      (p.genericName && p.genericName.toLowerCase().includes(query)) ||
-      (p.sku && p.sku.toLowerCase().includes(query)) ||
-      (p.barcode && p.barcode.toLowerCase().includes(query))
-    ).slice(0, 10);
-  }, [productSearch, allProducts]);
+  // 1. Debounced Server-side Search
+  React.useEffect(() => {
+    const q = productSearch.trim();
+    if (!q) {
+      setSearchResults([]);
+      setSearchIndex(-1);
+      return;
+    }
+
+    setSearchLoading(true);
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/products/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const envelope = await res.json();
+          setSearchResults(envelope.data || envelope || []);
+          setSearchIndex(-1);
+        } else {
+          setSearchResults([]);
+        }
+      } catch (err) {
+        console.error("Error searching medicines:", err);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [productSearch, API_BASE]);
+
+  // 2. Load Categories and Manufacturers for Quick Create
+  const loadCatalogs = async () => {
+    try {
+      const [catRes, manRes] = await Promise.all([
+        fetch(`${API_BASE}/categories?limit=500`),
+        fetch(`${API_BASE}/manufacturers?limit=500`)
+      ]);
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        setCategories(catData.data || catData.items || catData || []);
+      }
+      if (manRes.ok) {
+        const manData = await manRes.json();
+        setManufacturers(manData.data || manData.items || manData || []);
+      }
+    } catch (e) {
+      console.error("Failed to load categories/manufacturers for quick create:", e);
+    }
+  };
+
+  // 3. Open Quick Create Dialog
+  const handleOpenQuickCreate = () => {
+    setQuickForm({
+      name: productSearch.trim(), // Pre-fill with user's search query
+      genericName: '',
+      brandName: '',
+      manufacturerId: '',
+      categoryId: '',
+      packing: '',
+      purchasePrice: '',
+      mrp: '',
+      sellingPrice: '',
+      discountPercentage: '0',
+      gstPercentage: '12',
+      hsnCode: '',
+      minimumStock: '0',
+      schedule: 'OTC',
+      barcode: '',
+      status: true
+    });
+    setShowQuickCreateModal(true);
+    loadCatalogs();
+  };
+
+  // 4. Handle Quick Form Price Auto-calculation
+  const handleQuickFormChange = (key: string, value: any) => {
+    setQuickForm(prev => {
+      const updated = { ...prev, [key]: value };
+      if (key === 'purchasePrice' || key === 'gstPercentage') {
+        const price = parseFloat(updated.purchasePrice) || 0;
+        const gst = parseFloat(updated.gstPercentage) || 0;
+        const tax = price * (gst / 100);
+        
+        // Auto-calculate selling price (50% markup over purchase price + tax)
+        updated.sellingPrice = (price + tax + price * 0.50).toFixed(2);
+        
+        // Auto-calculate MRP (85% markup over purchase price + tax)
+        updated.mrp = (price + tax + price * 0.85).toFixed(2);
+      }
+      return updated;
+    });
+  };
+
+  // 5. Save Quick Medicine
+  const handleSaveQuickMedicine = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validations
+    if (!quickForm.name.trim()) {
+      alert("Medicine Name is required.");
+      return;
+    }
+    if (!quickForm.genericName.trim()) {
+      alert("Generic Name is required.");
+      return;
+    }
+    const rate = parseFloat(quickForm.purchasePrice);
+    if (isNaN(rate) || rate <= 0) {
+      alert("Purchase Rate must be greater than zero.");
+      return;
+    }
+    const mrpVal = parseFloat(quickForm.mrp);
+    if (isNaN(mrpVal) || mrpVal < rate) {
+      alert("MRP must be greater than or equal to Purchase Rate.");
+      return;
+    }
+    const gstVal = parseFloat(quickForm.gstPercentage);
+    if (isNaN(gstVal) || gstVal < 0 || gstVal > 50) {
+      alert("GST Percentage is invalid.");
+      return;
+    }
+
+    // Duplicate Check
+    const duplicate = allProducts.find(p => 
+      p.name.toLowerCase().trim() === quickForm.name.toLowerCase().trim() &&
+      (p.genericName || '').toLowerCase().trim() === quickForm.genericName.toLowerCase().trim() &&
+      (p.brandName || '').toLowerCase().trim() === quickForm.brandName.toLowerCase().trim()
+    );
+
+    if (duplicate) {
+      const confirmUse = confirm("This medicine already exists. Do you want to use the existing one?");
+      if (confirmUse) {
+        setShowQuickCreateModal(false);
+        handleDirectAddItem(duplicate);
+        return;
+      } else {
+        return; // Stay in modal
+      }
+    }
+
+    setQuickCreateLoading(true);
+    try {
+      const token = localStorage.getItem('medingen_session');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        try {
+          const sessionObj = JSON.parse(token);
+          if (sessionObj.token) {
+            headers['Authorization'] = `Bearer ${sessionObj.token}`;
+          }
+        } catch (_) {}
+      }
+
+      const res = await fetch(`${API_BASE}/products`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          name: quickForm.name.trim(),
+          genericName: quickForm.genericName.trim(),
+          brandName: quickForm.brandName.trim() || undefined,
+          manufacturerId: quickForm.manufacturerId || undefined,
+          categoryId: quickForm.categoryId || undefined,
+          packing: quickForm.packing.trim() || undefined,
+          purchasePrice: rate,
+          mrp: mrpVal,
+          sellingPrice: parseFloat(quickForm.sellingPrice) || undefined,
+          discountPercentage: parseFloat(quickForm.discountPercentage) || 0,
+          gstPercentage: gstVal,
+          hsnCode: quickForm.hsnCode.trim() || undefined,
+          minimumStock: parseInt(quickForm.minimumStock, 10) || 0,
+          schedule: quickForm.schedule,
+          barcode: quickForm.barcode.trim() || undefined,
+          status: quickForm.status,
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to create product");
+      }
+
+      const envelope = await res.json();
+      const newProduct = envelope.data || envelope;
+
+      alert("Medicine created successfully!");
+      setShowQuickCreateModal(false);
+      
+      // Automatically add product and focus batch number
+      handleDirectAddItem(newProduct);
+    } catch (e: any) {
+      alert("Error saving medicine: " + e.message);
+    } finally {
+      setQuickCreateLoading(false);
+    }
+  };
+
+  // 6. Focus Batch Input
+  const focusNewItemBatch = (index: number) => {
+    setTimeout(() => {
+      const el = document.getElementById(`batch-input-${index}`);
+      if (el) {
+        (el as HTMLInputElement).focus();
+        (el as HTMLInputElement).select();
+      }
+    }, 150);
+  };
+
+  // 7. Add product directly to table row and focus Batch
+  const handleDirectAddItem = (product: any) => {
+    const exists = items.some(it => it.productId === product.id);
+    if (exists) {
+      alert("Product is already added in the item grid.");
+      return;
+    }
+    const defaultBatch = ``;
+    const nextYear = new Date();
+    nextYear.setFullYear(nextYear.getFullYear() + 2);
+    const defaultExpiry = nextYear.toISOString().slice(0, 10);
+
+    const purchasePrice = product.purchasePrice || 0;
+    const gstPercentage = product.gstPercentage || 12;
+    const offlineMargin = 50;
+    const onlineMargin = 85;
+    const tax = purchasePrice * (gstPercentage / 100);
+    
+    const sellingPrice = product.sellingPrice || (purchasePrice + tax + purchasePrice * (offlineMargin / 100));
+    const mrp = product.mrp || (purchasePrice + tax + purchasePrice * (onlineMargin / 100));
+
+    const discountPercentage = product.discountPercentage || product.retailDiscount || 0;
+
+    const newItem = {
+      productId: product.id,
+      name: product.name,
+      sku: product.sku || '',
+      barcode: product.barcode || '',
+      batchNumber: defaultBatch,
+      expiryDate: defaultExpiry,
+      purchasePrice,
+      sellingPrice: parseFloat(sellingPrice.toFixed(2)),
+      mrp: parseFloat(mrp.toFixed(2)),
+      gstPercentage,
+      discountPercentage,
+      quantity: 1,
+      freeQuantity: 0,
+      totalAmount: parseFloat((purchasePrice * (1 - discountPercentage/100) * (1 + gstPercentage/100)).toFixed(2)),
+      offlineMargin,
+      onlineMargin,
+      drugSchedule: product.drugSchedule || 'OTC',
+    };
+
+    const newItems = [...items, newItem];
+    setItems(newItems);
+    setProductSearch('');
+    setShowProductDropdown(false);
+    
+    focusNewItemBatch(newItems.length - 1);
+  };
+
+  // 8. Key Down handlers inside Search Input
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.ctrlKey && e.key === 'Enter') {
+      e.preventDefault();
+      handleOpenQuickCreate();
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSearchIndex(prev => Math.min(searchResults.length - 1, prev + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSearchIndex(prev => Math.max(0, prev - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchIndex >= 0 && searchIndex < searchResults.length) {
+        handleDirectAddItem(searchResults[searchIndex]);
+      } else if (searchResults.length > 0) {
+        handleDirectAddItem(searchResults[0]);
+      }
+    } else if (e.key === 'Escape') {
+      setShowProductDropdown(false);
+    }
+  };
+
+  // Esc closes dialogs globally
+  React.useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showQuickCreateModal) {
+          setShowQuickCreateModal(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [showQuickCreateModal]);
 
   const selectedSupplier = useMemo(() => {
     return allSuppliers.find(s => s.id === supplierId);
@@ -691,27 +1004,45 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                   value={productSearch}
                   onChange={(e) => { setProductSearch(e.target.value); setShowProductDropdown(true); }}
                   onFocus={() => setShowProductDropdown(true)}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder="Search product by name, generic, barcode, SKU..."
                   className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 text-[11px] focus:outline-none focus:border-primary/50"
                 />
-                {showProductDropdown && filteredProducts.length > 0 && (
+                {showProductDropdown && productSearch.trim().length > 0 && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowProductDropdown(false)} />
-                    <div className="absolute right-0 top-full mt-1.5 w-full bg-white border border-gray-200 rounded-lg shadow-2xl z-20 max-h-52 overflow-y-auto divide-y divide-slate-900">
-                      {filteredProducts.map(p => (
-                        <div 
-                          key={p.id} 
-                          onClick={() => handleAddItem(p)} 
-                          className="p-2.5 hover:bg-white cursor-pointer flex justify-between items-center text-left"
-                        >
-                          <div>
-                            <span className="font-bold text-gray-800 block">{p.name}</span>
-                            <span className="text-[10px] text-gray-500 block font-semibold">{p.genericName || '-'}</span>
-                            <span className="text-[9px] text-gray-500 font-mono">SKU: {p.sku || '-'} | Bar: {p.barcode || '-'}</span>
+                    <div className="absolute right-0 top-full mt-1.5 w-full bg-white border border-gray-200 rounded-lg shadow-2xl z-20 max-h-64 overflow-y-auto divide-y divide-slate-100 text-left">
+                      {searchLoading ? (
+                        <div className="p-3 text-center text-gray-400 font-medium">Searching catalog...</div>
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((p, idx) => (
+                          <div 
+                            key={p.id} 
+                            onClick={() => handleDirectAddItem(p)} 
+                            className={`p-2.5 hover:bg-gray-50 cursor-pointer flex justify-between items-center text-left ${searchIndex === idx ? 'bg-gray-100' : ''}`}
+                          >
+                            <div>
+                              <span className="font-bold text-gray-800 block">{p.name}</span>
+                              <span className="text-[10px] text-gray-500 block font-semibold">{p.genericName || '-'}</span>
+                              <span className="text-[9px] text-gray-405 font-mono">Brand: {p.brandName || '-'} | Bar: {p.barcode || '-'}</span>
+                            </div>
+                            <span className="text-[10px] text-primary font-mono font-bold self-center">₹{p.purchasePrice}</span>
                           </div>
-                          <span className="text-[10px] text-primary font-mono font-bold self-center">₹{p.purchasePrice}</span>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center space-y-2 text-slate-500">
+                          <div className="text-xl">🔍</div>
+                          <div className="font-bold text-gray-700">No medicine found</div>
+                          <div className="text-[10px] text-gray-400 font-medium">This medicine is not available in your catalog.</div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenQuickCreate()}
+                            className="mt-2 px-3 py-1.5 bg-primary hover:bg-teal-600 text-slate-950 font-bold rounded-lg text-[10px] cursor-pointer flex items-center gap-1 mx-auto"
+                          >
+                            ➕ Create New Medicine
+                          </button>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </>
                 )}
@@ -750,6 +1081,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                         </td>
                         <td className="py-1 px-3">
                           <input 
+                            id={`batch-input-${idx}`}
                             type="text" 
                             value={it.batchNumber} 
                             onChange={(e) => handleUpdateItem(idx, 'batchNumber', e.target.value)} 
@@ -1400,6 +1732,240 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 4. QUICK MEDICINE CREATION DIALOG */}
+      {showQuickCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <form onSubmit={handleSaveQuickMedicine} className="w-full max-w-2xl bg-white border border-gray-250 rounded-2xl shadow-2xl overflow-hidden font-sans text-xs text-gray-600 text-left">
+            <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center text-gray-800 font-bold uppercase tracking-wider">
+              <span>Quick Product Creation</span>
+              <button type="button" onClick={() => setShowQuickCreateModal(false)} className="text-gray-400 hover:text-gray-600 text-base font-bold cursor-pointer">×</button>
+            </div>
+            
+            <div className="p-6 space-y-4 max-h-[500px] overflow-y-auto">
+              
+              {/* Basic Info Section */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider border-b border-gray-150 pb-1">Basic Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Medicine Name *</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={quickForm.name} 
+                      onChange={(e) => setQuickForm({ ...quickForm, name: e.target.value })}
+                      placeholder="e.g. Paracetamol 650"
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 font-bold focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Generic Name *</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={quickForm.genericName} 
+                      onChange={(e) => setQuickForm({ ...quickForm, genericName: e.target.value })}
+                      placeholder="e.g. Paracetamol IP"
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Brand Name</label>
+                    <input 
+                      type="text" 
+                      value={quickForm.brandName} 
+                      onChange={(e) => setQuickForm({ ...quickForm, brandName: e.target.value })}
+                      placeholder="e.g. Calpol"
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Manufacturer *</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={quickForm.manufacturerId} 
+                      onChange={(e) => setQuickForm({ ...quickForm, manufacturerId: e.target.value })}
+                      placeholder="e.g. Cipla, Sun Pharma"
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Category *</label>
+                    <select
+                      required
+                      value={quickForm.categoryId}
+                      onChange={(e) => setQuickForm({ ...quickForm, categoryId: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-700 font-medium focus:outline-none focus:border-primary/50 cursor-pointer"
+                    >
+                      <option value="">-- Select Category --</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Packing</label>
+                    <input 
+                      type="text" 
+                      value={quickForm.packing} 
+                      onChange={(e) => setQuickForm({ ...quickForm, packing: e.target.value })}
+                      placeholder="e.g. 10 Tablets"
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Pricing Section */}
+              <div className="space-y-3 pt-2">
+                <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider border-b border-gray-150 pb-1">Pricing Details</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Purchase Rate (₹) *</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      required
+                      value={quickForm.purchasePrice} 
+                      onChange={(e) => handleQuickFormChange('purchasePrice', e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 font-mono font-bold focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Selling Price (₹) (Auto-Calc)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      required
+                      value={quickForm.sellingPrice} 
+                      onChange={(e) => handleQuickFormChange('sellingPrice', e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 font-mono focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">MRP (₹) *</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      required
+                      value={quickForm.mrp} 
+                      onChange={(e) => handleQuickFormChange('mrp', e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 font-mono font-bold focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">GST Tax (%)</label>
+                    <input 
+                      type="number" 
+                      value={quickForm.gstPercentage} 
+                      onChange={(e) => handleQuickFormChange('gstPercentage', e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 font-mono focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Retail Discount (%)</label>
+                    <input 
+                      type="number" 
+                      value={quickForm.discountPercentage} 
+                      onChange={(e) => handleQuickFormChange('discountPercentage', e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 font-mono focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">HSN Code</label>
+                    <input 
+                      type="text" 
+                      value={quickForm.hsnCode} 
+                      onChange={(e) => setQuickForm({ ...quickForm, hsnCode: e.target.value })}
+                      placeholder="e.g. 300490"
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 focus:outline-none focus:border-primary/50 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Inventory Defaults Section */}
+              <div className="space-y-3 pt-2">
+                <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider border-b border-gray-150 pb-1">Inventory Defaults & Regulation</h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Min Stock Level</label>
+                    <input 
+                      type="number" 
+                      value={quickForm.minimumStock} 
+                      onChange={(e) => setQuickForm({ ...quickForm, minimumStock: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 focus:outline-none focus:border-primary/50 font-mono"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Drug Schedule</label>
+                    <select
+                      value={quickForm.schedule}
+                      onChange={(e) => setQuickForm({ ...quickForm, schedule: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-700 focus:outline-none focus:border-primary/50 cursor-pointer"
+                    >
+                      <option value="OTC">OTC</option>
+                      <option value="Schedule H">Schedule H</option>
+                      <option value="Schedule H1">Schedule H1</option>
+                      <option value="Schedule X">Schedule X</option>
+                      <option value="NDPS">NDPS</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Barcode / SKU</label>
+                    <input 
+                      type="text" 
+                      value={quickForm.barcode} 
+                      onChange={(e) => setQuickForm({ ...quickForm, barcode: e.target.value })}
+                      placeholder="Scanner output"
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-800 focus:outline-none focus:border-primary/50 font-mono"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Status</label>
+                    <select
+                      value={quickForm.status ? "active" : "inactive"}
+                      onChange={(e) => setQuickForm({ ...quickForm, status: e.target.value === "active" })}
+                      className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-250 rounded-lg text-gray-700 focus:outline-none focus:border-primary/50 cursor-pointer font-bold"
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
+              <Button type="button" onClick={() => setShowQuickCreateModal(false)} variant="outline" className="px-4 text-gray-600 cursor-pointer">
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" disabled={quickCreateLoading} className="px-5 font-bold cursor-pointer">
+                {quickCreateLoading ? "Saving..." : "Save Medicine"}
+              </Button>
+            </div>
+          </form>
         </div>
       )}
 

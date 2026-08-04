@@ -32,8 +32,39 @@ export class ProductsController {
 
   @Post()
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
-  create(@Body() createProductDto: CreateProductDto) {
-    return this.productsService.create(createProductDto);
+  async create(@Body() body: any) {
+    const dto = new CreateProductDto();
+    dto.name = body.name;
+    dto.genericName = body.genericName;
+    dto.brandName = body.brandName;
+    dto.barcode = body.barcode || undefined;
+    dto.sku = body.sku || undefined;
+    dto.categoryId = body.categoryId || undefined;
+    dto.manufacturerId = body.manufacturerId || undefined;
+    dto.supplierId = body.supplierId || undefined;
+    dto.hsnCode = body.hsnCode || undefined;
+    
+    // Parse numeric fields safely
+    dto.gstPercentage = body.gstPercentage !== undefined ? Number(body.gstPercentage) : (body.gstRate !== undefined ? Number(body.gstRate) : undefined);
+    dto.purchasePrice = body.purchasePrice !== undefined ? Number(body.purchasePrice) : (body.purchaseRate !== undefined ? Number(body.purchaseRate) : undefined);
+    dto.retailDiscount = body.discountPercentage !== undefined ? Number(body.discountPercentage) : (body.retailDiscount !== undefined ? Number(body.retailDiscount) : undefined);
+    dto.minStockLevel = body.minimumStock !== undefined ? Number(body.minimumStock) : (body.minStockLevel !== undefined ? Number(body.minStockLevel) : undefined);
+    dto.mrp = body.mrp !== undefined ? Number(body.mrp) : undefined;
+    
+    const inputSellingPrice = body.sellingPrice !== undefined ? Number(body.sellingPrice) : undefined;
+    dto.sellingPrice = inputSellingPrice;
+    dto.offlineSellingPrice = inputSellingPrice;
+    dto.offlineAutoCalculate = body.offlineAutoCalculate ?? (inputSellingPrice !== undefined ? false : true);
+    dto.onlineAutoCalculate = body.onlineAutoCalculate ?? true;
+    
+    dto.drugSchedule = body.schedule !== undefined ? body.schedule : body.drugSchedule;
+    dto.status = body.status !== undefined ? (body.status === 'true' || body.status === true) : undefined;
+
+    const result = await this.productsService.create(dto);
+    return {
+      ...result,
+      discountPercentage: result.retailDiscount,
+    };
   }
 
   @Get()
@@ -161,6 +192,11 @@ export class ProductsController {
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
   async saveSupplierMapping(@Body() body: { supplierName: string; mapping: any }) {
     return this.productsService.saveSupplierMapping(body.supplierName, body.mapping);
+  }
+
+  @Get('search')
+  search(@Query('q') q: string) {
+    return this.productsService.search(q);
   }
 
   @Get(':id')

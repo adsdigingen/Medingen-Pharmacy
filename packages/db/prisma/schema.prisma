@@ -195,7 +195,7 @@ model Batch {
   purchasePrice     Float             @map("purchase_price")
   sellingPrice      Float             @map("selling_price")
   mrp               Float
-  onlineSellingPrice Float             @default(0.0) @map("online_selling_price")
+  onlineSellingPrice Float            @default(0.0) @map("online_selling_price")
   gstPercentage     Float             @default(0.0) @map("gst_percentage")
   availableQty      Int               @default(0) @map("available_qty")
   reservedQty       Int               @default(0) @map("reserved_qty")
@@ -329,7 +329,7 @@ model PurchaseOrderItem {
   purchasePrice     Float          @map("purchase_price")
   sellingPrice      Float          @map("selling_price")
   mrp               Float
-  onlineSellingPrice Float             @default(0.0) @map("online_selling_price")
+  onlineSellingPrice Float         @default(0.0) @map("online_selling_price")
   gstPercentage     Float          @default(0.0) @map("gst_percentage")
   discountPercentage Float         @default(0.0) @map("discount_percentage")
   quantity          Int

@@ -542,7 +542,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
       
       item.sellingPrice = parseFloat((price + tax + offVal).toFixed(2));
       item.mrp = parseFloat((price + tax + onVal).toFixed(2));
-      item.onlineSellingPrice = item.mrp;
+      item.onlineSellingPrice = parseFloat((price + tax + onVal).toFixed(2));
     }
 
     // Back-calculate offlineMargin if sellingPrice is updated directly
@@ -561,15 +561,6 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
       const gst = parseFloat(item.gstPercentage) || 0;
       const tax = price * (gst / 100);
       item.onlineMargin = price > 0 ? parseFloat((((m - price - tax) / price) * 100).toFixed(2)) : 0;
-      if (item.onlineSellingPrice > m) {
-        item.onlineSellingPrice = m;
-      }
-    }
-
-    if (key === 'onlineSellingPrice') {
-      const onlineVal = parseFloat(item.onlineSellingPrice) || 0;
-      const m = parseFloat(item.mrp) || 0;
-      item.onlineSellingPrice = onlineVal > m ? m : onlineVal;
     }
 
     // Recalculate line total amount
@@ -1140,7 +1131,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                           <input 
                             type="number" 
                             step="0.01"
-                            value={it.onlineSellingPrice || 0} 
+                            value={it.onlineSellingPrice} 
                             onChange={(e) => handleUpdateItem(idx, 'onlineSellingPrice', parseFloat(e.target.value) || 0)} 
                             className="w-full px-2 py-1 bg-gray-50 border border-gray-200 rounded text-gray-700 font-mono"
                           />
@@ -1418,6 +1409,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                       <th className="py-2 px-3 w-24">Expiry Date</th>
                       <th className="py-2 px-3 w-16 text-right">Cost (₹)</th>
                       <th className="py-2 px-3 w-16 text-right">MRP (₹)</th>
+                      <th className="py-2 px-3 w-16 text-right">Online (₹)</th>
                       <th className="py-2 px-3 w-12 text-center">GST</th>
                       <th className="py-2 px-3 w-12 text-center">Qty</th>
                       <th className="py-2 px-3 w-20 text-right">Total (₹)</th>
@@ -1431,6 +1423,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                         <td className="py-2 px-3 font-mono">{new Date(it.expiryDate).toLocaleDateString()}</td>
                         <td className="py-2 px-3 text-right font-mono">₹{it.purchasePrice.toFixed(2)}</td>
                         <td className="py-2 px-3 text-right font-mono">₹{it.mrp.toFixed(2)}</td>
+                        <td className="py-2 px-3 text-right font-mono">₹{(it.onlineSellingPrice || 0).toFixed(2)}</td>
                         <td className="py-2 px-3 text-center font-mono">{it.gstPercentage}%</td>
                         <td className="py-2 px-3 text-center font-mono">{it.quantity} {it.freeQuantity > 0 ? `(+${it.freeQuantity}F)` : ''}</td>
                         <td className="py-2 px-3 text-right font-mono font-bold text-gray-700">₹{it.totalAmount.toFixed(2)}</td>
@@ -1699,7 +1692,8 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                     setEditItem({
                       ...editItem,
                       mrp: m,
-                      onlineMargin: computedOnMargin
+                      onlineMargin: computedOnMargin,
+                      onlineSellingPrice: m // Keep online selling price in sync by default
                     });
                   }}
                   className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-slate-205 font-mono font-semibold"
@@ -1707,19 +1701,15 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
               </div>
 
               <div>
-                <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Online Sell (₹) *</label>
+                <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Online Sell Price (₹) *</label>
                 <input 
                   type="number"
                   step="0.01"
-                  value={editItem.onlineSellingPrice || 0}
-                  onChange={(e) => {
-                    const o = parseFloat(e.target.value) || 0;
-                    const m = parseFloat(editItem.mrp) || 0;
-                    setEditItem({
-                      ...editItem,
-                      onlineSellingPrice: o > m ? m : o
-                    });
-                  }}
+                  value={editItem.onlineSellingPrice !== undefined ? editItem.onlineSellingPrice : editItem.mrp}
+                  onChange={(e) => setEditItem({
+                    ...editItem,
+                    onlineSellingPrice: parseFloat(e.target.value) || 0
+                  })}
                   className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-slate-205 font-mono font-semibold"
                 />
               </div>

@@ -29,6 +29,10 @@ export class PurchaseOrderItemDto {
 
   @IsNumber()
   @IsOptional()
+  onlineSellingPrice?: number;
+
+  @IsNumber()
+  @IsOptional()
   gstPercentage?: number;
 
   @IsNumber()

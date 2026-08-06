@@ -116,12 +116,17 @@ export class BillingService {
           const itemSubtotal = qtyToTake * sellingPrice;
           const itemDiscount = itemSubtotal * ((item.discountPercentage || 0) / 100);
           const taxableAmount = itemSubtotal - itemDiscount;
-          const itemGst = taxableAmount * (batch.gstPercentage / 100);
-          const lineTotal = taxableAmount + itemGst;
+          
+          const gst = batch.gstPercentage || 12;
+          const itemGst = taxableAmount * (gst / (100 + gst));
+          const lineTotal = taxableAmount;
 
-          // Profit calculations (taxable net - batch cost)
+          // Profit calculations (taxable base - purchase base)
           const purchaseCost = qtyToTake * batch.purchasePrice;
-          const profit = taxableAmount - purchaseCost;
+          const purchaseCostGst = purchaseCost * (gst / (100 + gst));
+          const purchaseCostBase = purchaseCost - purchaseCostGst;
+          const taxableAmountBase = taxableAmount - itemGst;
+          const profit = taxableAmountBase - purchaseCostBase;
 
           totalAmount += itemSubtotal;
           discountAmount += itemDiscount;
@@ -184,7 +189,7 @@ export class BillingService {
       }
 
       // 3. Create the completed bill
-      const netAmount = Math.round(totalAmount - discountAmount + gstAmount);
+      const netAmount = Math.round(totalAmount - discountAmount);
 
       const bill = await tx.bill.create({
         data: {

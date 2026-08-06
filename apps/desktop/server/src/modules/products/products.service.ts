@@ -16,6 +16,64 @@ export class ProductsService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  private mapProductLatestBatchPricing(product: any) {
+    if (!product) return product;
+
+    // Find active batches that are active and have available stock
+    const activeBatches = (product.batches || []).filter(
+      (b: any) => b.availableQty > 0 && b.status === 'ACTIVE' && new Date(b.expiryDate) > new Date()
+    );
+
+    let targetBatch = null;
+    if (activeBatches.length > 0) {
+      // FEFO (First Expiry First Out) sorting
+      activeBatches.sort((a: any, b: any) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+      targetBatch = activeBatches[0];
+    } else if ((product.batches || []).length > 0) {
+      // Fallback to the latest created batch
+      const sortedAll = [...product.batches].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      targetBatch = sortedAll[0];
+    }
+
+    const purchasePrice = targetBatch && targetBatch.purchasePrice > 0 ? targetBatch.purchasePrice : (product.purchasePrice || 0);
+    const mrp = targetBatch && targetBatch.mrp > 0 ? targetBatch.mrp : (product.mrp || 0);
+
+    let offlineSellingPrice = targetBatch && targetBatch.sellingPrice > 0 ? targetBatch.sellingPrice : (product.offlineSellingPrice || product.sellingPrice || 0);
+    let onlineSellingPrice = targetBatch && targetBatch.onlineSellingPrice > 0 ? targetBatch.onlineSellingPrice : (product.onlineSellingPrice || 0);
+
+    const offlineAutoCalculate = product.offlineAutoCalculate ?? true;
+    const onlineAutoCalculate = product.onlineAutoCalculate ?? true;
+    const roundOff = product.roundOff ?? true;
+    const offlineMarkup = product.offlineMarkup ?? 50;
+    const onlineMarkup = product.onlineMarkup ?? 85;
+
+    if (offlineSellingPrice === 0 && offlineAutoCalculate && purchasePrice > 0) {
+      const computedOffline = purchasePrice * (1 + offlineMarkup / 100);
+      offlineSellingPrice = roundOff ? Math.round(computedOffline) : parseFloat(computedOffline.toFixed(2));
+      if (offlineSellingPrice > mrp && mrp > 0) {
+        offlineSellingPrice = mrp;
+      }
+    }
+
+    if (onlineSellingPrice === 0 && onlineAutoCalculate && purchasePrice > 0) {
+      const computedOnline = purchasePrice * (1 + onlineMarkup / 100);
+      onlineSellingPrice = roundOff ? Math.round(computedOnline) : parseFloat(computedOnline.toFixed(2));
+      if (onlineSellingPrice > mrp && mrp > 0) {
+        onlineSellingPrice = mrp;
+      }
+    }
+
+    return {
+      ...product,
+      purchasePrice,
+      mrp,
+      sellingPrice: offlineSellingPrice,
+      offlineSellingPrice,
+      onlineSellingPrice,
+      gstPercentage: targetBatch && targetBatch.gstPercentage !== undefined ? targetBatch.gstPercentage : product.gstPercentage,
+    };
+  }
+
   private async getPricingDefaults() {
     try {
       const settings = await this.prisma.systemSettings.findUnique({
@@ -414,8 +472,10 @@ export class ProductsService {
       this.repo.count({ where }),
     ]);
 
+    const mappedItems = items.map(item => this.mapProductLatestBatchPricing(item));
+
     return {
-      items,
+      items: mappedItems,
       total,
       page,
       limit,
@@ -424,15 +484,13 @@ export class ProductsService {
   }
 
   async findOne(id: string) {
-    const product = await this.repo.findFirst({
-      where: { id, deletedAt: null },
-    });
+    const product = await this.repo.findById(id);
 
     if (!product) {
       throw new NotFoundException(`Product with ID "${id}" not found.`);
     }
 
-    return product;
+    return this.mapProductLatestBatchPricing(product);
   }
 
   async update(id: string, updateProductDto: UpdateProductDto, userRole?: string) {
@@ -2058,7 +2116,7 @@ export class ProductsService {
     const query = (q || '').trim();
     if (!query) return [];
 
-    return this.prisma.product.findMany({
+    const products = await this.prisma.product.findMany({
       where: {
         deletedAt: null,
         status: true,
@@ -2073,9 +2131,14 @@ export class ProductsService {
       include: {
         category: true,
         manufacturer: true,
+        batches: {
+          where: { deletedAt: null },
+        },
       },
       take: 20,
     });
+
+    return products.map(p => this.mapProductLatestBatchPricing(p));
   }
 }
 

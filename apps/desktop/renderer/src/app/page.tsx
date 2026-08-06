@@ -23,10 +23,12 @@ import InventoryTab from '../components/features/InventoryTab';
 import ProductsTab from '../components/features/ProductsTab';
 import SuppliersTab from '../components/features/SuppliersTab';
 import DrugRegisterTab from '../components/features/DrugRegisterTab';
+import CounterProductsTab from '../components/features/CounterProductsTab';
+import CounterSalesTab from '../components/features/CounterSalesTab';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-type Tab = 'dashboard' | 'pos' | 'history' | 'reports' | 'settings' | 'admin' | 'purchases' | 'inventory' | 'products' | 'suppliers' | 'sync' | 'owner' | 'drugRegister';
+type Tab = 'dashboard' | 'pos' | 'history' | 'reports' | 'settings' | 'admin' | 'purchases' | 'inventory' | 'products' | 'suppliers' | 'sync' | 'owner' | 'drugRegister' | 'counterProducts' | 'counterSales';
 
 const logTrace = (msg: string) => {
   if (typeof window !== 'undefined') {
@@ -210,7 +212,7 @@ export default function Home() {
   const [salesReturnForm, setSalesReturnForm] = useState<any>({ billId: '', items: [] });
 
   // --- REPORTS STATE ---
-  const [reportsTab, setReportsTab] = useState<'sales' | 'purchases' | 'gst' | 'stock'>('sales');
+  const [reportsTab, setReportsTab] = useState<'sales' | 'purchases' | 'gst' | 'stock' | 'counter'>('sales');
   const [reportsStartDate, setReportsStartDate] = useState<string>(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
   const [reportsEndDate, setReportsEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [salesReportData, setSalesReportData] = useState<any>(null);
@@ -338,6 +340,13 @@ export default function Home() {
       icon: HiOutlineShoppingCart
     },
     {
+      id: 'counterSales' as Tab,
+      title: 'Counter Sales POS',
+      category: 'POS Registry',
+      roles: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
+      icon: HiOutlineShoppingCart
+    },
+    {
       id: 'history' as Tab,
       title: 'Invoices & Returns',
       category: 'POS Registry',
@@ -354,6 +363,13 @@ export default function Home() {
     {
       id: 'inventory' as Tab,
       title: 'Inventory Ledgers',
+      category: 'Stocks & Items',
+      roles: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST'],
+      icon: LuBoxes
+    },
+    {
+      id: 'counterProducts' as Tab,
+      title: 'Counter Products',
       category: 'Stocks & Items',
       roles: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST'],
       icon: LuBoxes
@@ -654,7 +670,7 @@ ${startupReport.join("\n")}
           // Read tab parameter from URL query if logged in
           const params = new URLSearchParams(window.location.search);
           const tabParam = params.get('tab') as Tab;
-          if (tabParam && ['dashboard', 'pos', 'history', 'reports', 'settings', 'admin', 'purchases', 'inventory', 'products', 'suppliers', 'sync', 'owner', 'drugRegister'].includes(tabParam)) {
+          if (tabParam && ['dashboard', 'pos', 'history', 'reports', 'settings', 'admin', 'purchases', 'inventory', 'products', 'suppliers', 'sync', 'owner', 'drugRegister', 'counterProducts', 'counterSales'].includes(tabParam)) {
             const tabRoleMap: Record<Tab, string[]> = {
               dashboard: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
               pos: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
@@ -669,6 +685,8 @@ ${startupReport.join("\n")}
               reports: ['ADMIN', 'STORE_MANAGER'],
               settings: ['ADMIN'],
               admin: ['ADMIN'],
+              counterProducts: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST'],
+              counterSales: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
             };
             if (tabRoleMap[tabParam]?.includes(parsedUser.role)) {
               setActiveTab(tabParam);
@@ -717,6 +735,8 @@ ${startupReport.join("\n")}
         reports: ['ADMIN', 'STORE_MANAGER'],
         settings: ['ADMIN'],
         admin: ['ADMIN'],
+        counterProducts: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST'],
+        counterSales: ['ADMIN', 'STORE_MANAGER', 'PHARMACIST', 'CASHIER'],
       };
       if (!tabRoleMap[activeTab]?.includes(currentUser.role)) {
         setActiveTab('dashboard');
@@ -1079,15 +1099,18 @@ ${startupReport.join("\n")}
             item.quantity = newQty;
 
             const subtotal = newQty * item.sellingPrice;
-            const gstAmt = subtotal * (item.gstPercentage / 100);
+            const lineDisc = subtotal * (item.discountPercentage / 100);
+            const taxable = subtotal - lineDisc;
+            const gstAmt = taxable * (item.gstPercentage / (100 + item.gstPercentage));
             item.gstAmount = gstAmt;
-            item.totalAmount = subtotal - (subtotal * (item.discountPercentage / 100)) + gstAmt;
+            item.totalAmount = taxable;
 
             updatedCart[existingIndex] = item;
             return updatedCart;
           } else {
             const subtotal = 1 * priceToUse;
-            const gstAmt = subtotal * (activeBatch.gstPercentage / 100);
+            const gstPercent = activeBatch.gstPercentage || 12;
+            const gstAmt = subtotal * (gstPercent / (100 + gstPercent));
             return [
               ...prevCart,
               {
@@ -1104,7 +1127,7 @@ ${startupReport.join("\n")}
                 discountPercentage: 0,
                 gstPercentage: activeBatch.gstPercentage,
                 gstAmount: gstAmt,
-                totalAmount: subtotal + gstAmt
+                totalAmount: subtotal
               }
             ];
           }
@@ -1185,15 +1208,18 @@ ${startupReport.join("\n")}
       item.quantity = newQty;
 
       const subtotal = newQty * item.sellingPrice;
-      const gstAmt = subtotal * (item.gstPercentage / 100);
+      const lineDisc = subtotal * (item.discountPercentage / 100);
+      const taxable = subtotal - lineDisc;
+      const gstAmt = taxable * (item.gstPercentage / (100 + item.gstPercentage));
       item.gstAmount = gstAmt;
-      item.totalAmount = subtotal - (subtotal * (item.discountPercentage / 100)) + gstAmt;
+      item.totalAmount = taxable;
 
       updatedCart[existingIndex] = item;
       setCart(updatedCart);
     } else {
       const subtotal = posQty * priceToUse;
-      const gstAmt = subtotal * (batch.gstPercentage / 100);
+      const gstPercent = batch.gstPercentage || 12;
+      const gstAmt = subtotal * (gstPercent / (100 + gstPercent));
       setCart([
         ...cart,
         {
@@ -1210,7 +1236,7 @@ ${startupReport.join("\n")}
           discountPercentage: posDiscount,
           gstPercentage: batch.gstPercentage,
           gstAmount: gstAmt,
-          totalAmount: subtotal - (subtotal * (posDiscount / 100)) + gstAmt
+          totalAmount: subtotal - (subtotal * (posDiscount / 100))
         }
       ]);
     }
@@ -1236,9 +1262,11 @@ ${startupReport.join("\n")}
 
     // Recalculate line total and gst
     const subtotal = newQty * item.sellingPrice;
-    const gstAmt = subtotal * (item.gstPercentage / 100);
+    const lineDisc = subtotal * (item.discountPercentage / 100);
+    const taxable = subtotal - lineDisc;
+    const gstAmt = taxable * (item.gstPercentage / (100 + item.gstPercentage));
     item.gstAmount = gstAmt;
-    item.totalAmount = subtotal - (subtotal * (item.discountPercentage / 100)) + gstAmt;
+    item.totalAmount = taxable;
 
     updated[index] = item;
     setCart(updated);
@@ -1266,31 +1294,33 @@ ${startupReport.join("\n")}
   };
 
   const calculateCartSummary = () => {
-    let subtotal = 0;
-    let totalDiscount = 0;
-    let totalGst = 0;
+    let subtotalInclusive = 0;
+    let discountInclusive = 0;
+    let gstTotal = 0;
 
     cart.forEach(item => {
-      const itemSub = item.quantity * item.sellingPrice;
-      const itemDisc = itemSub * (item.discountPercentage / 100);
-      const taxable = itemSub - itemDisc;
-      const gst = taxable * (item.gstPercentage / 100);
+      const lineSubInclusive = item.quantity * item.sellingPrice;
+      const lineDiscInclusive = lineSubInclusive * (item.discountPercentage / 100);
+      const lineTaxableInclusive = lineSubInclusive - lineDiscInclusive;
+      
+      const gstPercent = item.gstPercentage || 12;
+      const lineGst = lineTaxableInclusive * (gstPercent / (100 + gstPercent));
 
-      subtotal += itemSub;
-      totalDiscount += itemDisc;
-      totalGst += gst;
+      subtotalInclusive += lineSubInclusive;
+      discountInclusive += lineDiscInclusive;
+      gstTotal += lineGst;
     });
 
-    const grossTotal = subtotal - totalDiscount + totalGst;
-    const grandTotal = Math.round(grossTotal);
-    const roundOff = parseFloat((grandTotal - grossTotal).toFixed(2));
+    const grossTotal = subtotalInclusive - discountInclusive;
+    const roundedGrandTotal = Math.round(grossTotal);
+    const roundOff = parseFloat((roundedGrandTotal - grossTotal).toFixed(2));
 
     return {
-      subtotal,
-      discount: totalDiscount,
-      gst: totalGst,
+      subtotal: subtotalInclusive,
+      discount: discountInclusive,
+      gst: gstTotal,
       roundOff,
-      total: grandTotal
+      total: roundedGrandTotal
     };
   };
 
@@ -2032,6 +2062,11 @@ ${startupReport.join("\n")}
         return [savedPO, ...prev];
       }
     });
+    if (savedPO.status === 'FULLY_RECEIVED') {
+      fetchProducts();
+      fetchInventories();
+      fetchBatches();
+    }
   };
 
   const handlePODeleted = (poId: string) => {
@@ -2041,6 +2076,7 @@ ${startupReport.join("\n")}
   const handlePOStatusChanged = (updatedPO: any) => {
     setPurchaseOrders(prev => prev.map(p => p.id === updatedPO.id ? updatedPO : p));
     if (updatedPO.status === 'FULLY_RECEIVED') {
+      fetchProducts();
       fetchInventories();
       fetchBatches();
     }
@@ -2129,6 +2165,8 @@ ${startupReport.join("\n")}
       case 'sync': return 'Cloud Synchronization';
       case 'owner': return 'Owner Dashboard';
       case 'drugRegister': return 'Drug Schedule Register';
+      case 'counterProducts': return 'Counter Stock Directory';
+      case 'counterSales': return 'Counter POS Desk';
       default: return 'Medingen ERP';
     }
   };
@@ -2175,8 +2213,10 @@ ${startupReport.join("\n")}
   // Flat Search Results for Command Palette
   const navCommands = useMemo(() => [
     { type: 'COMMAND', name: 'Go to POS Tab (Billing Desk)', action: () => { setActiveTab('pos'); }, tab: 'pos' },
+    { type: 'COMMAND', name: 'Go to Counter Sales POS (Loose Sales)', action: () => { setActiveTab('counterSales'); }, tab: 'counterSales' },
     { type: 'COMMAND', name: 'Go to Dashboard Summary', action: () => { setActiveTab('dashboard'); }, tab: 'dashboard' },
     { type: 'COMMAND', name: 'Go to Inventory Stock Ledger', action: () => { setActiveTab('inventory'); setInventorySubTab('stock'); }, tab: 'inventory' },
+    { type: 'COMMAND', name: 'Go to Counter Products Directory', action: () => { setActiveTab('counterProducts'); }, tab: 'counterProducts' },
     { type: 'COMMAND', name: 'Go to Products Catalog', action: () => { setActiveTab('products'); }, tab: 'products' },
     { type: 'COMMAND', name: 'Go to Suppliers Directory', action: () => { setActiveTab('suppliers'); }, tab: 'suppliers' },
     { type: 'COMMAND', name: 'Go to Billing History Logs', action: () => { setActiveTab('history'); }, tab: 'history' },
@@ -2633,6 +2673,21 @@ ${startupReport.join("\n")}
               reportsLoading={reportsLoading}
               fetchReportsData={fetchReportsData}
               exportToCSV={exportToCSV}
+              API_BASE={API_BASE}
+            />
+          )}
+
+          {activeTab === 'counterProducts' && (
+            <CounterProductsTab
+              API_BASE={API_BASE}
+              currentUser={currentUser}
+            />
+          )}
+
+          {activeTab === 'counterSales' && (
+            <CounterSalesTab
+              API_BASE={API_BASE}
+              currentUser={currentUser}
             />
           )}
 

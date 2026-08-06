@@ -753,22 +753,18 @@ export const PosTab: React.FC<PosTabProps> = ({
         <div className="pt-3.5 border-t border-gray-200 bg-white/10 mt-3 space-y-3 shrink-0">
           
           {/* Dynamic calculations list (2x2 grid format for space saving) */}
-          <div className="bg-white border border-gray-200 p-3.5 rounded-xl space-y-2.5 text-xs shadow-sm">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-gray-500 border-b border-gray-150 pb-2">
+                  <div className="bg-white border border-gray-200 p-3.5 rounded-xl space-y-2 text-xs shadow-sm">
+            <div className="space-y-1.5 text-gray-500 border-b border-gray-150 pb-2">
               <div className="flex justify-between">
-                <span>Gross:</span>
+                <span>Subtotal:</span>
                 <span className="font-mono text-gray-700 font-bold">₹{cartSummary.subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>GST:</span>
-                <span className="font-mono text-gray-700 font-bold">₹{cartSummary.gst.toFixed(2)}</span>
+              <div className="flex justify-between text-rose-600">
+                <span>Discount:</span>
+                <span className="font-mono font-bold">-₹{cartSummary.discount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Disc:</span>
-                <span className="font-mono text-rose-600 font-bold">-₹{cartSummary.discount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Round:</span>
+                <span>Round Off:</span>
                 <span className="font-mono text-gray-600 font-bold">₹{cartSummary.roundOff.toFixed(2)}</span>
               </div>
             </div>

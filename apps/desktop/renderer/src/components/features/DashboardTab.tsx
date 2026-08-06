@@ -44,6 +44,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     itemsSold: 0,
     inventoryValue: 145230,
     pendingPO: 3,
+    counterStats: {
+      counterStockValue: 0,
+      todayCounterSales: 0,
+      todayCounterProfit: 0,
+      lowCounterStockCount: 0,
+      mostSoldCounterMedicines: [],
+    }
   };
 
   return (
@@ -128,6 +135,47 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
 
       </div>
+
+      {/* Counter POS Desk Summary Cards */}
+      {stats.counterStats && (
+        <div className="space-y-3 animate-fadeIn">
+          <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block pl-1">Counter POS Desk Summary</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Counter Sales */}
+            <div className="bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-md p-4 rounded-xl border border-gray-200 flex flex-col justify-between h-24 shadow-md hover:shadow-lg transition-all duration-300">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block leading-none">Today's Counter Sales</span>
+              <div>
+                <span className="text-lg font-extrabold text-teal-600 font-mono block">₹{stats.counterStats.todayCounterSales?.toFixed(2) || '0.00'}</span>
+                <span className="text-[9px] text-gray-400 block mt-1">Loose unit sale transactions</span>
+              </div>
+            </div>
+            {/* Counter Profit */}
+            <div className="bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-md p-4 rounded-xl border border-gray-200 flex flex-col justify-between h-24 shadow-md hover:shadow-lg transition-all duration-300">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block leading-none">Today's Counter Profit</span>
+              <div>
+                <span className="text-lg font-extrabold text-emerald-600 font-mono block">₹{stats.counterStats.todayCounterProfit?.toFixed(2) || '0.00'}</span>
+                <span className="text-[9px] text-gray-400 block mt-1">Estimated loose unit margin</span>
+              </div>
+            </div>
+            {/* Counter Stock Value */}
+            <div className="bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-md p-4 rounded-xl border border-gray-200 flex flex-col justify-between h-24 shadow-md hover:shadow-lg transition-all duration-300">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block leading-none">Loose Stock Value</span>
+              <div>
+                <span className="text-lg font-extrabold text-blue-600 font-mono block">₹{stats.counterStats.counterStockValue?.toFixed(2) || '0.00'}</span>
+                <span className="text-[9px] text-gray-400 block mt-1">Total loose stock value</span>
+              </div>
+            </div>
+            {/* Counter Low Stock */}
+            <div className="bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-md p-4 rounded-xl border border-gray-200 flex flex-col justify-between h-24 shadow-md hover:shadow-lg transition-all duration-300">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block leading-none">Counter Low Stock Alert</span>
+              <div>
+                <span className="text-lg font-extrabold text-rose-600 font-mono block">{stats.counterStats.lowCounterStockCount || 0} batches</span>
+                <button onClick={() => setActiveTab('counterProducts')} className="text-[9px] text-primary hover:underline block font-bold mt-1 text-left cursor-pointer">Refill Loose Stock</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cloud & Worker Status Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

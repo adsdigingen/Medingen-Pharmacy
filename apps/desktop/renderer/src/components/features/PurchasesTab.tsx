@@ -305,15 +305,14 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
     nextYear.setFullYear(nextYear.getFullYear() + 2);
     const defaultExpiry = nextYear.toISOString().slice(0, 10);
 
-    const purchasePrice = product.purchasePrice || 0;
-    const gstPercentage = product.gstPercentage || 12;
+    const purchasePrice = product.purchasePrice !== undefined && product.purchasePrice !== null ? product.purchasePrice : 0;
+    const gstPercentage = product.gstPercentage !== undefined && product.gstPercentage !== null ? product.gstPercentage : 12;
     const offlineMargin = 50;
     const onlineMargin = 85;
-    const tax = purchasePrice * (gstPercentage / 100);
     
-    const sellingPrice = product.sellingPrice || (purchasePrice + tax + purchasePrice * (offlineMargin / 100));
-    const mrp = product.mrp || (purchasePrice + tax + purchasePrice * (onlineMargin / 100));
-    const onlineSellingPrice = product.onlineSellingPrice || mrp;
+    const sellingPrice = product.offlineSellingPrice !== undefined && product.offlineSellingPrice !== null ? product.offlineSellingPrice : (product.sellingPrice !== undefined && product.sellingPrice !== null ? product.sellingPrice : (purchasePrice * (1 + offlineMargin / 100)));
+    const mrp = product.mrp !== undefined && product.mrp !== null ? product.mrp : (purchasePrice * (1 + onlineMargin / 100));
+    const onlineSellingPrice = product.onlineSellingPrice !== undefined && product.onlineSellingPrice !== null ? product.onlineSellingPrice : mrp;
 
     const discountPercentage = product.discountPercentage || product.retailDiscount || 0;
 
@@ -332,9 +331,9 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
       discountPercentage,
       quantity: 1,
       freeQuantity: 0,
-      totalAmount: parseFloat((purchasePrice * (1 - discountPercentage/100) * (1 + gstPercentage/100)).toFixed(2)),
-      offlineMargin,
-      onlineMargin,
+      totalAmount: parseFloat((purchasePrice * (1 - discountPercentage/100)).toFixed(2)),
+      offlineMargin: product.offlineMarkup !== undefined && product.offlineMarkup !== null ? product.offlineMarkup : offlineMargin,
+      onlineMargin: product.onlineMarkup !== undefined && product.onlineMarkup !== null ? product.onlineMarkup : onlineMargin,
       drugSchedule: product.drugSchedule || 'OTC',
     };
 
@@ -391,23 +390,32 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
 
   // Totals calculations
   const poTotals = useMemo(() => {
-    let subtotal = 0;
+    let subtotalBase = 0;
+    let discountBase = 0;
     let taxTotal = 0;
-    let discountTotal = 0;
+    let grandTotal = 0;
+
     items.forEach(it => {
-      const lineSub = it.quantity * it.purchasePrice;
-      const lineDisc = lineSub * (it.discountPercentage / 100);
-      const lineTaxable = lineSub - lineDisc;
-      const lineTax = lineTaxable * (it.gstPercentage / 100);
-      subtotal += lineSub;
-      discountTotal += lineDisc;
+      const lineSubInclusive = it.quantity * it.purchasePrice;
+      const lineDiscInclusive = lineSubInclusive * (it.discountPercentage / 100);
+      const lineTaxableInclusive = lineSubInclusive - lineDiscInclusive;
+      
+      const gst = it.gstPercentage || 0;
+      const lineTax = lineTaxableInclusive * (gst / (100 + gst));
+      const lineTaxOnSub = lineSubInclusive * (gst / (100 + gst));
+      const lineTaxOnDisc = lineDiscInclusive * (gst / (100 + gst));
+
+      subtotalBase += (lineSubInclusive - lineTaxOnSub);
+      discountBase += (lineDiscInclusive - lineTaxOnDisc);
       taxTotal += lineTax;
+      grandTotal += lineTaxableInclusive;
     });
+
     return {
-      subtotal,
-      discount: discountTotal,
+      subtotal: subtotalBase,
+      discount: discountBase,
       tax: taxTotal,
-      grandTotal: Math.round(subtotal - discountTotal + taxTotal),
+      grandTotal: Math.round(grandTotal),
     };
   }, [items]);
 
@@ -423,29 +431,29 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
     nextYear.setFullYear(nextYear.getFullYear() + 2);
     const defaultExpiry = nextYear.toISOString().slice(0, 10);
 
-    const purchasePrice = product.purchasePrice || 0;
-    const gstPercentage = product.gstPercentage || 12;
+    const purchasePrice = product.purchasePrice !== undefined && product.purchasePrice !== null ? product.purchasePrice : 0;
+    const gstPercentage = product.gstPercentage !== undefined && product.gstPercentage !== null ? product.gstPercentage : 12;
     const offlineMargin = 50;
     const onlineMargin = 85;
-    const tax = purchasePrice * (gstPercentage / 100);
     
-    // Calculate selling price and MRP directly using default margins (overriding old catalog default to enforce 50%/85% margins)
-    const sellingPrice = purchasePrice + tax + purchasePrice * (offlineMargin / 100);
-    const mrp = purchasePrice + tax + purchasePrice * (onlineMargin / 100);
+    const sellingPrice = product.offlineSellingPrice !== undefined && product.offlineSellingPrice !== null ? product.offlineSellingPrice : (product.sellingPrice !== undefined && product.sellingPrice !== null ? product.sellingPrice : (purchasePrice * (1 + offlineMargin / 100)));
+    const mrp = product.mrp !== undefined && product.mrp !== null ? product.mrp : (purchasePrice * (1 + onlineMargin / 100));
+    const onlineSellingPrice = product.onlineSellingPrice !== undefined && product.onlineSellingPrice !== null ? product.onlineSellingPrice : mrp;
 
-    const actualOfflineMargin = offlineMargin;
-    const actualOnlineMargin = onlineMargin;
+    const actualOfflineMargin = product.offlineMarkup !== undefined && product.offlineMarkup !== null ? product.offlineMarkup : offlineMargin;
+    const actualOnlineMargin = product.onlineMarkup !== undefined && product.onlineMarkup !== null ? product.onlineMarkup : onlineMargin;
 
     setEditItem({
       productId: product.id,
       name: product.name,
-      sku: product.sku,
-      barcode: product.barcode,
+      sku: product.sku || '',
+      barcode: product.barcode || '',
       batchNumber: defaultBatch,
       expiryDate: defaultExpiry,
       purchasePrice,
       sellingPrice: parseFloat(sellingPrice.toFixed(2)),
       mrp: parseFloat(mrp.toFixed(2)),
+      onlineSellingPrice: parseFloat(onlineSellingPrice.toFixed(2)),
       gstPercentage,
       discountPercentage: 0,
       quantity: 1,
@@ -463,15 +471,13 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
   const handleOpenEditModal = (idx: number) => {
     const item = items[idx];
     const purchasePrice = parseFloat(item.purchasePrice) || 0;
-    const gstPercentage = parseFloat(item.gstPercentage) || 0;
-    const tax = purchasePrice * (gstPercentage / 100);
     
     const offlineMargin = item.offlineMargin !== undefined 
       ? item.offlineMargin 
-      : parseFloat((((parseFloat(item.sellingPrice) - purchasePrice - tax) / (purchasePrice || 1)) * 100).toFixed(2));
+      : parseFloat((((parseFloat(item.sellingPrice) - purchasePrice) / (purchasePrice || 1)) * 100).toFixed(2));
     const onlineMargin = item.onlineMargin !== undefined 
       ? item.onlineMargin 
-      : parseFloat((((parseFloat(item.mrp) - purchasePrice - tax) / (purchasePrice || 1)) * 100).toFixed(2));
+      : parseFloat((((parseFloat(item.onlineSellingPrice !== undefined && item.onlineSellingPrice !== null ? item.onlineSellingPrice : item.mrp) - purchasePrice) / (purchasePrice || 1)) * 100).toFixed(2));
 
     setEditItem({ 
       ...item,
@@ -505,9 +511,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
     const lineSub = qty * price;
     const lineDisc = lineSub * (discPercent / 100);
     const taxable = lineSub - lineDisc;
-    const tax = taxable * (gstPercent / 105); // Let's use clean matching formula
-    const taxValue = taxable * (gstPercent / 100);
-    const totalAmount = parseFloat((taxable + taxValue).toFixed(2));
+    const totalAmount = parseFloat(taxable.toFixed(2));
 
     const finalItem = {
       ...editItem,
@@ -533,47 +537,46 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
     // Recalculate selling price and mrp from margins if purchasePrice or gstPercentage changes
     if (key === 'purchasePrice' || key === 'gstPercentage') {
       const price = parseFloat(item.purchasePrice) || 0;
-      const gst = parseFloat(item.gstPercentage) || 0;
       const offMargin = item.offlineMargin !== undefined ? parseFloat(item.offlineMargin) : 50;
       const onMargin = item.onlineMargin !== undefined ? parseFloat(item.onlineMargin) : 85;
-      const tax = price * (gst / 100);
       const offVal = price * (offMargin / 100);
       const onVal = price * (onMargin / 100);
       
-      item.sellingPrice = parseFloat((price + tax + offVal).toFixed(2));
-      item.mrp = parseFloat((price + tax + onVal).toFixed(2));
-      item.onlineSellingPrice = parseFloat((price + tax + onVal).toFixed(2));
+      item.sellingPrice = parseFloat((price + offVal).toFixed(2));
+      item.mrp = parseFloat((price + onVal).toFixed(2));
+      item.onlineSellingPrice = parseFloat((price + onVal).toFixed(2));
     }
 
     // Back-calculate offlineMargin if sellingPrice is updated directly
     if (key === 'sellingPrice') {
       const sell = parseFloat(item.sellingPrice) || 0;
       const price = parseFloat(item.purchasePrice) || 0;
-      const gst = parseFloat(item.gstPercentage) || 0;
-      const tax = price * (gst / 100);
-      item.offlineMargin = price > 0 ? parseFloat((((sell - price - tax) / price) * 100).toFixed(2)) : 0;
+      item.offlineMargin = price > 0 ? parseFloat((((sell - price) / price) * 100).toFixed(2)) : 0;
     }
 
     // Back-calculate onlineMargin if mrp is updated directly
     if (key === 'mrp') {
       const m = parseFloat(item.mrp) || 0;
       const price = parseFloat(item.purchasePrice) || 0;
-      const gst = parseFloat(item.gstPercentage) || 0;
-      const tax = price * (gst / 100);
-      item.onlineMargin = price > 0 ? parseFloat((((m - price - tax) / price) * 100).toFixed(2)) : 0;
+      item.onlineMargin = price > 0 ? parseFloat((((m - price) / price) * 100).toFixed(2)) : 0;
+    }
+
+    // Back-calculate onlineMargin if onlineSellingPrice is updated directly
+    if (key === 'onlineSellingPrice') {
+      const onlineSell = parseFloat(item.onlineSellingPrice) || 0;
+      const price = parseFloat(item.purchasePrice) || 0;
+      item.onlineMargin = price > 0 ? parseFloat((((onlineSell - price) / price) * 100).toFixed(2)) : 0;
     }
 
     // Recalculate line total amount
     const qty = parseFloat(item.quantity) || 0;
     const price = parseFloat(item.purchasePrice) || 0;
     const discPercent = parseFloat(item.discountPercentage) || 0;
-    const gstPercent = parseFloat(item.gstPercentage) || 0;
 
     const lineSub = qty * price;
     const lineDisc = lineSub * (discPercent / 100);
     const taxable = lineSub - lineDisc;
-    const tax = taxable * (gstPercent / 100);
-    item.totalAmount = parseFloat((taxable + tax).toFixed(2));
+    item.totalAmount = parseFloat(taxable.toFixed(2));
 
     updated[index] = item;
     setItems(updated);
@@ -640,6 +643,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
           purchasePrice: parseFloat(it.purchasePrice) || 0,
           sellingPrice: parseFloat(it.sellingPrice) || 0,
           mrp: parseFloat(it.mrp) || 0,
+          onlineSellingPrice: parseFloat(it.onlineSellingPrice) || 0,
           gstPercentage: parseFloat(it.gstPercentage) || 0,
           discountPercentage: parseFloat(it.discountPercentage) || 0,
           quantity: parseInt(it.quantity, 10) || 0,
@@ -1563,24 +1567,22 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
               </div>
 
               <div>
-                <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Cost Price (₹) *</label>
+                <label className="block text-[9px] font-bold text-gray-500 uppercase mb-1">Cost Price (GST Included) (₹) *</label>
                 <input 
                   type="number"
                   step="0.01"
                   value={editItem.purchasePrice}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value) || 0;
-                    const gst = parseFloat(editItem.gstPercentage) || 0;
                     const offMargin = editItem.offlineMargin !== undefined ? parseFloat(editItem.offlineMargin) : 50;
                     const onMargin = editItem.onlineMargin !== undefined ? parseFloat(editItem.onlineMargin) : 85;
-                    const tax = val * (gst / 100);
                     const offVal = val * (offMargin / 100);
                     const onVal = val * (onMargin / 100);
                     setEditItem({
                       ...editItem,
                       purchasePrice: val,
-                      sellingPrice: parseFloat((val + tax + offVal).toFixed(2)),
-                      mrp: parseFloat((val + tax + onVal).toFixed(2))
+                      sellingPrice: parseFloat((val + offVal).toFixed(2)),
+                      mrp: parseFloat((val + onVal).toFixed(2))
                     });
                   }}
                   className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-slate-205 font-mono font-bold"
@@ -1597,14 +1599,13 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                     const val = parseFloat(editItem.purchasePrice) || 0;
                     const offMargin = editItem.offlineMargin !== undefined ? parseFloat(editItem.offlineMargin) : 50;
                     const onMargin = editItem.onlineMargin !== undefined ? parseFloat(editItem.onlineMargin) : 85;
-                    const tax = val * (gst / 100);
                     const offVal = val * (offMargin / 100);
                     const onVal = val * (onMargin / 100);
                     setEditItem({
                       ...editItem,
                       gstPercentage: gst,
-                      sellingPrice: parseFloat((val + tax + offVal).toFixed(2)),
-                      mrp: parseFloat((val + tax + onVal).toFixed(2))
+                      sellingPrice: parseFloat((val + offVal).toFixed(2)),
+                      mrp: parseFloat((val + onVal).toFixed(2))
                     });
                   }}
                   className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-slate-205 font-mono"
@@ -1620,13 +1621,11 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                   onChange={(e) => {
                     const offMargin = parseFloat(e.target.value) || 0;
                     const val = parseFloat(editItem.purchasePrice) || 0;
-                    const gst = parseFloat(editItem.gstPercentage) || 0;
-                    const tax = val * (gst / 100);
                     const offVal = val * (offMargin / 100);
                     setEditItem({
                       ...editItem,
                       offlineMargin: offMargin,
-                      sellingPrice: parseFloat((val + tax + offVal).toFixed(2))
+                      sellingPrice: parseFloat((val + offVal).toFixed(2))
                     });
                   }}
                   className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-slate-205 font-mono"
@@ -1642,13 +1641,11 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                   onChange={(e) => {
                     const onMargin = parseFloat(e.target.value) || 0;
                     const val = parseFloat(editItem.purchasePrice) || 0;
-                    const gst = parseFloat(editItem.gstPercentage) || 0;
-                    const tax = val * (gst / 100);
                     const onVal = val * (onMargin / 100);
                     setEditItem({
                       ...editItem,
                       onlineMargin: onMargin,
-                      mrp: parseFloat((val + tax + onVal).toFixed(2))
+                      mrp: parseFloat((val + onVal).toFixed(2))
                     });
                   }}
                   className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-slate-205 font-mono"
@@ -1664,9 +1661,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                   onChange={(e) => {
                     const sell = parseFloat(e.target.value) || 0;
                     const val = parseFloat(editItem.purchasePrice) || 0;
-                    const gst = parseFloat(editItem.gstPercentage) || 0;
-                    const tax = val * (gst / 100);
-                    const computedOffMargin = val > 0 ? parseFloat((((sell - val - tax) / val) * 100).toFixed(2)) : 0;
+                    const computedOffMargin = val > 0 ? parseFloat((((sell - val) / val) * 100).toFixed(2)) : 0;
                     setEditItem({
                       ...editItem,
                       sellingPrice: sell,
@@ -1686,9 +1681,7 @@ export const PurchasesTab: React.FC<PurchasesTabProps> = ({
                   onChange={(e) => {
                     const m = parseFloat(e.target.value) || 0;
                     const val = parseFloat(editItem.purchasePrice) || 0;
-                    const gst = parseFloat(editItem.gstPercentage) || 0;
-                    const tax = val * (gst / 100);
-                    const computedOnMargin = val > 0 ? parseFloat((((m - val - tax) / val) * 100).toFixed(2)) : 0;
+                    const computedOnMargin = val > 0 ? parseFloat((((m - val) / val) * 100).toFixed(2)) : 0;
                     setEditItem({
                       ...editItem,
                       mrp: m,

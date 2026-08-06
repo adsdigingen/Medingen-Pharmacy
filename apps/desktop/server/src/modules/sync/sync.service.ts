@@ -207,7 +207,14 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     } else {
       // Overwrite the local record with the cloud's payload content
       const payloadObj = JSON.parse(conflict.cloudPayload);
-      const modelDelegate = (this.prisma as any)[conflict.entityName.toLowerCase()];
+      let modelKey = conflict.entityName.toLowerCase();
+      if (!(this.prisma as any)[modelKey]) {
+        if (modelKey === 'counterinventory') modelKey = 'counterInventory';
+        else if (modelKey === 'countertransfer') modelKey = 'counterTransfer';
+        else if (modelKey === 'countersale') modelKey = 'counterSale';
+        else if (modelKey === 'countersaleitem') modelKey = 'counterSaleItem';
+      }
+      const modelDelegate = (this.prisma as any)[modelKey];
       if (modelDelegate) {
         await modelDelegate.upsert({
           where: { id: conflict.entityId },

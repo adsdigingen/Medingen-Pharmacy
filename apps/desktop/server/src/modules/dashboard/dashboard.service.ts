@@ -152,6 +152,76 @@ export class DashboardService {
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
 
+    // 9. Fetch Counter Statistics
+    const counterItems = await this.prisma.counterInventory.findMany({
+      include: { batch: true }
+    });
+    let counterStockValue = 0;
+    let lowCounterStockCount = 0;
+    counterItems.forEach(it => {
+      if (it.batch) {
+        const unitCost = it.batch.purchasePrice / it.unitsPerStrip;
+        counterStockValue += it.availableUnits * unitCost;
+      }
+      if (it.availableUnits <= it.minimumUnits) {
+        lowCounterStockCount++;
+      }
+    });
+
+    const todayCounterSalesList = await this.prisma.counterSale.findMany({
+      where: {
+        createdAt: { gte: todayStart },
+      },
+      include: {
+        items: {
+          include: {
+            batch: {
+              include: {
+                counterInventory: true
+              }
+            }
+          }
+        }
+      }
+    });
+    let todayCounterSales = 0;
+    let todayCounterProfit = 0;
+    todayCounterSalesList.forEach(sale => {
+      todayCounterSales += sale.grandTotal;
+      sale.items.forEach(item => {
+        const unitsPerStrip = item.batch?.counterInventory?.[0]?.unitsPerStrip || 10;
+        const costPerUnit = (item.batch?.purchasePrice || 0) / unitsPerStrip;
+        const itemCost = item.quantity * costPerUnit;
+        todayCounterProfit += item.total - itemCost;
+      });
+    });
+
+    const mostSoldItems = await this.prisma.counterSaleItem.groupBy({
+      by: ['productId'],
+      _sum: {
+        quantity: true,
+      },
+      orderBy: {
+        _sum: {
+          quantity: 'desc',
+        },
+      },
+      take: 5,
+    });
+
+    const mostSoldCounterMedicines = await Promise.all(
+      mostSoldItems.map(async (item) => {
+        const product = await this.prisma.product.findUnique({
+          where: { id: item.productId },
+        });
+        return {
+          productId: item.productId,
+          name: product?.name || 'Unknown',
+          quantity: item._sum.quantity || 0,
+        };
+      })
+    );
+
     return {
       stats: {
         totalInventoryValue,
@@ -172,6 +242,13 @@ export class DashboardService {
       lowStockList,
       trendData,
       categoryDistribution,
+      counterStats: {
+        counterStockValue,
+        todayCounterSales,
+        todayCounterProfit,
+        lowCounterStockCount,
+        mostSoldCounterMedicines,
+      },
     };
   }
 }

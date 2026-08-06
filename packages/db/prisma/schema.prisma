@@ -171,6 +171,9 @@ model Product {
   purchaseReturnItems PurchaseReturnItem[]
   holdBillItems      HoldBillItem[]
   drugScheduleEntries DrugScheduleRegister[]
+  counterInventory   CounterInventory[]
+  counterTransfers   CounterTransfer[]
+  counterSaleItems   CounterSaleItem[]
   
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
@@ -207,6 +210,9 @@ model Batch {
   purchaseReturnItems PurchaseReturnItem[]
   stockAdjustments   StockAdjustment[]
   ledgerEntries      StockLedger[]
+  counterInventory   CounterInventory[]
+  counterTransfers   CounterTransfer[]
+  counterSaleItems   CounterSaleItem[]
   deletedAt          DateTime?         @map("deleted_at")
 
   createdAt         DateTime          @default(now()) @map("created_at")
@@ -666,4 +672,76 @@ model Doctor {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("doctors")
+}
+
+model CounterInventory {
+  id             String      @id @default(uuid()) @db.Uuid
+  productId      String      @map("product_id") @db.Uuid
+  product        Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  batchId        String      @map("batch_id") @db.Uuid
+  batch          Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  unitsPerStrip  Int         @map("units_per_strip")
+  availableUnits Int         @default(0) @map("available_units")
+  reservedUnits  Int         @default(0) @map("reserved_units")
+  minimumUnits   Int         @default(0) @map("minimum_units")
+  sellingPrice   Float?      @map("selling_price")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  syncStatus     SyncStatus  @default(PENDING) @map("sync_status")
+  syncedAt       DateTime?   @map("synced_at")
+
+  @@unique([productId, batchId])
+  @@map("counter_inventories")
+}
+
+model CounterTransfer {
+  id               String      @id @default(uuid()) @db.Uuid
+  productId        String      @map("product_id") @db.Uuid
+  product          Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  batchId          String      @map("batch_id") @db.Uuid
+  batch            Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  transferStrips   Int         @map("transfer_strips")
+  unitsPerStrip    Int         @map("units_per_strip")
+  transferredUnits Int         @map("transferred_units")
+  sellingPrice     Float?      @map("selling_price")
+  createdBy        String      @map("created_by")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  syncStatus       SyncStatus  @default(PENDING) @map("sync_status")
+  syncedAt         DateTime?   @map("synced_at")
+
+  @@map("counter_transfers")
+}
+
+model CounterSale {
+  id            String            @id @default(uuid()) @db.Uuid
+  invoiceNumber String            @unique @map("invoice_number")
+  paymentMethod String            @map("payment_method")
+  grandTotal    Float             @map("grand_total")
+  cashierId     String            @map("cashier_id") @db.Uuid
+  createdAt     DateTime          @default(now()) @map("created_at")
+  syncStatus    SyncStatus        @default(PENDING) @map("sync_status")
+  syncedAt      DateTime?         @map("synced_at")
+  items         CounterSaleItem[]
+
+  @@map("counter_sales")
+}
+
+model CounterSaleItem {
+  id            String      @id @default(uuid()) @db.Uuid
+  counterSaleId String      @map("counter_sale_id") @db.Uuid
+  counterSale   CounterSale @relation(fields: [counterSaleId], references: [id], onDelete: Cascade)
+  productId     String      @map("product_id") @db.Uuid
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  batchId       String      @map("batch_id") @db.Uuid
+  batch         Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  quantity      Int
+  sellingPrice  Float       @map("selling_price")
+  discount      Float       @default(0.0)
+  gst           Float       @default(0.0)
+  total         Float
+  createdAt     DateTime    @default(now()) @map("created_at")
+  syncStatus    SyncStatus  @default(PENDING) @map("sync_status")
+  syncedAt      DateTime?   @map("synced_at")
+
+  @@map("counter_sale_items")
 }

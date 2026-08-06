@@ -111,7 +111,7 @@ export class PrintService {
       lines.push(padLeftRight("", discLabel));
       
       // Calculate Round Off
-      const grossTotal = bill.totalAmount - bill.discountAmount + bill.gstAmount;
+      const grossTotal = bill.totalAmount - bill.discountAmount;
       const roundOff = bill.netAmount - grossTotal;
       const roundOffLabel = "Rounded Off:".padEnd(20) + roundOff.toFixed(2).padStart(12);
       lines.push(padLeftRight("", roundOffLabel));

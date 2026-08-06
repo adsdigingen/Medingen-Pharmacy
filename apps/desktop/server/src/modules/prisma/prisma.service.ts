@@ -123,7 +123,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     this.$use(async (params, next) => {
       const result = await next(params);
 
-      const syncEnabledModels = ['Category', 'Manufacturer', 'Supplier', 'Product', 'Batch', 'Bill', 'Payment', 'Customer'];
+      const syncEnabledModels = ['Category', 'Manufacturer', 'Supplier', 'Product', 'Batch', 'Bill', 'Payment', 'Customer', 'CounterInventory', 'CounterTransfer', 'CounterSale', 'CounterSaleItem'];
       const modelName = params.model;
 
       if (modelName && syncEnabledModels.includes(modelName)) {

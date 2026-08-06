@@ -4,6 +4,7 @@ import { ProductImportWizard } from './ProductImportWizard';
 import { DataTable, Column } from '../common/DataTable';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
+import { Modal } from '../common/Modal';
 import { 
   FiPlus, FiTrash2, FiEye, FiDatabase, FiShoppingCart, FiEdit, 
   FiCheckCircle, FiFileText, FiRefreshCw, FiCopy, FiDownload, FiUpload 
@@ -80,6 +81,98 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   // Modes: 'list' | 'create' | 'edit' | 'detail'
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit' | 'detail'>('list');
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+
+  // Transfer to Counter States
+  const [isTransferCounterOpen, setIsTransferCounterOpen] = useState(false);
+  const [transferProduct, setTransferProduct] = useState<any | null>(null);
+  const [transferBatchId, setTransferBatchId] = useState('');
+  const [transferStrips, setTransferStrips] = useState(1);
+  const [transferUnitsPerStrip, setTransferUnitsPerStrip] = useState(10);
+  const [transferSellingPrice, setTransferSellingPrice] = useState<number | string>('');
+  const [modalBatches, setModalBatches] = useState<any[]>([]);
+  const [modalBatchesLoading, setModalBatchesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!transferBatchId) {
+      setTransferSellingPrice('');
+      return;
+    }
+    const selectedBatchObj = modalBatches.find((b: any) => b.id === transferBatchId);
+    if (selectedBatchObj) {
+      const computed = (selectedBatchObj.sellingPrice / transferUnitsPerStrip).toFixed(2);
+      setTransferSellingPrice(computed);
+    }
+  }, [transferBatchId, transferUnitsPerStrip, modalBatches]);
+
+  const handleOpenTransferCounterModal = async (prod: any) => {
+    setTransferProduct(prod);
+    setTransferStrips(1);
+    setTransferUnitsPerStrip(10);
+    setIsTransferCounterOpen(true);
+    setModalBatchesLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/batches/fefo/${prod.id}`);
+      if (res.ok) {
+        const envelope = await res.json();
+        const data = envelope.data || [];
+        setModalBatches(data);
+        if (data && data.length > 0) {
+          setTransferBatchId(data[0].id);
+        } else {
+          setTransferBatchId('');
+        }
+      } else {
+        setModalBatches([]);
+        setTransferBatchId('');
+      }
+    } catch (e) {
+      setModalBatches([]);
+      setTransferBatchId('');
+    } finally {
+      setModalBatchesLoading(false);
+    }
+  };
+
+  const handleTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferBatchId) {
+      alert("No active batch selected to transfer from.");
+      return;
+    }
+    if (transferStrips <= 0) {
+      alert("Transfer strips must be greater than zero.");
+      return;
+    }
+    if (transferUnitsPerStrip <= 0) {
+      alert("Units per strip must be greater than zero.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/counter/transfer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: transferProduct.id,
+          batchId: transferBatchId,
+          transferStrips,
+          unitsPerStrip: transferUnitsPerStrip,
+          sellingPrice: parseFloat(transferSellingPrice as string) || undefined,
+        }),
+      });
+
+      if (res.ok) {
+        alert("Stock successfully transferred to counter inventory!");
+        setIsTransferCounterOpen(false);
+        fetchProducts();
+      } else {
+        const err = await res.json();
+        alert(err.message || "Failed to transfer stock.");
+      }
+    } catch (e) {
+      alert("Error making transfer request.");
+    }
+  };
 
   // System settings default state
   const [pricingDefaults, setPricingDefaults] = useState({
@@ -333,8 +426,8 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     };
   };
 
-  const getProductBatchInfo = (productId: string) => {
-    const prodBatches = batches.filter(b => b.productId === productId);
+  const getProductBatchInfo = (productId: string, prodRow?: any) => {
+    const prodBatches = prodRow?.batches || batches.filter(b => b.productId === productId);
     const now = new Date();
     const ninetyDays = new Date();
     ninetyDays.setDate(now.getDate() + 90);
@@ -342,7 +435,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     let hasExpired = false;
     let hasNearExpiry = false;
 
-    prodBatches.forEach(b => {
+    prodBatches.forEach((b: any) => {
       const exp = new Date(b.expiryDate);
       if (exp < now) hasExpired = true;
       else if (exp <= ninetyDays) hasNearExpiry = true;
@@ -786,7 +879,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
   // Details selectors & lists
   const currentProductBatches = useMemo(() => {
     if (!selectedProduct) return [];
-    return batches.filter(b => b.productId === selectedProduct.id);
+    return selectedProduct.batches || batches.filter(b => b.productId === selectedProduct.id);
   }, [selectedProduct, batches]);
 
   const productPurchases = useMemo(() => {
@@ -847,6 +940,55 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       .finally(() => setLedgerLoading(false));
   };
 
+  const resolveProductPrices = (product: any) => {
+    const activeBatches = (product.batches || []).filter(
+      (b: any) => b.availableQty > 0 && b.status === 'ACTIVE' && new Date(b.expiryDate) > new Date()
+    );
+
+    let targetBatch = null;
+    if (activeBatches.length > 0) {
+      activeBatches.sort((a: any, b: any) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+      targetBatch = activeBatches[0];
+    } else if ((product.batches || []).length > 0) {
+      const sortedAll = [...product.batches].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      targetBatch = sortedAll[0];
+    }
+
+    const purchasePrice = targetBatch && targetBatch.purchasePrice > 0 ? targetBatch.purchasePrice : (product.purchasePrice || 0);
+    const mrp = targetBatch && targetBatch.mrp > 0 ? targetBatch.mrp : (product.mrp || 0);
+
+    let offlinePrice = targetBatch && targetBatch.sellingPrice > 0 ? targetBatch.sellingPrice : (product.offlineSellingPrice || product.sellingPrice || 0);
+    let onlinePrice = targetBatch && targetBatch.onlineSellingPrice > 0 ? targetBatch.onlineSellingPrice : (product.onlineSellingPrice || 0);
+
+    const offlineAutoCalculate = product.offlineAutoCalculate ?? true;
+    const onlineAutoCalculate = product.onlineAutoCalculate ?? true;
+    const roundOff = product.roundOff ?? true;
+    const offlineMarkup = product.offlineMarkup ?? 50;
+    const onlineMarkup = product.onlineMarkup ?? 85;
+
+    if (offlinePrice === 0 && offlineAutoCalculate && purchasePrice > 0) {
+      const computedOffline = purchasePrice * (1 + offlineMarkup / 100);
+      offlinePrice = roundOff ? Math.round(computedOffline) : parseFloat(computedOffline.toFixed(2));
+      if (offlinePrice > mrp && mrp > 0) {
+        offlinePrice = mrp;
+      }
+    }
+
+    if (onlinePrice === 0 && onlineAutoCalculate && purchasePrice > 0) {
+      const computedOnline = purchasePrice * (1 + onlineMarkup / 100);
+      onlinePrice = roundOff ? Math.round(computedOnline) : parseFloat(computedOnline.toFixed(2));
+      if (onlinePrice > mrp && mrp > 0) {
+        onlinePrice = mrp;
+      }
+    }
+
+    return {
+      mrp: mrp || 0,
+      offlinePrice: offlinePrice || 0,
+      onlinePrice: onlinePrice || 0,
+    };
+  };
+
   // Main Registry Columns
   const listColumns: Column<any>[] = [
     {
@@ -878,7 +1020,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
       header: 'Stock Levels',
       accessor: (row) => {
         const inv = getProductInventory(row.id);
-        const { count, hasExpired, hasNearExpiry } = getProductBatchInfo(row.id);
+        const { count, hasExpired, hasNearExpiry } = getProductBatchInfo(row.id, row);
         const isLow = inv.availableQty <= (row.minStockLevel || 0);
 
         return (
@@ -903,14 +1045,30 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
     },
     {
       header: 'Price Book',
-      accessor: (row) => (
-        <div className="font-mono text-[10px]">
-          <div>MRP: ₹{row.mrp.toFixed(2)}</div>
-          <div>Sell: ₹{row.sellingPrice.toFixed(2)}</div>
-        </div>
-      ),
+      accessor: (row) => {
+        const prices = resolveProductPrices(row);
+        return (
+          <div className="font-mono text-[10px] space-y-0.5">
+            <div className="flex justify-between gap-1">
+              <span className="text-gray-400">MRP:</span>
+              <span className="font-bold text-gray-700">₹{prices.mrp.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between gap-1">
+              <span className="text-gray-400">Offline:</span>
+              <span className="font-bold text-gray-700">₹{prices.offlinePrice.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between gap-1">
+              <span className="text-gray-400">Online:</span>
+              <span className="font-bold text-gray-700">₹{prices.onlinePrice.toFixed(2)}</span>
+            </div>
+          </div>
+        );
+      },
       sortKey: 'sellingPrice',
-      exportValue: (row) => `MRP: ₹${row.mrp} Sell: ₹${row.sellingPrice}`,
+      exportValue: (row) => {
+        const prices = resolveProductPrices(row);
+        return `MRP: ₹${prices.mrp.toFixed(2)} Offline: ₹${prices.offlinePrice.toFixed(2)} Online: ₹${prices.onlinePrice.toFixed(2)}`;
+      },
     },
     {
       header: 'Location / Tax',
@@ -931,6 +1089,9 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
           </Button>
           <Button onClick={() => handleOpenEditMode(row)} variant="outline" size="sm" className="p-1.5 text-muted hover:text-primary hover:border-teal-500/30" title="Edit Master record">
             <FiEdit className="w-3.5 h-3.5" />
+          </Button>
+          <Button onClick={() => handleOpenTransferCounterModal(row)} variant="outline" size="sm" className="p-1.5 text-teal-650 hover:text-primary hover:border-teal-500/30" title="Transfer to Counter">
+            <FiPlus className="w-3.5 h-3.5" />
           </Button>
         </div>
       ),
@@ -1463,7 +1624,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
                     Base Cost & Tax
                   </h5>
                   <div>
-                    <label className="block text-[8px] font-bold text-gray-400 uppercase mb-1">Purchase Price (₹) *</label>
+                    <label className="block text-[8px] font-bold text-gray-400 uppercase mb-1">Purchase Price (GST Included) (₹) *</label>
                     <input 
                       type="number" 
                       step="0.01"
@@ -2004,7 +2165,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
             {/* Panel 2: Batches */}
             {detailTab === 'batches' && (
               <div className="space-y-3">
-                {getProductBatchInfo(selectedProduct.id).batchesList.length === 0 ? (
+                {currentProductBatches.length === 0 ? (
                   <div className="py-8 text-center text-gray-500 border border-dashed border-gray-200 rounded-xl">
                     No batches created. Use a Purchase Order or opening stock adjustment to write batch quantities.
                   </div>
@@ -2021,7 +2182,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-850/40">
-                      {getProductBatchInfo(selectedProduct.id).batchesList.map((b: any, idx: number) => {
+                      {currentProductBatches.map((b: any, idx: number) => {
                         const isExpired = new Date(b.expiryDate) < new Date();
                         return (
                           <tr key={idx} onClick={() => handleOpenBatchDetails(b)} className="hover:bg-gray-50/10 cursor-pointer">
@@ -2286,6 +2447,96 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
 
           </div>
         </div>
+      )}
+
+      {/* 3. TRANSFER TO COUNTER DIALOG */}
+      {isTransferCounterOpen && transferProduct && (
+        <Modal isOpen={isTransferCounterOpen} onClose={() => setIsTransferCounterOpen(false)} title="Transfer to Counter Inventory">
+          <form onSubmit={handleTransferSubmit} className="space-y-4">
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <span className="font-bold text-gray-800 block text-sm">{transferProduct.name}</span>
+              {transferProduct.genericName && <span className="text-[11px] text-gray-500 block">{transferProduct.genericName}</span>}
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Select Batch</label>
+              <select
+                value={transferBatchId}
+                onChange={(e) => setTransferBatchId(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:border-primary"
+              >
+                <option value="">-- Choose active batch --</option>
+                {modalBatchesLoading ? (
+                  <option value="">Loading active batches...</option>
+                ) : modalBatches.length === 0 ? (
+                  <option value="">No active batches found</option>
+                ) : (
+                  modalBatches.map((b: any) => (
+                    <option key={b.id} value={b.id}>
+                      Batch: {b.batchNumber} (Avail: {b.availableQty} strips, Exp: {new Date(b.expiryDate).toLocaleDateString()})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Units Per Strip</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={transferUnitsPerStrip}
+                  onChange={(e) => setTransferUnitsPerStrip(Math.max(1, parseInt(e.target.value, 10)))}
+                  className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-750 font-bold focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Strips to Transfer</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={
+                    modalBatches.find((b: any) => b.id === transferBatchId)?.availableQty || 9999
+                  }
+                  value={transferStrips}
+                  onChange={(e) => setTransferStrips(Math.max(1, parseInt(e.target.value, 10)))}
+                  className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-755 font-bold focus:outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Custom Selling Price (per Unit) (₹)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={transferSellingPrice}
+                onChange={(e) => setTransferSellingPrice(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-750 font-bold focus:outline-none focus:border-primary"
+                placeholder="e.g. 5.00"
+              />
+            </div>
+
+            <div className="p-3 bg-teal-50/50 rounded-xl border border-primary/20 text-center animate-fadeIn select-none">
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">Calculated Stock breakdown</span>
+              <span className="text-sm text-primary font-extrabold block mt-1">
+                {transferStrips} Strips &rarr; {transferStrips * transferUnitsPerStrip} Counter Units
+              </span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" onClick={() => setIsTransferCounterOpen(false)} variant="outline">
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" className="font-bold">
+                Transfer Stock
+              </Button>
+            </div>
+          </form>
+        </Modal>
       )}
 
     </div>

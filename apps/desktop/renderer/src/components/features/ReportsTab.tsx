@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 
 interface ReportsTabProps {
-  reportsTab: 'sales' | 'purchases' | 'gst' | 'stock';
-  setReportsTab: (val: 'sales' | 'purchases' | 'gst' | 'stock') => void;
+  reportsTab: 'sales' | 'purchases' | 'gst' | 'stock' | 'counter';
+  setReportsTab: (val: 'sales' | 'purchases' | 'gst' | 'stock' | 'counter') => void;
   reportsStartDate: string;
   setReportsStartDate: (val: string) => void;
   reportsEndDate: string;
@@ -13,6 +13,7 @@ interface ReportsTabProps {
   reportsLoading: boolean;
   fetchReportsData: () => Promise<void>;
   exportToCSV: (data: any[], filename: string) => void;
+  API_BASE: string;
 }
 
 export const ReportsTab: React.FC<ReportsTabProps> = ({
@@ -28,7 +29,47 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
   reportsLoading,
   fetchReportsData,
   exportToCSV,
+  API_BASE,
 }) => {
+  // Counter reports state
+  const [counterSubTab, setCounterSubTab] = React.useState<'transfers' | 'sales' | 'collection' | 'stock' | 'low-stock' | 'profit'>('transfers');
+  const [counterReportData, setCounterReportData] = React.useState<any>(null);
+  const [counterReportLoading, setCounterReportLoading] = React.useState(false);
+
+  const fetchCounterReport = async () => {
+    setCounterReportLoading(true);
+    try {
+      let endpoint = '';
+      if (counterSubTab === 'transfers') {
+        endpoint = `counter/reports/transfers?startDate=${reportsStartDate}&endDate=${reportsEndDate}`;
+      } else if (counterSubTab === 'sales') {
+        endpoint = `counter/reports/sales?startDate=${reportsStartDate}&endDate=${reportsEndDate}`;
+      } else if (counterSubTab === 'collection') {
+        endpoint = `counter/reports/collection?date=${reportsEndDate}`;
+      } else if (counterSubTab === 'stock') {
+        endpoint = `counter/reports/stock`;
+      } else if (counterSubTab === 'low-stock') {
+        endpoint = `counter/reports/low-stock`;
+      } else if (counterSubTab === 'profit') {
+        endpoint = `counter/reports/profit?startDate=${reportsStartDate}&endDate=${reportsEndDate}`;
+      }
+      const res = await fetch(`${API_BASE}/${endpoint}`);
+      if (res.ok) {
+        const envelope = await res.json();
+        setCounterReportData(envelope.data);
+      }
+    } catch (e) {
+      console.warn("Failed to load counter report", e);
+    } finally {
+      setCounterReportLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (reportsTab === 'counter') {
+      fetchCounterReport();
+    }
+  }, [reportsTab, counterSubTab, reportsStartDate, reportsEndDate]);
 
   // Custom Interactive SVG Line Chart for Sales Trend
   const renderSalesTrendChart = useMemo(() => {
@@ -321,6 +362,7 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
           <button onClick={() => setReportsTab('sales')} className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${reportsTab === 'sales' ? 'bg-primary text-slate-955' : 'text-muted hover:text-gray-700'}`}>Sales Report</button>
           <button onClick={() => setReportsTab('purchases')} className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${reportsTab === 'purchases' ? 'bg-primary text-slate-955' : 'text-muted hover:text-gray-700'}`}>Purchase Summary</button>
           <button onClick={() => setReportsTab('gst')} className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${reportsTab === 'gst' ? 'bg-primary text-slate-955' : 'text-muted hover:text-gray-700'}`}>GST Reports</button>
+          <button onClick={() => setReportsTab('counter')} className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${reportsTab === 'counter' ? 'bg-primary text-slate-955' : 'text-muted hover:text-gray-700'}`}>Counter Analytics</button>
         </div>
       </div>
 
@@ -509,6 +551,247 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* COUNTER REPORT DISPLAY */}
+          {reportsTab === 'counter' && (
+            <div className="space-y-6 animate-fadeIn">
+              {/* Nested Counter Sub-Tabs */}
+              <div className="flex flex-wrap gap-1.5 bg-gray-100 p-1 rounded-xl font-bold max-w-fit select-none">
+                {(['transfers', 'sales', 'collection', 'stock', 'low-stock', 'profit'] as const).map((sub) => (
+                  <button
+                    key={sub}
+                    onClick={() => { setCounterSubTab(sub); setCounterReportData(null); }}
+                    className={`px-3 py-1 rounded-lg text-[10px] uppercase tracking-wider transition-all cursor-pointer ${
+                      counterSubTab === sub ? 'bg-white text-primary shadow-sm' : 'text-gray-550 hover:text-gray-800'
+                    }`}
+                  >
+                    {sub === 'low-stock' ? 'Low Stock' : sub}
+                  </button>
+                ))}
+              </div>
+
+              {counterReportLoading ? (
+                <div className="h-48 flex items-center justify-center text-muted animate-pulse">
+                  <svg className="animate-spin h-5 w-5 text-primary mr-2" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>Loading counter ledger data...</span>
+                </div>
+              ) : counterReportData ? (
+                <div className="space-y-4">
+                  {/* Summary Metric Header */}
+                  {counterSubTab === 'transfers' && (
+                    <div className="grid grid-cols-3 gap-4 bg-white/40 p-4 border border-gray-200 rounded-xl shadow-md">
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Transfers Count</span>
+                        <span className="text-base font-extrabold font-mono text-gray-800">{counterReportData.summary?.totalTransfers}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Strips Transferred</span>
+                        <span className="text-base font-extrabold font-mono text-primary">{counterReportData.summary?.totalStrips} strips</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Individual Units</span>
+                        <span className="text-base font-extrabold font-mono text-emerald-500">{counterReportData.summary?.totalUnits} units</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {counterSubTab === 'sales' && (
+                    <div className="grid grid-cols-2 gap-4 bg-white/40 p-4 border border-gray-200 rounded-xl shadow-md">
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Total Counter Sales</span>
+                        <span className="text-base font-extrabold font-mono text-gray-800">{counterReportData.summary?.totalSales} transactions</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Total Revenue</span>
+                        <span className="text-base font-extrabold font-mono text-primary">₹{counterReportData.summary?.totalCollection.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {counterSubTab === 'collection' && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white/40 p-4 border border-gray-200 rounded-xl shadow-md">
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Cash Collection</span>
+                        <span className="text-base font-extrabold font-mono text-emerald-500">₹{(counterReportData.paymentBreakdown?.CASH || 0).toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">UPI QR Collection</span>
+                        <span className="text-base font-extrabold font-mono text-blue-500">₹{(counterReportData.paymentBreakdown?.UPI || 0).toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Card Swipe Collection</span>
+                        <span className="text-base font-extrabold font-mono text-amber-500">₹{(counterReportData.paymentBreakdown?.CARD || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="border-t md:border-t-0 md:border-l border-gray-200 pt-2 md:pt-0 md:pl-4">
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Total Collection ({counterReportData.date})</span>
+                        <span className="text-base font-extrabold font-mono text-primary">₹{counterReportData.summary?.totalCollection.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {counterSubTab === 'stock' && (
+                    <div className="grid grid-cols-2 gap-4 bg-white/40 p-4 border border-gray-200 rounded-xl shadow-md">
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Distinct Batches at Counter</span>
+                        <span className="text-base font-extrabold font-mono text-gray-800">{counterReportData.summary?.totalItemsCount}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Estimated Loose Stock Value</span>
+                        <span className="text-base font-extrabold font-mono text-primary">₹{counterReportData.summary?.totalStockValue.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {counterSubTab === 'low-stock' && (
+                    <div className="bg-rose-50 border border-rose-200/40 p-4 rounded-xl flex items-center gap-3">
+                      <span className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-500 font-bold font-mono text-lg">
+                        {counterReportData.summary?.lowStockItemsCount}
+                      </span>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Alert Level Triggered</span>
+                        <span className="text-xs font-semibold text-rose-600 block mt-0.5">There are {counterReportData.summary?.lowStockItemsCount} medicines running below minimal counter threshold.</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {counterSubTab === 'profit' && (
+                    <div className="grid grid-cols-3 gap-4 bg-white/40 p-4 border border-gray-200 rounded-xl shadow-md">
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Total Net Revenue</span>
+                        <span className="text-base font-extrabold font-mono text-gray-800">₹{counterReportData.summary?.totalRevenue.toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Total Est. Cost</span>
+                        <span className="text-base font-extrabold font-mono text-amber-600">₹{counterReportData.summary?.totalCost.toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Net Profit</span>
+                        <span className="text-base font-extrabold font-mono text-emerald-500">₹{counterReportData.summary?.totalProfit.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Report Audit Table */}
+                  <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50 uppercase text-[9px] text-gray-500 font-bold border-b border-gray-200">
+                        {counterSubTab === 'transfers' && (
+                          <tr>
+                            <th className="py-2.5 px-4">Medicine</th>
+                            <th className="py-2.5 px-4">Batch</th>
+                            <th className="py-2.5 px-4 text-right">Strips</th>
+                            <th className="py-2.5 px-4 text-right">Units Per Strip</th>
+                            <th className="py-2.5 px-4 text-right">Transferred Units</th>
+                            <th className="py-2.5 px-4">Operator</th>
+                            <th className="py-2.5 px-4">Date</th>
+                          </tr>
+                        )}
+                        {counterSubTab === 'sales' && (
+                          <tr>
+                            <th className="py-2.5 px-4">Invoice #</th>
+                            <th className="py-2.5 px-4">Payment Method</th>
+                            <th className="py-2.5 px-4 text-right">Grand Total</th>
+                            <th className="py-2.5 px-4">Cashier</th>
+                            <th className="py-2.5 px-4">Date</th>
+                          </tr>
+                        )}
+                        {counterSubTab === 'collection' && (
+                          <tr>
+                            <th className="py-2.5 px-4">Invoice #</th>
+                            <th className="py-2.5 px-4">Payment Method</th>
+                            <th className="py-2.5 px-4 text-right">Grand Total</th>
+                            <th className="py-2.5 px-4">Cashier</th>
+                            <th className="py-2.5 px-4">Date</th>
+                          </tr>
+                        )}
+                        {counterSubTab === 'stock' && (
+                          <tr>
+                            <th className="py-2.5 px-4">Medicine</th>
+                            <th className="py-2.5 px-4">Batch</th>
+                            <th className="py-2.5 px-4 text-right">Units Available</th>
+                            <th className="py-2.5 px-4 text-right">Units Per Strip</th>
+                            <th className="py-2.5 px-4">Last Transferred</th>
+                          </tr>
+                        )}
+                        {counterSubTab === 'low-stock' && (
+                          <tr>
+                            <th className="py-2.5 px-4">Medicine</th>
+                            <th className="py-2.5 px-4">Batch</th>
+                            <th className="py-2.5 px-4 text-right">Units Available</th>
+                            <th className="py-2.5 px-4 text-right">Alert Threshold</th>
+                            <th className="py-2.5 px-4">Last Transferred</th>
+                          </tr>
+                        )}
+                        {counterSubTab === 'profit' && (
+                          <tr>
+                            <th className="py-2.5 px-4">Medicine</th>
+                            <th className="py-2.5 px-4 text-right">Units Sold</th>
+                            <th className="py-2.5 px-4 text-right">Total Revenue</th>
+                            <th className="py-2.5 px-4 text-right">Calculated Profit</th>
+                          </tr>
+                        )}
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 text-xs">
+                        {counterSubTab === 'transfers' && counterReportData.items?.map((it: any) => (
+                          <tr key={it.id} className="hover:bg-gray-50/40">
+                            <td className="py-2.5 px-4 font-bold text-gray-800">{it.product?.name}</td>
+                            <td className="py-2.5 px-4 font-mono">{it.batch?.batchNumber}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-gray-700">{it.transferStrips}</td>
+                            <td className="py-2.5 px-4 text-right font-mono">{it.unitsPerStrip}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-primary">{it.transferredUnits}</td>
+                            <td className="py-2.5 px-4 font-semibold">{it.createdBy}</td>
+                            <td className="py-2.5 px-4 text-gray-500">{new Date(it.createdAt).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                        {(counterSubTab === 'sales' || counterSubTab === 'collection') && counterReportData.items?.map((it: any) => (
+                          <tr key={it.id} className="hover:bg-gray-50/40">
+                            <td className="py-2.5 px-4 font-mono font-bold text-primary">{it.invoiceNumber}</td>
+                            <td className="py-2.5 px-4 font-bold">{it.paymentMethod}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-gray-800">₹{it.grandTotal.toFixed(2)}</td>
+                            <td className="py-2.5 px-4 font-semibold">ADMIN</td>
+                            <td className="py-2.5 px-4 text-gray-500">{new Date(it.createdAt).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                        {counterSubTab === 'stock' && counterReportData.items?.map((it: any) => (
+                          <tr key={it.id} className="hover:bg-gray-50/40">
+                            <td className="py-2.5 px-4 font-bold text-gray-800">{it.product?.name}</td>
+                            <td className="py-2.5 px-4 font-mono">{it.batch?.batchNumber}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-gray-700">{it.availableUnits}</td>
+                            <td className="py-2.5 px-4 text-right font-mono">{it.unitsPerStrip}</td>
+                            <td className="py-2.5 px-4 text-gray-500">{new Date(it.createdAt).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                        {counterSubTab === 'low-stock' && counterReportData.items?.map((it: any) => (
+                          <tr key={it.id} className="hover:bg-gray-50/40">
+                            <td className="py-2.5 px-4 font-bold text-gray-800">{it.product?.name}</td>
+                            <td className="py-2.5 px-4 font-mono">{it.batch?.batchNumber}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-rose-500">{it.availableUnits}</td>
+                            <td className="py-2.5 px-4 text-right font-mono text-gray-500">{it.minimumUnits}</td>
+                            <td className="py-2.5 px-4 text-gray-500">{new Date(it.createdAt).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                        {counterSubTab === 'profit' && counterReportData.productMargins?.map((it: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-gray-50/40">
+                            <td className="py-2.5 px-4 font-bold text-gray-800">{it.productName}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-gray-700">{it.quantity}</td>
+                            <td className="py-2.5 px-4 text-right font-mono text-gray-500">₹{it.revenue.toFixed(2)}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-emerald-500">₹{it.profit.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-8 text-center text-gray-400 bg-white/10 border border-dashed border-gray-200 rounded-xl">
+                  Select a report parameter and click generate above.
+                </div>
+              )}
             </div>
           )}
         </div>

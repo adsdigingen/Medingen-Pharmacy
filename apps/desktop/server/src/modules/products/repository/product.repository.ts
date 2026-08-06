@@ -18,6 +18,9 @@ export class ProductRepository extends BaseRepository {
         category: true,
         manufacturer: true,
         supplier: true,
+        batches: {
+          where: { deletedAt: null },
+        },
       },
     });
   }
@@ -33,6 +36,9 @@ export class ProductRepository extends BaseRepository {
         category: true,
         manufacturer: true,
         supplier: true,
+        batches: {
+          where: { deletedAt: null },
+        },
       },
     });
   }
@@ -45,6 +51,9 @@ export class ProductRepository extends BaseRepository {
         category: true,
         manufacturer: true,
         supplier: true,
+        batches: {
+          where: { deletedAt: null },
+        },
       },
     });
   }
@@ -63,6 +72,9 @@ export class ProductRepository extends BaseRepository {
         category: true,
         manufacturer: true,
         supplier: true,
+        batches: {
+          where: { deletedAt: null },
+        },
       },
     });
   }

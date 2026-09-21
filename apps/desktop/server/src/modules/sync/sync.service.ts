@@ -25,14 +25,17 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async initSyncSettings() {
+    const targetUrl = process.env.CLOUD_API_URL || 'https://65.0.176.164';
     const settings = await this.repo.findSyncSettings();
     if (!settings) {
       await this.repo.createSyncSettings({
         id: 'sync_singleton',
-        cloudApiUrl: 'http://localhost:3002',
+        cloudApiUrl: targetUrl,
         syncIntervalMs: 15000, // 15 seconds for snappier offline-first testing
         syncEnabled: true,
       });
+    } else if (process.env.CLOUD_API_URL && settings.cloudApiUrl !== process.env.CLOUD_API_URL) {
+      await this.repo.updateSyncSettings({ cloudApiUrl: process.env.CLOUD_API_URL });
     }
   }
 
@@ -55,8 +58,9 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
 
     // Test internet check
     let internetConnected = false;
+    const targetUrl = settings?.cloudApiUrl || process.env.CLOUD_API_URL || 'https://65.0.176.164';
     try {
-      const res = await fetch(`${settings?.cloudApiUrl || 'http://localhost:3002'}/sync/health`);
+      const res = await fetch(`${targetUrl}/sync/health`);
       if (res.ok) internetConnected = true;
     } catch (e) {
       internetConnected = false;

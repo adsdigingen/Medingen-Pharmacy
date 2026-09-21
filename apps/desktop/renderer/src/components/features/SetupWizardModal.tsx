@@ -32,7 +32,7 @@ export const SetupWizardModal: React.FC<SetupWizardModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Integration
-  const [cloudUrl, setCloudUrl] = useState('http://localhost:3002');
+  const [cloudUrl, setCloudUrl] = useState(process.env.NEXT_PUBLIC_CLOUD_API_URL || 'https://65.0.176.164');
   const [printerType, setPrinterType] = useState('80mm');
 
   const validateStep = () => {

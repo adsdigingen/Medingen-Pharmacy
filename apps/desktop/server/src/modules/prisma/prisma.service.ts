@@ -104,10 +104,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         console.log('[PrismaService] Seeded default System Settings');
 
         // 3. Seed Sync Settings
+        const defaultCloudUrl = process.env.CLOUD_API_URL || 'https://65.0.176.164';
         await this.syncSettings.create({
           data: {
             id: 'sync_singleton',
-            cloudApiUrl: 'http://localhost:3002',
+            cloudApiUrl: defaultCloudUrl,
             syncIntervalMs: 30000,
             syncEnabled: true,
           },

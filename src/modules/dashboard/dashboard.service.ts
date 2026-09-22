@@ -11,9 +11,13 @@ export class DashboardService {
 
   async getStats() {
     const now = new Date();
-    
+
     // Date ranges
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const exp30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -48,7 +52,9 @@ export class DashboardService {
     // 2. Fetch inventories for low stock calculation
     const inventories = await this.repo.findInventories();
 
-    const lowStockCount = inventories.filter((inv) => inv.availableQty <= inv.product.minStockLevel).length;
+    const lowStockCount = inventories.filter(
+      (inv) => inv.availableQty <= inv.product.minStockLevel,
+    ).length;
 
     // 3. Pending Purchase Orders count
     const pendingPoCount = await this.repo.countPendingPurchaseOrders();
@@ -94,7 +100,7 @@ export class DashboardService {
 
     // 6. Low stock products (top 10 lowest relative to minimum level)
     const lowStockInventories = await this.repo.findInventories();
-    
+
     const lowStockList = lowStockInventories
       .filter((inv) => inv.availableQty <= inv.product.minStockLevel)
       .slice(0, 10)
@@ -116,7 +122,10 @@ export class DashboardService {
     const trendData = await Promise.all(
       last7Days.map(async (dayDate) => {
         const nextDay = new Date(dayDate.getTime() + 24 * 60 * 60 * 1000);
-        const dayOrders = await this.repo.findPurchaseOrdersInDateRange(dayDate, nextDay);
+        const dayOrders = await this.repo.findPurchaseOrdersInDateRange(
+          dayDate,
+          nextDay,
+        );
 
         let totalVal = 0;
         dayOrders.forEach((o: any) => {
@@ -126,10 +135,14 @@ export class DashboardService {
         });
 
         return {
-          date: dayDate.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' }),
+          date: dayDate.toLocaleDateString([], {
+            weekday: 'short',
+            month: 'numeric',
+            day: 'numeric',
+          }),
           amount: totalVal,
         };
-      })
+      }),
     );
 
     // 8. Category Distribution
@@ -154,11 +167,11 @@ export class DashboardService {
 
     // 9. Fetch Counter Statistics
     const counterItems = await this.prisma.counterInventory.findMany({
-      include: { batch: true }
+      include: { batch: true },
     });
     let counterStockValue = 0;
     let lowCounterStockCount = 0;
-    counterItems.forEach(it => {
+    counterItems.forEach((it) => {
       if (it.batch) {
         const unitCost = it.batch.purchasePrice / it.unitsPerStrip;
         counterStockValue += it.availableUnits * unitCost;
@@ -177,19 +190,20 @@ export class DashboardService {
           include: {
             batch: {
               include: {
-                counterInventory: true
-              }
-            }
-          }
-        }
-      }
+                counterInventory: true,
+              },
+            },
+          },
+        },
+      },
     });
     let todayCounterSales = 0;
     let todayCounterProfit = 0;
-    todayCounterSalesList.forEach(sale => {
+    todayCounterSalesList.forEach((sale) => {
       todayCounterSales += sale.grandTotal;
-      sale.items.forEach(item => {
-        const unitsPerStrip = item.batch?.counterInventory?.[0]?.unitsPerStrip || 10;
+      sale.items.forEach((item) => {
+        const unitsPerStrip =
+          item.batch?.counterInventory?.[0]?.unitsPerStrip || 10;
         const costPerUnit = (item.batch?.purchasePrice || 0) / unitsPerStrip;
         const itemCost = item.quantity * costPerUnit;
         todayCounterProfit += item.total - itemCost;
@@ -219,7 +233,7 @@ export class DashboardService {
           name: product?.name || 'Unknown',
           quantity: item._sum.quantity || 0,
         };
-      })
+      }),
     );
 
     return {

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { DrugScheduleRegisterRepository } from './repository/drug-schedule-register.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { VerifyRegisterDto } from './dto/verify-register.dto';
@@ -15,7 +19,6 @@ export class DrugScheduleRegisterService {
 
   // Drug register creation is now handled inside BillingService.$transaction
   // (step 9 of executeCheckout) to guarantee atomicity. No event listener needed.
-
 
   async findAll(query: {
     search?: string;
@@ -109,7 +112,9 @@ export class DrugScheduleRegisterService {
     });
 
     if (!entry) {
-      throw new NotFoundException(`Drug register log with ID "${id}" not found.`);
+      throw new NotFoundException(
+        `Drug register log with ID "${id}" not found.`,
+      );
     }
 
     return entry;
@@ -174,7 +179,9 @@ export class DrugScheduleRegisterService {
 
   async printRegister(ids: string[], username: string) {
     if (!ids || ids.length === 0) {
-      throw new BadRequestException('No register entries specified for printing.');
+      throw new BadRequestException(
+        'No register entries specified for printing.',
+      );
     }
 
     const printedRecords = [];
@@ -218,7 +225,8 @@ export class DrugScheduleRegisterService {
       where: { id: 'singleton' },
     });
     const storeName = 'MEDINGEN PHARMACY';
-    let address = settings?.address || 'No. 12, GST Road, Guindy, Chennai 600032';
+    let address =
+      settings?.address || 'No. 12, GST Road, Guindy, Chennai 600032';
     if (address.includes('(Drug Lic:')) {
       address = address.split('(Drug Lic:')[0].trim();
     }
@@ -281,24 +289,27 @@ export class DrugScheduleRegisterService {
         : 'All Records';
 
     // Fetch expiry dates for all items in a single bulk lookup
-    const productIds = Array.from(new Set(items.map(it => it.productId)));
-    const batchNumbers = Array.from(new Set(items.map(it => it.batchNumber)));
+    const productIds = Array.from(new Set(items.map((it) => it.productId)));
+    const batchNumbers = Array.from(new Set(items.map((it) => it.batchNumber)));
     const dbBatches = await this.prisma.batch.findMany({
       where: {
         productId: { in: productIds },
-        batchNumber: { in: batchNumbers }
+        batchNumber: { in: batchNumbers },
       },
       select: {
         productId: true,
         batchNumber: true,
-        expiryDate: true
-      }
+        expiryDate: true,
+      },
     });
 
     const expiryLookup: Record<string, string> = {};
     for (const b of dbBatches) {
       const key = `${b.productId}_${b.batchNumber}`;
-      const expDate = new Date(b.expiryDate).toLocaleDateString('en-GB', { month: '2-digit', year: 'numeric' });
+      const expDate = new Date(b.expiryDate).toLocaleDateString('en-GB', {
+        month: '2-digit',
+        year: 'numeric',
+      });
       expiryLookup[key] = expDate;
     }
 
@@ -323,32 +334,55 @@ export class DrugScheduleRegisterService {
         const sigHtml = item.signatureImage
           ? `<img src="${item.signatureImage}" style="height: 25px; max-width: 100px; object-fit: contain;" />`
           : '';
-        
+
         // Build rows of medicines within this invoice box row
-        const medicineDetailsHtml = item.medicines.map((m: any, idx: number) => {
-          const borderStyle = idx > 0 ? 'border-top: 1px dashed #eee; margin-top: 4px; padding-top: 4px;' : '';
-          return `<div style="${borderStyle}"><strong>${m.product.name}</strong><br/><small style="color:#555;">Generic: ${m.product.genericName || 'N/A'}</small></div>`;
-        }).join('');
+        const medicineDetailsHtml = item.medicines
+          .map((m: any, idx: number) => {
+            const borderStyle =
+              idx > 0
+                ? 'border-top: 1px dashed #eee; margin-top: 4px; padding-top: 4px;'
+                : '';
+            return `<div style="${borderStyle}"><strong>${m.product.name}</strong><br/><small style="color:#555;">Generic: ${m.product.genericName || 'N/A'}</small></div>`;
+          })
+          .join('');
 
-        const scheduleHtml = Array.from(new Set(item.medicines.map((m: any) => m.scheduleType.replace('Schedule ', '')))).join(', ');
+        const scheduleHtml = Array.from(
+          new Set(
+            item.medicines.map((m: any) =>
+              m.scheduleType.replace('Schedule ', ''),
+            ),
+          ),
+        ).join(', ');
 
-        const batchHtml = item.medicines.map((m: any, idx: number) => {
-          const borderStyle = idx > 0 ? 'border-top: 1px dashed #eee; margin-top: 4px; padding-top: 4px;' : '';
-          const lookupKey = `${m.productId}_${m.batchNumber}`;
-          const expStr = expiryLookup[lookupKey] ? `Exp: ${expiryLookup[lookupKey]}` : 'Exp: N/A';
-          return `
+        const batchHtml = item.medicines
+          .map((m: any, idx: number) => {
+            const borderStyle =
+              idx > 0
+                ? 'border-top: 1px dashed #eee; margin-top: 4px; padding-top: 4px;'
+                : '';
+            const lookupKey = `${m.productId}_${m.batchNumber}`;
+            const expStr = expiryLookup[lookupKey]
+              ? `Exp: ${expiryLookup[lookupKey]}`
+              : 'Exp: N/A';
+            return `
             <div style="${borderStyle}">
               <strong>${m.batchNumber}</strong>
               <div style="font-size: 8px; color: #666; margin-top: 1px;">${expStr}</div>
             </div>
           `;
-        }).join('');
+          })
+          .join('');
 
-        const quantityHtml = item.medicines.map((m: any, idx: number) => {
-          const borderStyle = idx > 0 ? 'border-top: 1px dashed #eee; margin-top: 4px; padding-top: 4px;' : '';
-          return `<div style="${borderStyle}">${m.quantity}</div>`;
-        }).join('');
-        
+        const quantityHtml = item.medicines
+          .map((m: any, idx: number) => {
+            const borderStyle =
+              idx > 0
+                ? 'border-top: 1px dashed #eee; margin-top: 4px; padding-top: 4px;'
+                : '';
+            return `<div style="${borderStyle}">${m.quantity}</div>`;
+          })
+          .join('');
+
         return `
         <tr>
           <td>${item.bill.billNumber}</td>

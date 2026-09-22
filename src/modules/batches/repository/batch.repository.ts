@@ -19,7 +19,12 @@ export class BatchRepository extends BaseRepository {
     return this.prisma.batch.findFirst(args);
   }
 
-  async findMany(args: { where: any; skip?: number; take?: number; orderBy?: any }) {
+  async findMany(args: {
+    where: any;
+    skip?: number;
+    take?: number;
+    orderBy?: any;
+  }) {
     return this.prisma.batch.findMany({
       ...args,
       include: { product: true },

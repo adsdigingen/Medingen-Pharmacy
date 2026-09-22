@@ -65,7 +65,12 @@ export class ProductRepository extends BaseRepository {
     return this.prisma.product.count({ where: args });
   }
 
-  async findMany(args: { where: any; skip?: number; take?: number; orderBy?: any }) {
+  async findMany(args: {
+    where: any;
+    skip?: number;
+    take?: number;
+    orderBy?: any;
+  }) {
     return this.prisma.product.findMany({
       ...args,
       include: {

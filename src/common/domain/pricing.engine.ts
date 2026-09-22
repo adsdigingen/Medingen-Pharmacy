@@ -12,7 +12,10 @@ export class PricingEngine {
     return ((sellingPrice - purchasePrice) / purchasePrice) * 100;
   }
 
-  calculateSellingPriceFromMargin(purchasePrice: number, targetMarginPercentage: number): number {
+  calculateSellingPriceFromMargin(
+    purchasePrice: number,
+    targetMarginPercentage: number,
+  ): number {
     if (targetMarginPercentage >= 100) return purchasePrice;
     return purchasePrice / (1 - targetMarginPercentage / 100);
   }

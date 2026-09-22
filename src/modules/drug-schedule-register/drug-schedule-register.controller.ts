@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Request, Res, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+  Res,
+  HttpStatus,
+} from '@nestjs/common';
 import * as express from 'express';
 import { DrugScheduleRegisterService } from './drug-schedule-register.service';
 import { VerifyRegisterDto } from './dto/verify-register.dto';
@@ -90,10 +101,7 @@ export class DrugScheduleRegisterController {
 
   @Post('print')
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
-  printRegister(
-    @Body() body: { ids: string[] },
-    @Request() req: any,
-  ) {
+  printRegister(@Body() body: { ids: string[] }, @Request() req: any) {
     return this.service.printRegister(body.ids, req.user?.username || 'SYSTEM');
   }
 }

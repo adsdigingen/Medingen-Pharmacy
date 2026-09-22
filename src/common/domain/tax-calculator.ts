@@ -6,11 +6,19 @@ export class TaxCalculator {
     return taxableAmount * (gstPercentage / 100);
   }
 
-  calculateTaxInclusiveAmount(taxableAmount: number, gstPercentage: number): number {
-    return taxableAmount + this.calculateTaxAmount(taxableAmount, gstPercentage);
+  calculateTaxInclusiveAmount(
+    taxableAmount: number,
+    gstPercentage: number,
+  ): number {
+    return (
+      taxableAmount + this.calculateTaxAmount(taxableAmount, gstPercentage)
+    );
   }
 
-  extractTaxFromInclusiveAmount(inclusiveAmount: number, gstPercentage: number) {
+  extractTaxFromInclusiveAmount(
+    inclusiveAmount: number,
+    gstPercentage: number,
+  ) {
     const taxableAmount = inclusiveAmount / (1 + gstPercentage / 100);
     const taxAmount = inclusiveAmount - taxableAmount;
     return {

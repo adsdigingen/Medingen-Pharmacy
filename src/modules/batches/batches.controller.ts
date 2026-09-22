@@ -1,4 +1,12 @@
-import { Controller, Get, Body, Put, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Body,
+  Put,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { BatchesService } from './batches.service';
 import { UpdateBatchDto } from './dto/update-batch.dto';
 import { AuthGuard } from '../../common/guards/auth.guard';

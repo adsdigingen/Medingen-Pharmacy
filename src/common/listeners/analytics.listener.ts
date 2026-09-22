@@ -7,11 +7,15 @@ export class AnalyticsListener {
 
   @OnEvent('bill.created')
   handleBillCreated(event: any) {
-    this.logger.log(`Analytics updated: sales data recorded for bill #${event.billNumber}`);
+    this.logger.log(
+      `Analytics updated: sales data recorded for bill #${event.billNumber}`,
+    );
   }
 
   @OnEvent('purchase-order.received')
   handlePurchaseReceived(event: any) {
-    this.logger.log(`Analytics updated: purchase stock value recorded for PO #${event.poNumber}`);
+    this.logger.log(
+      `Analytics updated: purchase stock value recorded for PO #${event.poNumber}`,
+    );
   }
 }

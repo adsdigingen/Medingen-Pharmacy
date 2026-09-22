@@ -1,4 +1,4 @@
-import { Module, OnApplicationBootstrap, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './modules/prisma/prisma.module';
@@ -21,7 +21,6 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { DrugScheduleRegisterModule } from './modules/drug-schedule-register/drug-schedule-register.module';
 import { CounterModule } from './modules/counter/counter.module';
-import { PrismaService } from './modules/prisma/prisma.service';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { DomainModule } from './common/domain/domain.module';
@@ -62,42 +61,8 @@ import { DiagnosticsModule } from './modules/diagnostics/diagnostics.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule implements NestModule, OnApplicationBootstrap {
-  constructor(private readonly prisma: PrismaService) {}
-
+export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(RequestIdMiddleware).forRoutes('*');
   }
-
-  async onApplicationBootstrap() {
-    try {
-      const count = await this.prisma.category.count();
-      if (count === 0) {
-        console.log('Seeding default categories on startup...');
-        const defaultCategories = [
-          'Tablet',
-          'Capsule',
-          'Syrup',
-          'Injection',
-          'Drops',
-          'Cream',
-          'Powder',
-          'Medical Device',
-          'Surgical Item',
-          'Others'
-        ];
-        for (const name of defaultCategories) {
-          await this.prisma.category.upsert({
-            where: { name },
-            update: {},
-            create: { name, status: true },
-          });
-        }
-        console.log('Default categories seeded.');
-      }
-    } catch (err) {
-      console.error('Failed to run startup category seeding:', err.message);
-    }
-  }
 }
-

@@ -1,4 +1,10 @@
-import { IsString, IsInt, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+} from 'class-validator';
 
 export class AdjustCounterDto {
   @IsString()

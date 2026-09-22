@@ -12,10 +12,19 @@ export class BatchAllocationService {
   /**
    * Sorts and selects batches based on FEFO (First Expiring First Out).
    */
-  allocateBatches(batches: AllocatableBatch[], requestedQty: number): Array<{ batchId: string; batchNumber: string; allocatedQty: number }> {
-    const sorted = [...batches].sort((a, b) => a.expiryDate.getTime() - b.expiryDate.getTime());
+  allocateBatches(
+    batches: AllocatableBatch[],
+    requestedQty: number,
+  ): Array<{ batchId: string; batchNumber: string; allocatedQty: number }> {
+    const sorted = [...batches].sort(
+      (a, b) => a.expiryDate.getTime() - b.expiryDate.getTime(),
+    );
     let remaining = requestedQty;
-    const allocation: Array<{ batchId: string; batchNumber: string; allocatedQty: number }> = [];
+    const allocation: Array<{
+      batchId: string;
+      batchNumber: string;
+      allocatedQty: number;
+    }> = [];
 
     for (const batch of sorted) {
       if (remaining <= 0) break;
@@ -31,7 +40,9 @@ export class BatchAllocationService {
     }
 
     if (remaining > 0) {
-      throw new Error(`Insufficient stock available to allocate the complete quantity of ${requestedQty}.`);
+      throw new Error(
+        `Insufficient stock available to allocate the complete quantity of ${requestedQty}.`,
+      );
     }
 
     return allocation;

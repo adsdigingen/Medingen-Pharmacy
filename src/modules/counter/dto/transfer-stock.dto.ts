@@ -1,4 +1,10 @@
-import { IsString, IsInt, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
 
 export class TransferStockDto {
   @IsString()

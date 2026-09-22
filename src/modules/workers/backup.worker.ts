@@ -18,7 +18,7 @@ export class BackupWorker extends BaseWorker {
   protected async run(): Promise<void> {
     const backupData = await this.maintenanceService.backupDatabase();
     const backupDir = path.join(process.cwd(), 'backups');
-    
+
     // Ensure backups directory exists
     await fs.mkdir(backupDir, { recursive: true });
 

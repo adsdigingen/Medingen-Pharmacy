@@ -1,58 +1,40 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
+  private readonly logger = new Logger(PrismaService.name);
+
   constructor() {
     super({
-      log: ['info', 'warn', 'error'],
+      log: ['warn', 'error'],
     });
   }
 
-  async onModuleInit() {
-    await this.$connect();
-
-    // Run automatic seeding if database is empty (0 users)
+  async onModuleInit(): Promise<void> {
     try {
-      const userCount = await this.user.count();
-      if (userCount === 0) {
-        console.log('[PrismaService] Clean database detected. Running automatic database seeding...');
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash('Admin@123', salt);
-
-        // 1. Seed Administrator User
-        await this.user.create({
-          data: {
-            username: 'admin',
-            passwordHash: passwordHash,
-            role: 'ADMIN',
-            status: true,
-          },
-        });
-        console.log('[PrismaService] Seeded default Administrator user: admin / Admin@123');
-
-        // 2. Seed System Settings
-        await this.systemSettings.create({
-          data: {
-            id: 'singleton',
-            storeName: 'Medingen Pharmacy',
-            invoicePrefix: 'BILL-',
-            poPrefix: 'PO-',
-            printerType: '80mm',
-            backupInterval: 'DAILY',
-          },
-        });
-        console.log('[PrismaService] Seeded default System Settings');
-        console.log('[PrismaService] Database seeding completed successfully.');
-      }
-    } catch (err: any) {
-      console.error('[PrismaService] Database automatic seeding failed:', err.message);
+      await this.$connect();
+      this.logger.log('PostgreSQL connected successfully.');
+    } catch (error: any) {
+      this.logger.error(`PostgreSQL connection failed: ${error.message}`);
+      throw error;
     }
   }
 
-  async onModuleDestroy() {
-    await this.$disconnect();
+  async onModuleDestroy(): Promise<void> {
+    try {
+      await this.$disconnect();
+      this.logger.log('PostgreSQL connection closed.');
+    } catch (error: any) {
+      this.logger.error(`Error disconnecting PostgreSQL: ${error.message}`);
+    }
   }
 }
-

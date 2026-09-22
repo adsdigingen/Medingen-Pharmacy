@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Param, Body, NotFoundException, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  NotFoundException,
+  UseGuards,
+} from '@nestjs/common';
 import { WorkerRegistry } from './worker-registry';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -14,7 +22,7 @@ export class WorkersController {
   @Get('status')
   getStatus() {
     const workers = this.registry.getAllWorkers();
-    return workers.map(w => ({
+    return workers.map((w) => ({
       name: w.name,
       enabled: w.enabled,
       isExecuting: w.isExecuting,
@@ -43,7 +51,10 @@ export class WorkersController {
   }
 
   @Post(':name/toggle')
-  toggleWorker(@Param('name') name: string, @Body() body: { enabled: boolean }) {
+  toggleWorker(
+    @Param('name') name: string,
+    @Body() body: { enabled: boolean },
+  ) {
     const worker = this.registry.getWorker(name);
     if (!worker) {
       throw new NotFoundException(`Worker with name "${name}" not found.`);

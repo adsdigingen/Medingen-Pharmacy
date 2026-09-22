@@ -108,7 +108,12 @@ export class BillingRepository extends BaseRepository {
     });
   }
 
-  async findManyBills(args: { where: any; skip?: number; take?: number; orderBy?: any }) {
+  async findManyBills(args: {
+    where: any;
+    skip?: number;
+    take?: number;
+    orderBy?: any;
+  }) {
     return this.prisma.bill.findMany({
       ...args,
       include: {

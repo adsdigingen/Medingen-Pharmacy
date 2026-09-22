@@ -1,34 +1,33 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ['warn', 'error'],
+});
 
-// Helper to manually parse and load .env files to process.env
+// Helper to manually parse and load .env files if present locally
 function loadEnv(envPath: string) {
   if (fs.existsSync(envPath)) {
     try {
       const envConfig = fs.readFileSync(envPath, 'utf-8');
       for (const line of envConfig.split(/\r?\n/)) {
         const trimmed = line.trim();
-        // Skip comments and empty lines
         if (trimmed && !trimmed.startsWith('#')) {
           const firstEqual = trimmed.indexOf('=');
           if (firstEqual > 0) {
             const key = trimmed.substring(0, firstEqual).trim();
             let val = trimmed.substring(firstEqual + 1).trim();
-            // Remove wrapping single or double quotes
             val = val.replace(/^['"]|['"]$/g, '');
-            // Only set if not already defined in process.env
             if (!(key in process.env)) {
               process.env[key] = val;
             }
           }
         }
       }
-    } catch (e) {
-      console.warn(`Warning: Failed to load env file from ${envPath}`, e);
+    } catch {
+      // Ignored - rely on ambient process.env
     }
   }
 }
@@ -39,95 +38,43 @@ loadEnv(path.join(__dirname, '../.env'));
 
 async function main() {
   console.log('\n=========================================');
-  console.log('Medingen Pharmacy ERP Database Seeding');
+  console.log('Medingen Pharmacy - Explicit Database Seed');
   console.log('=========================================\n');
 
-  const seedUserOnly = process.env.SEED_USER_ONLY === 'true';
-
-  if (seedUserOnly) {
-    console.log('SEED_USER_ONLY is set to true. Clearing all data in the database...\n');
-    const tableNames = [
-      'users',
-      'categories',
-      'manufacturers',
-      'suppliers',
-      'customers',
-      'products',
-      'batches',
-      'inventories',
-      'stock_ledgers',
-      'stock_adjustments',
-      'purchase_orders',
-      'purchase_order_items',
-      'purchase_returns',
-      'purchase_return_items',
-      'bills',
-      'bill_items',
-      'payments',
-      'hold_bills',
-      'hold_bill_items',
-      'audit_logs',
-      'system_settings',
-      'license_info',
-      'error_logs',
-      'notifications',
-      'supplier_mappings',
-      'drug_schedule_registers',
-      'doctors'
-    ];
-
-    for (const tableName of tableNames) {
-      try {
-        await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tableName}" CASCADE;`);
-        console.log(`Truncated table: ${tableName}`);
-      } catch (err: any) {
-        console.warn(`Warning: Could not truncate table ${tableName}: ${err.message}`);
-      }
-    }
-    console.log('\nAll data cleared successfully.');
-  }
-
-  // 1. Seed default Administrator user
-  console.log('Creating Administrator...');
+  // 1. Seed Initial Administrator User (if configured)
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+  const adminPassword = process.env.ADMIN_PASSWORD;
 
   const existingAdmin = await prisma.user.findUnique({
-    where: { username: 'admin' },
+    where: { username: adminUsername },
   });
 
   if (existingAdmin) {
-    console.log('\nAdministrator already exists.');
-    console.log('Username : admin');
-    console.log('Skipping creation.\n');
-  } else {
-    // Generate bcrypt hash with 10 salt rounds
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash('Admin@123', salt);
+    console.log(`[Seed] Administrator "${adminUsername}" already exists. Skipping user creation.`);
+  } else if (adminPassword) {
+    if (adminPassword.length < 8) {
+      throw new Error('ADMIN_PASSWORD must be at least 8 characters long.');
+    }
+    const salt = await bcrypt.genSalt(12);
+    const passwordHash = await bcrypt.hash(adminPassword, salt);
 
     await prisma.user.create({
       data: {
-        username: 'admin',
-        passwordHash: passwordHash,
-        role: 'ADMIN',
+        username: adminUsername,
+        passwordHash,
+        role: Role.ADMIN,
         status: true,
       },
     });
-
-    console.log('\n✓ Administrator Created Successfully');
-    console.log('Username : admin');
-    console.log('Role     : ADMIN\n');
+    console.log(`[Seed] Successfully created administrator: "${adminUsername}" (Role: ADMIN)`);
+  } else {
+    console.log(
+      `[Seed] Notice: No administrator found and ADMIN_PASSWORD environment variable was not provided.\n` +
+      `       To initialize an administrator, run with ADMIN_PASSWORD="your-secure-password" npm run db:seed`
+    );
   }
 
-  if (seedUserOnly) {
-    console.log('\n=========================================');
-    console.log('Database Seeding Completed (USER ONLY MODE)');
-    console.log('=========================================');
-    console.log('\n✔ Administrator account: admin / Admin@123');
-    console.log('✔ All other tables cleared');
-    console.log('✔ System settings skipped as requested\n');
-    return;
-  }
-
-  // 2. Seed default System Settings (singleton)
+  // 2. Seed Default System Settings (Idempotent Singleton)
   const existingSettings = await prisma.systemSettings.findUnique({
     where: { id: 'singleton' },
   });
@@ -147,25 +94,52 @@ async function main() {
         defaultRetailDiscount: 0.0,
       },
     });
-    console.log('✓ Default System Settings Created');
+    console.log('[Seed] Default System Settings initialized.');
   } else {
-    console.log('✓ System Settings already exist. Skipping.');
+    console.log('[Seed] System Settings already initialized. Skipping.');
+  }
+
+  // 3. Seed Default Categories (Idempotent)
+  const defaultCategories = [
+    'Tablet',
+    'Capsule',
+    'Syrup',
+    'Injection',
+    'Drops',
+    'Cream',
+    'Powder',
+    'Medical Device',
+    'Surgical Item',
+    'Others',
+  ];
+
+  let seededCategoryCount = 0;
+  for (const name of defaultCategories) {
+    const existingCat = await prisma.category.findUnique({ where: { name } });
+    if (!existingCat) {
+      await prisma.category.create({
+        data: { name, status: true },
+      });
+      seededCategoryCount++;
+    }
+  }
+
+  if (seededCategoryCount > 0) {
+    console.log(`[Seed] Seeded ${seededCategoryCount} standard medicine categories.`);
+  } else {
+    console.log('[Seed] Standard medicine categories already present. Skipping.');
   }
 
   console.log('\n=========================================');
-  console.log('Database Seeding Completed Successfully');
-  console.log('=========================================');
-  console.log('\n✔ Administrator account: admin / Admin@123');
-  console.log('✔ System configuration initialized');
-  console.log('✔ Ready for operation\n');
+  console.log('Database Seeding Completed Safely');
+  console.log('=========================================\n');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('[Seed Error]', e.message || e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
   });
-

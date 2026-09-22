@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersManagementService } from './users-management.service';
 import { CreateUserDto, UpdateUserDto, LoginDto } from './dto/create-user.dto';
 import { AuthGuard } from '../../common/guards/auth.guard';
@@ -23,10 +33,7 @@ export class UsersManagementController {
   }
 
   @Get()
-  findAll(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
+  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
     return this.usersService.findAll({
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
@@ -34,10 +41,7 @@ export class UsersManagementController {
   }
 
   @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto);
   }
 
@@ -46,4 +50,3 @@ export class UsersManagementController {
     return this.usersService.remove(id);
   }
 }
-

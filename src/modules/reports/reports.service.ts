@@ -9,8 +9,14 @@ export class ReportsService {
     private readonly repo: ReportRepository,
   ) {}
 
-  async getSalesReport(query: { startDate?: string; endDate?: string; paymentMethod?: string }) {
-    const start = query.startDate ? new Date(query.startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  async getSalesReport(query: {
+    startDate?: string;
+    endDate?: string;
+    paymentMethod?: string;
+  }) {
+    const start = query.startDate
+      ? new Date(query.startDate)
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const end = query.endDate ? new Date(query.endDate) : new Date();
 
     const where: any = {
@@ -29,8 +35,14 @@ export class ReportsService {
     let totalGst = 0;
     let totalDiscount = 0;
     let totalProfit = 0;
-    
-    const paymentBreakdown: Record<string, number> = { CASH: 0, UPI: 0, CARD: 0, MIXED: 0, CREDIT: 0 };
+
+    const paymentBreakdown: Record<string, number> = {
+      CASH: 0,
+      UPI: 0,
+      CARD: 0,
+      MIXED: 0,
+      CREDIT: 0,
+    };
 
     bills.forEach((b) => {
       totalRevenue += b.netAmount;
@@ -53,7 +65,7 @@ export class ReportsService {
         profit: totalProfit,
       },
       paymentBreakdown,
-      items: bills.map(b => ({
+      items: bills.map((b) => ({
         id: b.id,
         billNumber: b.billNumber,
         customerName: b.customer?.name || 'Walk-in',
@@ -64,8 +76,14 @@ export class ReportsService {
     };
   }
 
-  async getPurchaseReport(query: { supplierId?: string; startDate?: string; endDate?: string }) {
-    const start = query.startDate ? new Date(query.startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  async getPurchaseReport(query: {
+    supplierId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const start = query.startDate
+      ? new Date(query.startDate)
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const end = query.endDate ? new Date(query.endDate) : new Date();
 
     const where: any = {
@@ -82,7 +100,7 @@ export class ReportsService {
     let totalCost = 0;
     pos.forEach((po) => {
       let poCost = 0;
-      po.items.forEach(it => poCost += it.totalAmount);
+      po.items.forEach((it) => (poCost += it.totalAmount));
       totalCost += poCost;
     });
 
@@ -90,9 +108,9 @@ export class ReportsService {
       filters: { start, end },
       totalPurchaseOrders: pos.length,
       totalCost,
-      items: pos.map(po => {
+      items: pos.map((po) => {
         let amount = 0;
-        po.items.forEach(it => amount += it.totalAmount);
+        po.items.forEach((it) => (amount += it.totalAmount));
         return {
           id: po.id,
           poNumber: po.poNumber,
@@ -118,7 +136,7 @@ export class ReportsService {
     batches.forEach((b) => {
       totalStockValue += b.availableQty * b.purchasePrice;
       if (b.availableQty > 0) activeItemsCount++;
-      
+
       // Dead Stock validation: no sales logged in last 90 days
       if (b.availableQty > 0 && b.createdAt < threeMonthsAgo) {
         deadStockCount++;
@@ -135,7 +153,9 @@ export class ReportsService {
   }
 
   async getGstReport(query: { startDate?: string; endDate?: string }) {
-    const start = query.startDate ? new Date(query.startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const start = query.startDate
+      ? new Date(query.startDate)
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const end = query.endDate ? new Date(query.endDate) : new Date();
 
     // Taxable Sales totals
@@ -165,7 +185,8 @@ export class ReportsService {
 
     pos.forEach((po) => {
       po.items.forEach((item) => {
-        const gst = item.totalAmount * (item.gstPercentage / (100 + item.gstPercentage));
+        const gst =
+          item.totalAmount * (item.gstPercentage / (100 + item.gstPercentage));
         inputGst += gst;
         taxablePurchases += item.totalAmount - gst;
       });

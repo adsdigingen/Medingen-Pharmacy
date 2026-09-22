@@ -13,7 +13,10 @@ export class PrintController {
     @Param('billId') billId: string,
     @Query('width') width?: '58mm' | '80mm' | '150x95mm',
   ) {
-    const text = await this.printService.generateReceiptText(billId, width || '80mm');
+    const text = await this.printService.generateReceiptText(
+      billId,
+      width || '80mm',
+    );
     return { text };
   }
 }

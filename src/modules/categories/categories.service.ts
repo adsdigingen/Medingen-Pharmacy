@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -29,7 +33,9 @@ export class CategoriesService {
           },
         });
       }
-      throw new ConflictException(`Category with name "${name}" already exists.`);
+      throw new ConflictException(
+        `Category with name "${name}" already exists.`,
+      );
     }
 
     return this.prisma.category.create({
@@ -41,7 +47,12 @@ export class CategoriesService {
     });
   }
 
-  async findAll(query: { search?: string; status?: string; page?: number; limit?: number }) {
+  async findAll(query: {
+    search?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 10);
     const skip = (page - 1) * limit;
@@ -105,7 +116,9 @@ export class CategoriesService {
       });
 
       if (existing) {
-        throw new ConflictException(`Category with name "${name}" already exists.`);
+        throw new ConflictException(
+          `Category with name "${name}" already exists.`,
+        );
       }
       category.name = name;
     }

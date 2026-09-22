@@ -3,11 +3,13 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class JwtService {
-  // Use a stable secret from env — a random secret would invalidate all tokens on every server restart
-  private static readonly secret: string =
-    process.env.JWT_SECRET ||
-    'medingen-pharmacy-local-jwt-secret-key-2024-stable';
-
+  private static get secret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT_SECRET environment variable is not defined.');
+    }
+    return secret;
+  }
 
   /**
    * Signs a payload into a JWT HS256 token.
@@ -20,7 +22,9 @@ export class JwtService {
 
     const exp = Math.floor(Date.now() / 1000) + expiresInSeconds;
     const fullPayload = { ...payload, exp };
-    const payloadB64 = Buffer.from(JSON.stringify(fullPayload)).toString('base64url');
+    const payloadB64 = Buffer.from(JSON.stringify(fullPayload)).toString(
+      'base64url',
+    );
 
     const signature = crypto
       .createHmac('sha256', this.secret)
@@ -53,8 +57,10 @@ export class JwtService {
     }
 
     try {
-      const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
-      
+      const payload = JSON.parse(
+        Buffer.from(payloadB64, 'base64url').toString('utf8'),
+      );
+
       // Check expiration
       if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) {
         return null; // Token expired

@@ -9,7 +9,14 @@ export class AuditLogsService {
     private readonly repo: AuditRepository,
   ) {}
 
-  async log(userId: string | null, username: string | null, module: string, action: string, device: string | null, details: string | null) {
+  async log(
+    userId: string | null,
+    username: string | null,
+    module: string,
+    action: string,
+    device: string | null,
+    details: string | null,
+  ) {
     return this.repo.create({
       userId,
       username,
@@ -20,7 +27,13 @@ export class AuditLogsService {
     });
   }
 
-  async findAll(query: { search?: string; module?: string; action?: string; page?: number; limit?: number }) {
+  async findAll(query: {
+    search?: string;
+    module?: string;
+    action?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 15);
     const skip = (page - 1) * limit;

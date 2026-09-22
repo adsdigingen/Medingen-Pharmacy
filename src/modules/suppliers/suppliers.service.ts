@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
@@ -42,7 +46,9 @@ export class SuppliersService {
           updatedAt: new Date(),
         });
       }
-      throw new ConflictException(`Supplier with name "${name}" already exists.`);
+      throw new ConflictException(
+        `Supplier with name "${name}" already exists.`,
+      );
     }
 
     return this.repo.create({
@@ -64,7 +70,12 @@ export class SuppliersService {
     });
   }
 
-  async findAll(query: { search?: string; status?: string; page?: number; limit?: number }) {
+  async findAll(query: {
+    search?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 10);
     const skip = (page - 1) * limit;
@@ -131,7 +142,9 @@ export class SuppliersService {
       });
 
       if (existing) {
-        throw new ConflictException(`Supplier with name "${name}" already exists.`);
+        throw new ConflictException(
+          `Supplier with name "${name}" already exists.`,
+        );
       }
       supplier.name = name;
     }
@@ -147,19 +160,52 @@ export class SuppliersService {
 
     return this.repo.update(id, {
       name: supplier.name,
-      gstin: updateSupplierDto.gstin !== undefined ? updateSupplierDto.gstin : supplier.gstin,
-      contactPerson: updateSupplierDto.contactPerson !== undefined ? updateSupplierDto.contactPerson : supplier.contactPerson,
-      phone: updateSupplierDto.phone !== undefined ? updateSupplierDto.phone : supplier.phone,
-      email: updateSupplierDto.email !== undefined ? updateSupplierDto.email : supplier.email,
-      address: updateSupplierDto.address !== undefined ? updateSupplierDto.address : supplier.address,
-      city: updateSupplierDto.city !== undefined ? updateSupplierDto.city : supplier.city,
-      state: updateSupplierDto.state !== undefined ? updateSupplierDto.state : supplier.state,
-      pincode: updateSupplierDto.pincode !== undefined ? updateSupplierDto.pincode : supplier.pincode,
-      creditDays: updateSupplierDto.creditDays !== undefined ? updateSupplierDto.creditDays : supplier.creditDays,
+      gstin:
+        updateSupplierDto.gstin !== undefined
+          ? updateSupplierDto.gstin
+          : supplier.gstin,
+      contactPerson:
+        updateSupplierDto.contactPerson !== undefined
+          ? updateSupplierDto.contactPerson
+          : supplier.contactPerson,
+      phone:
+        updateSupplierDto.phone !== undefined
+          ? updateSupplierDto.phone
+          : supplier.phone,
+      email:
+        updateSupplierDto.email !== undefined
+          ? updateSupplierDto.email
+          : supplier.email,
+      address:
+        updateSupplierDto.address !== undefined
+          ? updateSupplierDto.address
+          : supplier.address,
+      city:
+        updateSupplierDto.city !== undefined
+          ? updateSupplierDto.city
+          : supplier.city,
+      state:
+        updateSupplierDto.state !== undefined
+          ? updateSupplierDto.state
+          : supplier.state,
+      pincode:
+        updateSupplierDto.pincode !== undefined
+          ? updateSupplierDto.pincode
+          : supplier.pincode,
+      creditDays:
+        updateSupplierDto.creditDays !== undefined
+          ? updateSupplierDto.creditDays
+          : supplier.creditDays,
       openingBalance,
       outstandingBalance,
-      notes: updateSupplierDto.notes !== undefined ? updateSupplierDto.notes : supplier.notes,
-      status: updateSupplierDto.status !== undefined ? updateSupplierDto.status : supplier.status,
+      notes:
+        updateSupplierDto.notes !== undefined
+          ? updateSupplierDto.notes
+          : supplier.notes,
+      status:
+        updateSupplierDto.status !== undefined
+          ? updateSupplierDto.status
+          : supplier.status,
       syncStatus: SyncStatus.PENDING,
       updatedAt: new Date(),
     });

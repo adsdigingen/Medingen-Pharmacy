@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Query, Patch, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Put,
+  Param,
+  Delete,
+  Query,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { ManufacturersService } from './manufacturers.service';
 import { CreateManufacturerDto } from './dto/create-manufacturer.dto';
 import { UpdateManufacturerDto } from './dto/update-manufacturer.dto';
@@ -40,7 +51,10 @@ export class ManufacturersController {
 
   @Put(':id')
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
-  update(@Param('id') id: string, @Body() updateManufacturerDto: UpdateManufacturerDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateManufacturerDto: UpdateManufacturerDto,
+  ) {
     return this.manufacturersService.update(id, updateManufacturerDto);
   }
 

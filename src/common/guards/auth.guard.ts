@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../../modules/prisma/prisma.service';
 import { JwtService } from '../domain/jwt.service';
 
@@ -8,10 +13,21 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    
-    // Always bypass public endpoints (login, health checks)
-    const publicPaths = ['/users-management/login', '/diagnostics/health', '/maintenance/health'];
-    if (request.url && publicPaths.some(p => request.url.includes(p))) {
+
+    // Always bypass public endpoints (login, health checks, root)
+    const publicPaths = [
+      '/users-management/login',
+      '/diagnostics/health',
+      '/maintenance/health',
+      '/health',
+    ];
+    if (
+      !request.url ||
+      request.url === '/' ||
+      publicPaths.some(
+        (p) => request.url.startsWith(p) || request.url.includes(p),
+      )
+    ) {
       return true;
     }
 
@@ -30,7 +46,9 @@ export class AuthGuard implements CanActivate {
         userId = payload.id;
         userRole = payload.role;
       } else {
-        throw new UnauthorizedException('Authentication token is invalid or expired.');
+        throw new UnauthorizedException(
+          'Authentication token is invalid or expired.',
+        );
       }
     }
 
@@ -44,7 +62,9 @@ export class AuthGuard implements CanActivate {
         userId = devUserId as string;
         userRole = devUserRole as string;
       } else {
-        throw new UnauthorizedException('Authentication token is missing or invalid.');
+        throw new UnauthorizedException(
+          'Authentication token is missing or invalid.',
+        );
       }
     }
 

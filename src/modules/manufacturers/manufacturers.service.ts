@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateManufacturerDto } from './dto/create-manufacturer.dto';
 import { UpdateManufacturerDto } from './dto/update-manufacturer.dto';
@@ -34,7 +38,9 @@ export class ManufacturersService {
           },
         });
       }
-      throw new ConflictException(`Manufacturer with name "${name}" already exists.`);
+      throw new ConflictException(
+        `Manufacturer with name "${name}" already exists.`,
+      );
     }
 
     return this.prisma.manufacturer.create({
@@ -51,7 +57,12 @@ export class ManufacturersService {
     });
   }
 
-  async findAll(query: { search?: string; status?: string; page?: number; limit?: number }) {
+  async findAll(query: {
+    search?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 10);
     const skip = (page - 1) * limit;
@@ -63,7 +74,9 @@ export class ManufacturersService {
     if (query.search) {
       where.OR = [
         { name: { contains: query.search.trim(), mode: 'insensitive' } },
-        { contactPerson: { contains: query.search.trim(), mode: 'insensitive' } },
+        {
+          contactPerson: { contains: query.search.trim(), mode: 'insensitive' },
+        },
         { gstNumber: { contains: query.search.trim(), mode: 'insensitive' } },
       ];
     }
@@ -116,7 +129,9 @@ export class ManufacturersService {
       });
 
       if (existing) {
-        throw new ConflictException(`Manufacturer with name "${name}" already exists.`);
+        throw new ConflictException(
+          `Manufacturer with name "${name}" already exists.`,
+        );
       }
       manufacturer.name = name;
     }
@@ -125,12 +140,30 @@ export class ManufacturersService {
       where: { id },
       data: {
         name: manufacturer.name,
-        contactPerson: updateManufacturerDto.contactPerson !== undefined ? updateManufacturerDto.contactPerson : manufacturer.contactPerson,
-        phone: updateManufacturerDto.phone !== undefined ? updateManufacturerDto.phone : manufacturer.phone,
-        email: updateManufacturerDto.email !== undefined ? updateManufacturerDto.email : manufacturer.email,
-        address: updateManufacturerDto.address !== undefined ? updateManufacturerDto.address : manufacturer.address,
-        gstNumber: updateManufacturerDto.gstNumber !== undefined ? updateManufacturerDto.gstNumber : manufacturer.gstNumber,
-        status: updateManufacturerDto.status !== undefined ? updateManufacturerDto.status : manufacturer.status,
+        contactPerson:
+          updateManufacturerDto.contactPerson !== undefined
+            ? updateManufacturerDto.contactPerson
+            : manufacturer.contactPerson,
+        phone:
+          updateManufacturerDto.phone !== undefined
+            ? updateManufacturerDto.phone
+            : manufacturer.phone,
+        email:
+          updateManufacturerDto.email !== undefined
+            ? updateManufacturerDto.email
+            : manufacturer.email,
+        address:
+          updateManufacturerDto.address !== undefined
+            ? updateManufacturerDto.address
+            : manufacturer.address,
+        gstNumber:
+          updateManufacturerDto.gstNumber !== undefined
+            ? updateManufacturerDto.gstNumber
+            : manufacturer.gstNumber,
+        status:
+          updateManufacturerDto.status !== undefined
+            ? updateManufacturerDto.status
+            : manufacturer.status,
         syncStatus: SyncStatus.PENDING,
         updatedAt: new Date(),
       },

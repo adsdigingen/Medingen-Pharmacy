@@ -13,7 +13,9 @@ export class PurchaseCalculationService {
   calculateItemTotal(item: OrderItem): number {
     const qty = item.quantity;
     const basePrice = item.purchasePrice * qty;
-    const discount = item.discountPercentage ? (basePrice * (item.discountPercentage / 100)) : 0;
+    const discount = item.discountPercentage
+      ? basePrice * (item.discountPercentage / 100)
+      : 0;
     const taxableAmount = basePrice - discount;
     const taxAmount = taxableAmount * (item.gstPercentage / 100);
     return taxableAmount + taxAmount;
@@ -27,14 +29,16 @@ export class PurchaseCalculationService {
 
     for (const item of items) {
       const basePrice = item.purchasePrice * item.quantity;
-      const discount = item.discountPercentage ? (basePrice * (item.discountPercentage / 100)) : 0;
+      const discount = item.discountPercentage
+        ? basePrice * (item.discountPercentage / 100)
+        : 0;
       const taxableAmount = basePrice - discount;
       const taxAmount = taxableAmount * (item.gstPercentage / 100);
 
       subTotal += basePrice;
       totalDiscount += discount;
       totalTax += taxAmount;
-      grandTotal += (taxableAmount + taxAmount);
+      grandTotal += taxableAmount + taxAmount;
     }
 
     return {

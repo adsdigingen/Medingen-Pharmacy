@@ -1,10 +1,14 @@
-import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto, UpdateUserDto, LoginDto } from './dto/create-user.dto';
 import { SyncStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '../../common/domain/jwt.service';
-
 
 @Injectable()
 export class UsersManagementService {
@@ -16,7 +20,9 @@ export class UsersManagementService {
     });
 
     if (existing) {
-      throw new ConflictException(`User with username "${dto.username}" already exists.`);
+      throw new ConflictException(
+        `User with username "${dto.username}" already exists.`,
+      );
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -106,32 +112,34 @@ export class UsersManagementService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid username or account is inactive.');
+      throw new UnauthorizedException(
+        'Invalid username or account is inactive.',
+      );
     }
 
     if (!user.status) {
-      throw new UnauthorizedException('This account is disabled. Contact Administrator.');
+      throw new UnauthorizedException(
+        'This account is disabled. Contact Administrator.',
+      );
     }
 
     let isCorrect = false;
-    const isBcryptHash = user.passwordHash && (
-      user.passwordHash.startsWith('$2a$') ||
-      user.passwordHash.startsWith('$2b$') ||
-      user.passwordHash.startsWith('$2y$')
-    );
+    const isBcryptHash =
+      user.passwordHash &&
+      (user.passwordHash.startsWith('$2a$') ||
+        user.passwordHash.startsWith('$2b$') ||
+        user.passwordHash.startsWith('$2y$'));
 
     if (isBcryptHash) {
       try {
         isCorrect = await bcrypt.compare(dto.password, user.passwordHash);
-      } catch (err) {
-        console.error("Bcrypt check failed on server:", err);
+      } catch {
+        isCorrect = false;
       }
-    } else {
-      isCorrect = dto.password === user.passwordHash;
     }
 
     if (!isCorrect) {
-      throw new UnauthorizedException('Invalid password. Check credentials and try again.');
+      throw new UnauthorizedException('Invalid credentials.');
     }
 
     const token = JwtService.sign({
@@ -163,5 +171,3 @@ export class UsersManagementService {
     });
   }
 }
-
-

@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Query, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { CounterService } from './counter.service';
 import { TransferStockDto } from './dto/transfer-stock.dto';
 import { CheckoutCounterDto } from './dto/checkout-counter.dto';
@@ -43,7 +52,10 @@ export class CounterController {
 
   @Get('history/:productId/:batchId')
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
-  async getHistory(@Param('productId') productId: string, @Param('batchId') batchId: string) {
+  async getHistory(
+    @Param('productId') productId: string,
+    @Param('batchId') batchId: string,
+  ) {
     return this.counterService.getCounterHistory(productId, batchId);
   }
 
@@ -53,7 +65,7 @@ export class CounterController {
     return this.counterService.checkoutCounter(
       dto,
       req.user?.id || 'default-cashier-id',
-      req.user?.username || 'CASHIER'
+      req.user?.username || 'CASHIER',
     );
   }
 
@@ -73,7 +85,10 @@ export class CounterController {
 
   @Get('print/:saleId')
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST, Role.CASHIER)
-  async print(@Param('saleId') saleId: string, @Query('width') width?: '58mm' | '80mm' | '150x95mm') {
+  async print(
+    @Param('saleId') saleId: string,
+    @Query('width') width?: '58mm' | '80mm' | '150x95mm',
+  ) {
     return this.counterService.printReceiptText(saleId, width);
   }
 

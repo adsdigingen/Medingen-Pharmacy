@@ -1,5 +1,16 @@
-import { IsNotEmpty, IsString, IsBoolean, IsOptional, IsEmail, IsInt, IsNumber } from 'class-validator';
-import { IsGSTIN, IsMobileIN } from '../../../common/decorators/validation.decorators';
+import {
+  IsNotEmpty,
+  IsString,
+  IsBoolean,
+  IsOptional,
+  IsEmail,
+  IsInt,
+  IsNumber,
+} from 'class-validator';
+import {
+  IsGSTIN,
+  IsMobileIN,
+} from '../../../common/decorators/validation.decorators';
 
 export class CreateSupplierDto {
   @IsString()

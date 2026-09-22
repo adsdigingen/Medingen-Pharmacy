@@ -12,7 +12,12 @@ export class SupplierRepository extends BaseRepository {
     return this.prisma.supplier.findFirst(args);
   }
 
-  async findMany(args: { where: any; skip?: number; take?: number; orderBy?: any }) {
+  async findMany(args: {
+    where: any;
+    skip?: number;
+    take?: number;
+    orderBy?: any;
+  }) {
     return this.prisma.supplier.findMany(args);
   }
 

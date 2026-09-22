@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsString, IsArray, IsOptional, IsNumber, ValidateNested, IsPositive, Min } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsArray,
+  IsOptional,
+  IsNumber,
+  ValidateNested,
+  IsPositive,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CheckoutItemDto {

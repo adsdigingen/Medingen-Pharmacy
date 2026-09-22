@@ -1,6 +1,20 @@
-import { Controller, Get, Post, Body, Param, Delete, Query, Put, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Query,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { BillingService } from './billing.service';
-import { CheckoutBillDto, HoldBillDto, SalesReturnDto } from './dto/checkout-bill.dto';
+import {
+  CheckoutBillDto,
+  HoldBillDto,
+  SalesReturnDto,
+} from './dto/checkout-bill.dto';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 
@@ -62,10 +76,7 @@ export class BillingController {
   }
 
   @Put(':id/cancel')
-  cancelBill(
-    @Param('id') id: string,
-    @Body('reason') reason: string,
-  ) {
+  cancelBill(@Param('id') id: string, @Body('reason') reason: string) {
     return this.billingService.cancelBill(id, reason || 'Cancelled by Cashier');
   }
 

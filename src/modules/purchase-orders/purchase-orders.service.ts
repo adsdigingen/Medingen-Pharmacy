@@ -1,6 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreatePurchaseOrderDto, UpdatePurchaseOrderStatusDto, CreateReturnDto } from './dto/create-po.dto';
+import {
+  CreatePurchaseOrderDto,
+  UpdatePurchaseOrderStatusDto,
+  CreateReturnDto,
+} from './dto/create-po.dto';
 import { SyncStatus } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -23,7 +31,7 @@ export class PurchaseOrdersService {
     // Generate sequential PO number: PO-YYYYMMDD-XXXX
     const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const prefix = `PO-${todayStr}-`;
-    
+
     const lastPo = await this.repo.findFirst({
       where: { poNumber: { startsWith: prefix } },
       orderBy: { poNumber: 'desc' },
@@ -52,10 +60,14 @@ export class PurchaseOrdersService {
           supplierId: createPoDto.supplierId,
           purchaseDate: new Date(createPoDto.purchaseDate),
           supplierInvoiceNumber: createPoDto.supplierInvoiceNumber,
-          invoiceDate: createPoDto.invoiceDate ? new Date(createPoDto.invoiceDate) : null,
+          invoiceDate: createPoDto.invoiceDate
+            ? new Date(createPoDto.invoiceDate)
+            : null,
           paymentStatus: createPoDto.paymentStatus,
           paymentMethod: createPoDto.paymentMethod,
-          expectedDeliveryDate: createPoDto.expectedDeliveryDate ? new Date(createPoDto.expectedDeliveryDate) : null,
+          expectedDeliveryDate: createPoDto.expectedDeliveryDate
+            ? new Date(createPoDto.expectedDeliveryDate)
+            : null,
           notes: createPoDto.notes,
           status: createPoDto.status || 'DRAFT',
           syncStatus: SyncStatus.PENDING,
@@ -63,7 +75,9 @@ export class PurchaseOrdersService {
             create: createPoDto.items.map((item) => ({
               productId: item.productId,
               batchNumber: item.batchNumber.trim().toUpperCase(),
-              manufacturingDate: item.manufacturingDate ? new Date(item.manufacturingDate) : null,
+              manufacturingDate: item.manufacturingDate
+                ? new Date(item.manufacturingDate)
+                : null,
               expiryDate: new Date(item.expiryDate),
               purchasePrice: item.purchasePrice,
               sellingPrice: item.sellingPrice,
@@ -122,7 +136,12 @@ export class PurchaseOrdersService {
     return result;
   }
 
-  async findAll(query: { search?: string; status?: string; page?: number; limit?: number }) {
+  async findAll(query: {
+    search?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 10);
     const skip = (page - 1) * limit;
@@ -139,7 +158,9 @@ export class PurchaseOrdersService {
       const searchTrim = query.search.trim();
       where.OR = [
         { poNumber: { contains: searchTrim, mode: 'insensitive' } },
-        { supplierInvoiceNumber: { contains: searchTrim, mode: 'insensitive' } },
+        {
+          supplierInvoiceNumber: { contains: searchTrim, mode: 'insensitive' },
+        },
         { supplier: { name: { contains: searchTrim, mode: 'insensitive' } } },
       ];
     }
@@ -176,7 +197,9 @@ export class PurchaseOrdersService {
   async remove(id: string) {
     const po = await this.findOne(id);
     if (po.status !== 'DRAFT') {
-      throw new BadRequestException('Only Draft purchase orders can be deleted.');
+      throw new BadRequestException(
+        'Only Draft purchase orders can be deleted.',
+      );
     }
 
     return this.prisma.purchaseOrder.update({
@@ -193,7 +216,9 @@ export class PurchaseOrdersService {
     const po = await this.findOne(id);
 
     if (po.status === 'FULLY_RECEIVED' || po.status === 'CANCELLED') {
-      throw new BadRequestException(`Cannot change status of a ${po.status} purchase order.`);
+      throw new BadRequestException(
+        `Cannot change status of a ${po.status} purchase order.`,
+      );
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -201,9 +226,17 @@ export class PurchaseOrdersService {
         where: { id },
         data: {
           status: dto.status,
-          supplierInvoiceNumber: dto.supplierInvoiceNumber !== undefined ? dto.supplierInvoiceNumber : po.supplierInvoiceNumber,
-          invoiceDate: dto.invoiceDate ? new Date(dto.invoiceDate) : po.invoiceDate,
-          paymentStatus: dto.paymentStatus !== undefined ? dto.paymentStatus : po.paymentStatus,
+          supplierInvoiceNumber:
+            dto.supplierInvoiceNumber !== undefined
+              ? dto.supplierInvoiceNumber
+              : po.supplierInvoiceNumber,
+          invoiceDate: dto.invoiceDate
+            ? new Date(dto.invoiceDate)
+            : po.invoiceDate,
+          paymentStatus:
+            dto.paymentStatus !== undefined
+              ? dto.paymentStatus
+              : po.paymentStatus,
           syncStatus: SyncStatus.PENDING,
           updatedAt: new Date(),
         },
@@ -222,7 +255,12 @@ export class PurchaseOrdersService {
     if (result && dto.status === 'FULLY_RECEIVED') {
       this.eventEmitter.emit(
         'purchase-order.received',
-        new PurchaseOrderReceivedEvent(result.id, po.poNumber, po.supplierId, result.status),
+        new PurchaseOrderReceivedEvent(
+          result.id,
+          po.poNumber,
+          po.supplierId,
+          result.status,
+        ),
       );
     }
 
@@ -373,7 +411,9 @@ export class PurchaseOrdersService {
     });
 
     if (!po) {
-      throw new NotFoundException(`Purchase Order with ID "${dto.purchaseOrderId}" not found.`);
+      throw new NotFoundException(
+        `Purchase Order with ID "${dto.purchaseOrderId}" not found.`,
+      );
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -387,12 +427,14 @@ export class PurchaseOrdersService {
         });
 
         if (!batch || batch.deletedAt) {
-          throw new NotFoundException(`Batch with ID "${item.batchId}" not found.`);
+          throw new NotFoundException(
+            `Batch with ID "${item.batchId}" not found.`,
+          );
         }
 
         if (batch.availableQty < item.quantity) {
           throw new BadRequestException(
-            `Cannot return quantity ${item.quantity} for batch "${batch.batchNumber}". Available quantity is only ${batch.availableQty}.`
+            `Cannot return quantity ${item.quantity} for batch "${batch.batchNumber}". Available quantity is only ${batch.availableQty}.`,
           );
         }
 
@@ -468,7 +510,7 @@ export class PurchaseOrdersService {
 
         // Calculate cost value for return invoice (based on purchase price)
         returnTotalAmount += batch.purchasePrice * item.quantity;
-        
+
         returnItemsData.push({
           productId: item.productId,
           batchId: item.batchId,
@@ -505,7 +547,10 @@ export class PurchaseOrdersService {
         await tx.supplier.update({
           where: { id: dto.supplierId },
           data: {
-            outstandingBalance: Math.max(0, supplier.outstandingBalance - returnTotalAmount),
+            outstandingBalance: Math.max(
+              0,
+              supplier.outstandingBalance - returnTotalAmount,
+            ),
             syncStatus: SyncStatus.PENDING,
           },
         });
@@ -556,7 +601,9 @@ export class PurchaseOrdersService {
   async update(id: string, dto: CreatePurchaseOrderDto) {
     const po = await this.findOne(id);
     if (po.status !== 'DRAFT') {
-      throw new BadRequestException('Only Draft purchase orders can be updated.');
+      throw new BadRequestException(
+        'Only Draft purchase orders can be updated.',
+      );
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -581,7 +628,9 @@ export class PurchaseOrdersService {
           invoiceDate: dto.invoiceDate ? new Date(dto.invoiceDate) : null,
           paymentStatus: dto.paymentStatus,
           paymentMethod: dto.paymentMethod,
-          expectedDeliveryDate: dto.expectedDeliveryDate ? new Date(dto.expectedDeliveryDate) : null,
+          expectedDeliveryDate: dto.expectedDeliveryDate
+            ? new Date(dto.expectedDeliveryDate)
+            : null,
           notes: dto.notes,
           status: dto.status || 'DRAFT',
           syncStatus: SyncStatus.PENDING,
@@ -589,7 +638,9 @@ export class PurchaseOrdersService {
             create: dto.items.map((item) => ({
               productId: item.productId,
               batchNumber: item.batchNumber.trim().toUpperCase(),
-              manufacturingDate: item.manufacturingDate ? new Date(item.manufacturingDate) : null,
+              manufacturingDate: item.manufacturingDate
+                ? new Date(item.manufacturingDate)
+                : null,
               expiryDate: new Date(item.expiryDate),
               purchasePrice: item.purchasePrice,
               sellingPrice: item.sellingPrice,

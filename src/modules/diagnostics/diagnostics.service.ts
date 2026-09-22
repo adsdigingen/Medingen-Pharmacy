@@ -30,7 +30,7 @@ export class DiagnosticsService {
 
   async getStatus() {
     const health = await this.getHealth();
-    
+
     // OS metrics
     const freeMem = os.freemem();
     const totalMem = os.totalmem();
@@ -49,7 +49,7 @@ export class DiagnosticsService {
     }
 
     // Workers status
-    const workers = this.registry.getAllWorkers().map(w => ({
+    const workers = this.registry.getAllWorkers().map((w) => ({
       name: w.name,
       enabled: w.enabled,
       isExecuting: w.isExecuting,

@@ -12,7 +12,12 @@ export class PurchaseRepository extends BaseRepository {
     return this.prisma.purchaseOrder.findFirst(args);
   }
 
-  async findMany(args: { where: any; skip?: number; take?: number; orderBy?: any }) {
+  async findMany(args: {
+    where: any;
+    skip?: number;
+    take?: number;
+    orderBy?: any;
+  }) {
     return this.prisma.purchaseOrder.findMany({
       ...args,
       include: {

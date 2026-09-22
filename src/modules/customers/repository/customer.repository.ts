@@ -16,7 +16,12 @@ export class CustomerRepository extends BaseRepository {
     return this.prisma.customer.findFirst(args);
   }
 
-  async findMany(args: { where: any; skip?: number; take?: number; orderBy?: any }) {
+  async findMany(args: {
+    where: any;
+    skip?: number;
+    take?: number;
+    orderBy?: any;
+  }) {
     return this.prisma.customer.findMany(args);
   }
 

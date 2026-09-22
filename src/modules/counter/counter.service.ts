@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TransferStockDto } from './dto/transfer-stock.dto';
 import { CheckoutCounterDto } from './dto/checkout-counter.dto';
@@ -11,13 +15,18 @@ export class CounterService {
   constructor(private readonly prisma: PrismaService) {}
 
   async transferToCounter(dto: TransferStockDto, username: string) {
-    const { productId, batchId, transferStrips, unitsPerStrip, sellingPrice } = dto;
+    const { productId, batchId, transferStrips, unitsPerStrip, sellingPrice } =
+      dto;
 
     if (transferStrips <= 0) {
-      throw new BadRequestException('Transfer strips quantity must be greater than zero.');
+      throw new BadRequestException(
+        'Transfer strips quantity must be greater than zero.',
+      );
     }
     if (unitsPerStrip <= 0) {
-      throw new BadRequestException('Units per strip must be greater than zero.');
+      throw new BadRequestException(
+        'Units per strip must be greater than zero.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -33,7 +42,7 @@ export class CounterService {
 
       if (batch.availableQty < transferStrips) {
         throw new BadRequestException(
-          `Insufficient stock in batch ${batch.batchNumber}. Available: ${batch.availableQty} strips, Requested: ${transferStrips} strips.`
+          `Insufficient stock in batch ${batch.batchNumber}. Available: ${batch.availableQty} strips, Requested: ${transferStrips} strips.`,
         );
       }
 
@@ -53,7 +62,7 @@ export class CounterService {
 
       // 3. Create or update CounterInventory
       const transferredUnits = transferStrips * unitsPerStrip;
-      
+
       const counterInv = await tx.counterInventory.upsert({
         where: {
           productId_batchId: { productId, batchId },
@@ -155,7 +164,12 @@ export class CounterService {
     });
   }
 
-  async getCounterProducts(query: { search?: string; lowStock?: string; page?: number; limit?: number }) {
+  async getCounterProducts(query: {
+    search?: string;
+    lowStock?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 25);
     const skip = (page - 1) * limit;
@@ -219,7 +233,9 @@ export class CounterService {
     const { productId, batchId, type, quantity, reason, remarks } = dto;
 
     if (quantity <= 0) {
-      throw new BadRequestException('Adjustment quantity must be greater than zero.');
+      throw new BadRequestException(
+        'Adjustment quantity must be greater than zero.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -238,7 +254,9 @@ export class CounterService {
         newAvailable += quantity;
       } else {
         if (inv.availableUnits < quantity) {
-          throw new BadRequestException(`Cannot decrease stock by ${quantity} units. Available: ${inv.availableUnits}`);
+          throw new BadRequestException(
+            `Cannot decrease stock by ${quantity} units. Available: ${inv.availableUnits}`,
+          );
         }
         newAvailable -= quantity;
       }
@@ -274,7 +292,11 @@ export class CounterService {
     });
   }
 
-  async checkoutCounter(dto: CheckoutCounterDto, cashierId: string, cashierName: string) {
+  async checkoutCounter(
+    dto: CheckoutCounterDto,
+    cashierId: string,
+    cashierName: string,
+  ) {
     if (dto.items.length === 0) {
       throw new BadRequestException('Cannot checkout an empty sales basket.');
     }
@@ -306,18 +328,23 @@ export class CounterService {
       for (const item of dto.items) {
         const inv = await tx.counterInventory.findUnique({
           where: {
-            productId_batchId: { productId: item.productId, batchId: item.batchId },
+            productId_batchId: {
+              productId: item.productId,
+              batchId: item.batchId,
+            },
           },
           include: { product: true },
         });
 
         if (!inv) {
-          throw new NotFoundException(`Medicine inventory for product ID "${item.productId}" not found at the counter.`);
+          throw new NotFoundException(
+            `Medicine inventory for product ID "${item.productId}" not found at the counter.`,
+          );
         }
 
         if (inv.availableUnits < item.quantity) {
           throw new BadRequestException(
-            `Insufficient counter stock for "${inv.product.name}". Available: ${inv.availableUnits} units, Requested: ${item.quantity} units.`
+            `Insufficient counter stock for "${inv.product.name}". Available: ${inv.availableUnits} units, Requested: ${item.quantity} units.`,
           );
         }
 
@@ -326,7 +353,10 @@ export class CounterService {
         // Deduct
         await tx.counterInventory.update({
           where: {
-            productId_batchId: { productId: item.productId, batchId: item.batchId },
+            productId_batchId: {
+              productId: item.productId,
+              batchId: item.batchId,
+            },
           },
           data: {
             availableUnits: newUnits,
@@ -389,14 +419,21 @@ export class CounterService {
     });
   }
 
-  async getCounterSales(query: { search?: string; page?: number; limit?: number }) {
+  async getCounterSales(query: {
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 10);
     const skip = (page - 1) * limit;
 
     const where: any = {};
     if (query.search) {
-      where.invoiceNumber = { contains: query.search.trim(), mode: 'insensitive' };
+      where.invoiceNumber = {
+        contains: query.search.trim(),
+        mode: 'insensitive',
+      };
     }
 
     const [items, total] = await Promise.all([
@@ -433,7 +470,12 @@ export class CounterService {
         productId,
         batchId,
         transactionType: {
-          in: ['COUNTER_TRANSFER', 'COUNTER_SALE', 'COUNTER_ADJUSTMENT', 'COUNTER_RETURN'],
+          in: [
+            'COUNTER_TRANSFER',
+            'COUNTER_SALE',
+            'COUNTER_ADJUSTMENT',
+            'COUNTER_RETURN',
+          ],
         },
       },
       orderBy: { timestamp: 'desc' },
@@ -442,7 +484,9 @@ export class CounterService {
 
   // Reports implementations
   async getTransferReport(query: { startDate?: string; endDate?: string }) {
-    const start = query.startDate ? new Date(query.startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const start = query.startDate
+      ? new Date(query.startDate)
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const end = query.endDate ? new Date(query.endDate) : new Date();
 
     const items = await this.prisma.counterTransfer.findMany({
@@ -468,7 +512,9 @@ export class CounterService {
   }
 
   async getSalesReport(query: { startDate?: string; endDate?: string }) {
-    const start = query.startDate ? new Date(query.startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const start = query.startDate
+      ? new Date(query.startDate)
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const end = query.endDate ? new Date(query.endDate) : new Date();
 
     const sales = await this.prisma.counterSale.findMany({
@@ -509,7 +555,11 @@ export class CounterService {
       },
     });
 
-    const paymentBreakdown: Record<string, number> = { CASH: 0, UPI: 0, CARD: 0 };
+    const paymentBreakdown: Record<string, number> = {
+      CASH: 0,
+      UPI: 0,
+      CARD: 0,
+    };
     let totalCollection = 0;
 
     sales.forEach((s) => {
@@ -562,7 +612,9 @@ export class CounterService {
       orderBy: { product: { name: 'asc' } },
     });
 
-    const lowStockItems = items.filter((it) => it.availableUnits <= it.minimumUnits);
+    const lowStockItems = items.filter(
+      (it) => it.availableUnits <= it.minimumUnits,
+    );
 
     return {
       summary: {
@@ -573,7 +625,9 @@ export class CounterService {
   }
 
   async getProfitReport(query: { startDate?: string; endDate?: string }) {
-    const start = query.startDate ? new Date(query.startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const start = query.startDate
+      ? new Date(query.startDate)
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const end = query.endDate ? new Date(query.endDate) : new Date();
 
     const sales = await this.prisma.counterSale.findMany({
@@ -594,7 +648,10 @@ export class CounterService {
     let totalCost = 0;
     let totalProfit = 0;
 
-    const productMargins: Record<string, { quantity: number; revenue: number; profit: number }> = {};
+    const productMargins: Record<
+      string,
+      { quantity: number; revenue: number; profit: number }
+    > = {};
 
     // Pre-fetch all counter inventories to know unitsPerStrip in memory
     const counterInvs = await this.prisma.counterInventory.findMany();
@@ -607,12 +664,13 @@ export class CounterService {
       totalRevenue += sale.grandTotal;
       sale.items.forEach((item) => {
         // Find units per strip from standard mapping or inventory config
-        const unitsPerStrip = unitsPerStripMap.get(`${item.productId}_${item.batchId}`) || 10; // Fallback to 10
+        const unitsPerStrip =
+          unitsPerStripMap.get(`${item.productId}_${item.batchId}`) || 10; // Fallback to 10
         const costPerUnit = (item.batch?.purchasePrice || 0) / unitsPerStrip;
-        
+
         const itemCost = item.quantity * costPerUnit;
         const itemProfit = item.total - itemCost;
-        
+
         totalCost += itemCost;
         totalProfit += itemProfit;
 
@@ -632,7 +690,8 @@ export class CounterService {
         totalRevenue,
         totalCost,
         totalProfit,
-        netMarginPercentage: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0,
+        netMarginPercentage:
+          totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0,
       },
       productMargins: Object.entries(productMargins).map(([name, data]) => ({
         productName: name,
@@ -641,7 +700,10 @@ export class CounterService {
     };
   }
 
-  async printReceiptText(saleId: string, widthType: '58mm' | '80mm' | '150x95mm' = '80mm') {
+  async printReceiptText(
+    saleId: string,
+    widthType: '58mm' | '80mm' | '150x95mm' = '80mm',
+  ) {
     const [sale, settings] = await Promise.all([
       this.prisma.counterSale.findUnique({
         where: { id: saleId },
@@ -660,10 +722,12 @@ export class CounterService {
     ]);
 
     if (!sale) {
-      throw new NotFoundException(`Counter Sale with ID "${saleId}" not found.`);
+      throw new NotFoundException(
+        `Counter Sale with ID "${saleId}" not found.`,
+      );
     }
 
-    const width = widthType === '58mm' ? 32 : (widthType === '80mm' ? 48 : 88);
+    const width = widthType === '58mm' ? 32 : widthType === '80mm' ? 48 : 88;
     const lines: string[] = [];
 
     const center = (text: string) => {
@@ -676,15 +740,18 @@ export class CounterService {
 
     const padLeftRight = (left: string, right: string) => {
       const spacing = width - left.length - right.length;
-      if (spacing <= 0) return left.substring(0, width - right.length - 1) + ' ' + right;
+      if (spacing <= 0)
+        return left.substring(0, width - right.length - 1) + ' ' + right;
       return left + ' '.repeat(spacing) + right;
     };
 
     // Header
-    lines.push(center(settings?.storeName?.toUpperCase() || "MEDINGEN PHARMACY"));
+    lines.push(
+      center(settings?.storeName?.toUpperCase() || 'MEDINGEN PHARMACY'),
+    );
     if (settings?.address) lines.push(center(settings.address));
     if (settings?.phone) lines.push(center(`Ph: ${settings.phone}`));
-    lines.push(center("COUNTER SALE RECEIPT"));
+    lines.push(center('COUNTER SALE RECEIPT'));
     lines.push(separator());
 
     // Metadata
@@ -696,8 +763,8 @@ export class CounterService {
 
     // Columns & Items
     if (widthType === '58mm') {
-      lines.push("Item Description");
-      lines.push(padLeftRight("  Qty x Price", "Amount"));
+      lines.push('Item Description');
+      lines.push(padLeftRight('  Qty x Price', 'Amount'));
       lines.push(separator());
       sale.items.forEach((item) => {
         lines.push(item.product.name.substring(0, width));
@@ -705,7 +772,7 @@ export class CounterService {
         lines.push(padLeftRight(details, `₹${item.total.toFixed(2)}`));
       });
     } else if (widthType === '80mm') {
-      lines.push(padLeftRight("Item Name (Batch)", "Qty x Price      Amount"));
+      lines.push(padLeftRight('Item Name (Batch)', 'Qty x Price      Amount'));
       lines.push(separator());
       sale.items.forEach((item) => {
         const name = `${item.product.name} (${item.batch.batchNumber})`;
@@ -713,7 +780,12 @@ export class CounterService {
         lines.push(padLeftRight(name.substring(0, 20), details));
       });
     } else {
-      lines.push(padLeftRight("Item Name (Batch)", `Qty ${"Rate".padStart(12)} ${"Amount".padStart(14)}`));
+      lines.push(
+        padLeftRight(
+          'Item Name (Batch)',
+          `Qty ${'Rate'.padStart(12)} ${'Amount'.padStart(14)}`,
+        ),
+      );
       lines.push(separator());
       sale.items.forEach((item) => {
         const name = `${item.product.name} (${item.batch.batchNumber})`;
@@ -723,9 +795,9 @@ export class CounterService {
     }
 
     lines.push(separator());
-    lines.push(padLeftRight("GRAND TOTAL:", `₹${sale.grandTotal.toFixed(2)}`));
+    lines.push(padLeftRight('GRAND TOTAL:', `₹${sale.grandTotal.toFixed(2)}`));
     lines.push(doubleSeparator());
-    lines.push(center("***Wish You A Speedy Recovery***"));
+    lines.push(center('***Wish You A Speedy Recovery***'));
 
     return { text: lines.join('\n') };
   }

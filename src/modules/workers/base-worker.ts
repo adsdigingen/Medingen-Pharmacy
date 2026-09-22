@@ -28,7 +28,9 @@ export abstract class BaseWorker {
       this.logger.debug('Starting execution...');
       await this.run();
       this.lastError = null;
-      this.logger.debug(`Execution completed successfully in ${Date.now() - start}ms`);
+      this.logger.debug(
+        `Execution completed successfully in ${Date.now() - start}ms`,
+      );
     } catch (e: any) {
       this.lastError = e.message;
       this.logger.error(`Execution failed: ${e.message}`, e.stack);

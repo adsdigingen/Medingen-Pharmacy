@@ -22,9 +22,10 @@ export interface StandardResponse<T> {
  * Automatically detects paginated responses (items + total) and adds meta.
  */
 @Injectable()
-export class ResponseTransformInterceptor<T>
-  implements NestInterceptor<T, StandardResponse<T>>
-{
+export class ResponseTransformInterceptor<T> implements NestInterceptor<
+  T,
+  StandardResponse<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
@@ -48,7 +49,7 @@ export class ResponseTransformInterceptor<T>
           'items' in data &&
           'total' in data
         ) {
-          const { items, total, page, limit, totalPages, ...rest } = data as any;
+          const { items, total, page, limit, totalPages, ...rest } = data;
           return {
             success: true,
             message: 'OK',

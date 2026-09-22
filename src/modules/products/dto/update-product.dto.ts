@@ -1,5 +1,14 @@
-import { IsString, IsBoolean, IsOptional, IsNumber, IsInt } from 'class-validator';
-import { IsHSNCode, IsNonNegative } from '../../../common/decorators/validation.decorators';
+import {
+  IsString,
+  IsBoolean,
+  IsOptional,
+  IsNumber,
+  IsInt,
+} from 'class-validator';
+import {
+  IsHSNCode,
+  IsNonNegative,
+} from '../../../common/decorators/validation.decorators';
 
 export class UpdateProductDto {
   @IsString()

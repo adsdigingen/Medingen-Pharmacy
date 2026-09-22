@@ -24,7 +24,9 @@ export class NotificationWorker extends BaseWorker {
       },
     });
 
-    const lowStockAlerts = lowStockInventories.filter(inv => inv.availableQty <= inv.product.minStockLevel);
+    const lowStockAlerts = lowStockInventories.filter(
+      (inv) => inv.availableQty <= inv.product.minStockLevel,
+    );
 
     for (const inv of lowStockAlerts) {
       // Check if low stock notification already exists for this product in past 24 hours to prevent duplicate alerts spam

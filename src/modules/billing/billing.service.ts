@@ -1,10 +1,22 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CheckoutBillDto, HoldBillDto, SalesReturnDto } from './dto/checkout-bill.dto';
+import {
+  CheckoutBillDto,
+  HoldBillDto,
+  SalesReturnDto,
+} from './dto/checkout-bill.dto';
 import { SyncStatus } from '@prisma/client';
 import { BillingRepository } from './repository/billing.repository';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { BillCreatedEvent, BillCancelledEvent, SalesReturnEvent } from './events/bill-created.event';
+import {
+  BillCreatedEvent,
+  BillCancelledEvent,
+  SalesReturnEvent,
+} from './events/bill-created.event';
 
 @Injectable()
 export class BillingService {
@@ -33,7 +45,7 @@ export class BillingService {
 
   private async executeCheckout(dto: CheckoutBillDto) {
     const now = new Date();
-    
+
     const result = await this.prisma.$transaction(async (tx) => {
       // Generate unique random 5-digit bill number
       let billNumber = '';
@@ -62,7 +74,9 @@ export class BillingService {
         if (!customer) {
           customer = await tx.customer.create({
             data: {
-              name: dto.customerName ? dto.customerName.trim() : 'Registered Walk-in',
+              name: dto.customerName
+                ? dto.customerName.trim()
+                : 'Registered Walk-in',
               mobile: mob,
               syncStatus: SyncStatus.PENDING,
             },
@@ -95,11 +109,16 @@ export class BillingService {
           orderBy: { expiryDate: 'asc' },
         });
 
-        const totalAvailableStock = activeBatches.reduce((sum: number, b: any) => sum + b.availableQty, 0);
+        const totalAvailableStock = activeBatches.reduce(
+          (sum: number, b: any) => sum + b.availableQty,
+          0,
+        );
         if (totalAvailableStock < item.quantity) {
-          const prod = await tx.product.findUnique({ where: { id: item.productId } });
+          const prod = await tx.product.findUnique({
+            where: { id: item.productId },
+          });
           throw new BadRequestException(
-            `Insufficient stock for medicine "${prod?.name || item.productId}". Requested: ${item.quantity}, Available: ${totalAvailableStock}.`
+            `Insufficient stock for medicine "${prod?.name || item.productId}". Requested: ${item.quantity}, Available: ${totalAvailableStock}.`,
           );
         }
 
@@ -107,16 +126,20 @@ export class BillingService {
 
         for (const batch of activeBatches) {
           const qtyToTake = Math.min(remainingQty, batch.availableQty);
-          
+
           // Pricing rules
-          const sellingPrice = item.customPrice !== undefined ? item.customPrice : batch.sellingPrice;
+          const sellingPrice =
+            item.customPrice !== undefined
+              ? item.customPrice
+              : batch.sellingPrice;
           const mrp = batch.mrp;
-          
+
           // Line calculations
           const itemSubtotal = qtyToTake * sellingPrice;
-          const itemDiscount = itemSubtotal * ((item.discountPercentage || 0) / 100);
+          const itemDiscount =
+            itemSubtotal * ((item.discountPercentage || 0) / 100);
           const taxableAmount = itemSubtotal - itemDiscount;
-          
+
           const gst = batch.gstPercentage || 12;
           const itemGst = taxableAmount * (gst / (100 + gst));
           const lineTotal = taxableAmount;
@@ -226,7 +249,11 @@ export class BillingService {
       });
 
       // 4. Create split payments if MIXED, else one payment
-      if (dto.paymentMethod === 'MIXED' && dto.payments && dto.payments.length > 0) {
+      if (
+        dto.paymentMethod === 'MIXED' &&
+        dto.payments &&
+        dto.payments.length > 0
+      ) {
         for (const p of dto.payments) {
           await tx.payment.create({
             data: {
@@ -255,7 +282,9 @@ export class BillingService {
       }
 
       // 6. Recalculate inventory aggregates for all affected products
-      const uniqueProductIds = Array.from(new Set(dto.items.map((it: any) => it.productId)));
+      const uniqueProductIds = Array.from(
+        new Set(dto.items.map((it: any) => it.productId)),
+      );
       for (const prodId of uniqueProductIds) {
         const allProductBatches = await tx.batch.findMany({
           where: { productId: prodId, deletedAt: null },
@@ -304,7 +333,9 @@ export class BillingService {
 
       // 8. Update customer credit balance for CREDIT sales
       if (dto.paymentMethod === 'CREDIT' && customerId) {
-        const cust = await tx.customer.findUnique({ where: { id: customerId } });
+        const cust = await tx.customer.findUnique({
+          where: { id: customerId },
+        });
         if (cust) {
           await tx.customer.update({
             where: { id: customerId },
@@ -319,14 +350,23 @@ export class BillingService {
 
       // 9. Drug Schedule Register — create PENDING entries for regulated medicines
       //    inside this transaction so rows are guaranteed to exist when the bill commits.
-      const regulatedSchedules = ['Schedule G', 'Schedule H', 'Schedule H1', 'Schedule X', 'NDPS'];
+      const regulatedSchedules = [
+        'Schedule G',
+        'Schedule H',
+        'Schedule H1',
+        'Schedule X',
+        'NDPS',
+      ];
       const customer = customerId
         ? await tx.customer.findUnique({ where: { id: customerId } })
         : null;
 
       for (const billItem of bill.billItems) {
         const product = billItem.batch.product;
-        if (product.drugSchedule && regulatedSchedules.includes(product.drugSchedule)) {
+        if (
+          product.drugSchedule &&
+          regulatedSchedules.includes(product.drugSchedule)
+        ) {
           await tx.drugScheduleRegister.create({
             data: {
               invoiceId: bill.id,
@@ -367,7 +407,8 @@ export class BillingService {
       customerId: dto.customerId || null,
       customerName: dto.customerName || null,
       customerMobile: dto.customerMobile || null,
-      holdLabel: dto.holdLabel || `Label-${new Date().getTime().toString().slice(-4)}`,
+      holdLabel:
+        dto.holdLabel || `Label-${new Date().getTime().toString().slice(-4)}`,
       notes: dto.notes,
       items: {
         create: dto.items.map((item) => ({
@@ -389,7 +430,13 @@ export class BillingService {
   }
 
   // --- HISTORIES & REFUNDS ---
-  async findAll(query: { search?: string; paymentMethod?: string; status?: string; page?: number; limit?: number }) {
+  async findAll(query: {
+    search?: string;
+    paymentMethod?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 10);
     const skip = (page - 1) * limit;
@@ -447,7 +494,7 @@ export class BillingService {
   async createDoctor(data: { name: string; mobile?: string }) {
     const nameTrim = data.name.trim();
     const existing = await this.prisma.doctor.findUnique({
-      where: { name: nameTrim }
+      where: { name: nameTrim },
     });
     if (existing) {
       return existing;
@@ -455,8 +502,8 @@ export class BillingService {
     return this.prisma.doctor.create({
       data: {
         name: nameTrim,
-        mobile: data.mobile ? data.mobile.trim() : null
-      }
+        mobile: data.mobile ? data.mobile.trim() : null,
+      },
     });
   }
 
@@ -464,16 +511,16 @@ export class BillingService {
     if (!search) {
       return this.prisma.doctor.findMany({
         take: 10,
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
       });
     }
     const cleanSearch = search.trim();
     return this.prisma.doctor.findMany({
       where: {
-        name: { contains: cleanSearch, mode: 'insensitive' }
+        name: { contains: cleanSearch, mode: 'insensitive' },
       },
       take: 10,
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
     });
   }
 
@@ -494,7 +541,10 @@ export class BillingService {
 
         if (batch) {
           const newQty = batch.availableQty + item.quantity;
-          const status = newQty > 0 && batch.status === 'EXHAUSTED' ? 'ACTIVE' : batch.status;
+          const status =
+            newQty > 0 && batch.status === 'EXHAUSTED'
+              ? 'ACTIVE'
+              : batch.status;
 
           await tx.batch.update({
             where: { id: batch.id },
@@ -605,24 +655,30 @@ export class BillingService {
     });
 
     if (!bill || bill.status === 'CANCELLED') {
-      throw new BadRequestException('Cannot return items from a cancelled bill.');
+      throw new BadRequestException(
+        'Cannot return items from a cancelled bill.',
+      );
     }
 
     const now = new Date();
 
     const result = await this.prisma.$transaction(async (tx) => {
-      let refundValue = 0;
+      const refundValue = 0;
 
       for (const returnItem of dto.items) {
-        const billItem = bill.billItems.find((bi) => bi.id === returnItem.billItemId);
+        const billItem = bill.billItems.find(
+          (bi) => bi.id === returnItem.billItemId,
+        );
         if (!billItem) {
-          throw new NotFoundException(`Invoice Item with ID "${returnItem.billItemId}" not found.`);
+          throw new NotFoundException(
+            `Invoice Item with ID "${returnItem.billItemId}" not found.`,
+          );
         }
 
         const maxRefundable = billItem.quantity - billItem.returnedQty;
         if (returnItem.quantity > maxRefundable) {
           throw new BadRequestException(
-            `Cannot return ${returnItem.quantity} items. Max returnable: ${maxRefundable}.`
+            `Cannot return ${returnItem.quantity} items. Max returnable: ${maxRefundable}.`,
           );
         }
 
@@ -641,7 +697,10 @@ export class BillingService {
 
         if (batch) {
           const newQty = batch.availableQty + returnItem.quantity;
-          const status = newQty > 0 && batch.status === 'EXHAUSTED' ? 'ACTIVE' : batch.status;
+          const status =
+            newQty > 0 && batch.status === 'EXHAUSTED'
+              ? 'ACTIVE'
+              : batch.status;
 
           await tx.batch.update({
             where: { id: batch.id },
@@ -715,7 +774,9 @@ export class BillingService {
         where: { billId: dto.billId },
       });
 
-      const allReturned = updatedBillItems.every((bi) => bi.quantity === bi.returnedQty);
+      const allReturned = updatedBillItems.every(
+        (bi) => bi.quantity === bi.returnedQty,
+      );
       if (allReturned) {
         await tx.bill.update({
           where: { id: dto.billId },
@@ -746,10 +807,18 @@ export class BillingService {
     });
 
     if (result) {
-      const returnedQty = dto.items.reduce((sum, item) => sum + item.quantity, 0);
+      const returnedQty = dto.items.reduce(
+        (sum, item) => sum + item.quantity,
+        0,
+      );
       this.eventEmitter.emit(
         'sales.returned',
-        new SalesReturnEvent(result.id, result.billNumber, returnedQty, dto.items),
+        new SalesReturnEvent(
+          result.id,
+          result.billNumber,
+          returnedQty,
+          dto.items,
+        ),
       );
     }
 

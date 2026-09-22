@@ -29,7 +29,9 @@ export class ExpiryScannerWorker extends BaseWorker {
 
     if (expiredBatches.length === 0) return;
 
-    this.logger.log(`Found ${expiredBatches.length} active batch(es) that have expired. Updating status...`);
+    this.logger.log(
+      `Found ${expiredBatches.length} active batch(es) that have expired. Updating status...`,
+    );
 
     for (const batch of expiredBatches) {
       await this.prisma.batch.update({
@@ -83,7 +85,12 @@ export class ExpiryScannerWorker extends BaseWorker {
 
       this.eventEmitter.emit(
         'batch.expired',
-        new BatchExpiredEvent(batch.id, batch.productId, batch.batchNumber, batch.expiryDate),
+        new BatchExpiredEvent(
+          batch.id,
+          batch.productId,
+          batch.batchNumber,
+          batch.expiryDate,
+        ),
       );
     }
   }

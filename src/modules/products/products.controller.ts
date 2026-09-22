@@ -43,22 +43,49 @@ export class ProductsController {
     dto.manufacturerId = body.manufacturerId || undefined;
     dto.supplierId = body.supplierId || undefined;
     dto.hsnCode = body.hsnCode || undefined;
-    
+
     // Parse numeric fields safely
-    dto.gstPercentage = body.gstPercentage !== undefined ? Number(body.gstPercentage) : (body.gstRate !== undefined ? Number(body.gstRate) : undefined);
-    dto.purchasePrice = body.purchasePrice !== undefined ? Number(body.purchasePrice) : (body.purchaseRate !== undefined ? Number(body.purchaseRate) : undefined);
-    dto.retailDiscount = body.discountPercentage !== undefined ? Number(body.discountPercentage) : (body.retailDiscount !== undefined ? Number(body.retailDiscount) : undefined);
-    dto.minStockLevel = body.minimumStock !== undefined ? Number(body.minimumStock) : (body.minStockLevel !== undefined ? Number(body.minStockLevel) : undefined);
+    dto.gstPercentage =
+      body.gstPercentage !== undefined
+        ? Number(body.gstPercentage)
+        : body.gstRate !== undefined
+          ? Number(body.gstRate)
+          : undefined;
+    dto.purchasePrice =
+      body.purchasePrice !== undefined
+        ? Number(body.purchasePrice)
+        : body.purchaseRate !== undefined
+          ? Number(body.purchaseRate)
+          : undefined;
+    dto.retailDiscount =
+      body.discountPercentage !== undefined
+        ? Number(body.discountPercentage)
+        : body.retailDiscount !== undefined
+          ? Number(body.retailDiscount)
+          : undefined;
+    dto.minStockLevel =
+      body.minimumStock !== undefined
+        ? Number(body.minimumStock)
+        : body.minStockLevel !== undefined
+          ? Number(body.minStockLevel)
+          : undefined;
     dto.mrp = body.mrp !== undefined ? Number(body.mrp) : undefined;
-    
-    const inputSellingPrice = body.sellingPrice !== undefined ? Number(body.sellingPrice) : undefined;
+
+    const inputSellingPrice =
+      body.sellingPrice !== undefined ? Number(body.sellingPrice) : undefined;
     dto.sellingPrice = inputSellingPrice;
     dto.offlineSellingPrice = inputSellingPrice;
-    dto.offlineAutoCalculate = body.offlineAutoCalculate ?? (inputSellingPrice !== undefined ? false : true);
+    dto.offlineAutoCalculate =
+      body.offlineAutoCalculate ??
+      (inputSellingPrice !== undefined ? false : true);
     dto.onlineAutoCalculate = body.onlineAutoCalculate ?? true;
-    
-    dto.drugSchedule = body.schedule !== undefined ? body.schedule : body.drugSchedule;
-    dto.status = body.status !== undefined ? (body.status === 'true' || body.status === true) : undefined;
+
+    dto.drugSchedule =
+      body.schedule !== undefined ? body.schedule : body.drugSchedule;
+    dto.status =
+      body.status !== undefined
+        ? body.status === 'true' || body.status === true
+        : undefined;
 
     const result = await this.productsService.create(dto);
     return {
@@ -157,29 +184,75 @@ export class ProductsController {
 
   @Post('import/start')
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
-  async startImport(@Body() body: { importId: string; supplierName: string; totalRows: number }) {
-    return this.productsService.emitImportStarted(body.importId, body.supplierName, body.totalRows);
+  async startImport(
+    @Body() body: { importId: string; supplierName: string; totalRows: number },
+  ) {
+    return this.productsService.emitImportStarted(
+      body.importId,
+      body.supplierName,
+      body.totalRows,
+    );
   }
 
   @Post('import/validate')
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
-  async validateRows(@Body() body: { rows: any[]; mapping: Record<string, string>; duplicateMode: string }) {
-    return this.productsService.validateImportRows(body.rows, body.mapping, body.duplicateMode);
+  async validateRows(
+    @Body()
+    body: {
+      rows: any[];
+      mapping: Record<string, string>;
+      duplicateMode: string;
+    },
+  ) {
+    return this.productsService.validateImportRows(
+      body.rows,
+      body.mapping,
+      body.duplicateMode,
+    );
   }
 
   @Post('import/chunk')
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
-  async importChunk(@Body() body: { rows: any[]; mapping: Record<string, string>; duplicateMode: string }) {
-    return this.productsService.importChunk(body.rows, body.mapping, body.duplicateMode);
+  async importChunk(
+    @Body()
+    body: {
+      rows: any[];
+      mapping: Record<string, string>;
+      duplicateMode: string;
+    },
+  ) {
+    return this.productsService.importChunk(
+      body.rows,
+      body.mapping,
+      body.duplicateMode,
+    );
   }
 
   @Post('import/complete')
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
-  async completeImport(@Body() body: { importId: string; supplierName: string; successCount: number; errorCount: number; error?: string }) {
+  async completeImport(
+    @Body()
+    body: {
+      importId: string;
+      supplierName: string;
+      successCount: number;
+      errorCount: number;
+      error?: string;
+    },
+  ) {
     if (body.error) {
-      return this.productsService.emitImportFailed(body.importId, body.supplierName, body.error);
+      return this.productsService.emitImportFailed(
+        body.importId,
+        body.supplierName,
+        body.error,
+      );
     }
-    return this.productsService.emitImportCompleted(body.importId, body.supplierName, body.successCount, body.errorCount);
+    return this.productsService.emitImportCompleted(
+      body.importId,
+      body.supplierName,
+      body.successCount,
+      body.errorCount,
+    );
   }
 
   @Get('import/mappings')
@@ -190,8 +263,13 @@ export class ProductsController {
 
   @Post('import/mappings')
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
-  async saveSupplierMapping(@Body() body: { supplierName: string; mapping: any }) {
-    return this.productsService.saveSupplierMapping(body.supplierName, body.mapping);
+  async saveSupplierMapping(
+    @Body() body: { supplierName: string; mapping: any },
+  ) {
+    return this.productsService.saveSupplierMapping(
+      body.supplierName,
+      body.mapping,
+    );
   }
 
   @Get('search')

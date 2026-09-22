@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { ROLES_KEY } from '../decorators/roles.decorator';
@@ -9,10 +14,21 @@ export class RolesGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    
-    // Always bypass public endpoints (login, health checks)
-    const publicPaths = ['/users-management/login', '/diagnostics/health', '/maintenance/health'];
-    if (request.url && publicPaths.some(p => request.url.includes(p))) {
+
+    // Always bypass public endpoints (login, health checks, root)
+    const publicPaths = [
+      '/users-management/login',
+      '/diagnostics/health',
+      '/maintenance/health',
+      '/health',
+    ];
+    if (
+      !request.url ||
+      request.url === '/' ||
+      publicPaths.some(
+        (p) => request.url.startsWith(p) || request.url.includes(p),
+      )
+    ) {
       return true;
     }
 

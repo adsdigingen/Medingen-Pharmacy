@@ -8,7 +8,12 @@ export class AuditRepository extends BaseRepository {
     super(prisma);
   }
 
-  async findMany(args: { where: any; skip?: number; take?: number; orderBy?: any }) {
+  async findMany(args: {
+    where: any;
+    skip?: number;
+    take?: number;
+    orderBy?: any;
+  }) {
     return this.prisma.auditLog.findMany(args);
   }
 

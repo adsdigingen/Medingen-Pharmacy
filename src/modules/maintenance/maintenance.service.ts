@@ -48,11 +48,27 @@ export class MaintenanceService {
   async backupDatabase() {
     // JSON Backup: exports all configurations cleanly
     const [
-      categories, manufacturers, suppliers, customers, products, batches,
-      inventories, stockLedgers, stockAdjustments, purchaseOrders, purchaseOrderItems,
-      purchaseReturns, purchaseReturnItems, bills, billItems, payments,
-      notifications, settings,
-      holdBills, holdBillItems, auditLogs
+      categories,
+      manufacturers,
+      suppliers,
+      customers,
+      products,
+      batches,
+      inventories,
+      stockLedgers,
+      stockAdjustments,
+      purchaseOrders,
+      purchaseOrderItems,
+      purchaseReturns,
+      purchaseReturnItems,
+      bills,
+      billItems,
+      payments,
+      notifications,
+      settings,
+      holdBills,
+      holdBillItems,
+      auditLogs,
     ] = await Promise.all([
       this.prisma.category.findMany(),
       this.prisma.manufacturer.findMany(),
@@ -81,11 +97,27 @@ export class MaintenanceService {
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       data: {
-        categories, manufacturers, suppliers, customers, products, batches,
-        inventories, stockLedgers, stockAdjustments, purchaseOrders, purchaseOrderItems,
-        purchaseReturns, purchaseReturnItems, bills, billItems, payments,
-        notifications, settings,
-        holdBills, holdBillItems, auditLogs
+        categories,
+        manufacturers,
+        suppliers,
+        customers,
+        products,
+        batches,
+        inventories,
+        stockLedgers,
+        stockAdjustments,
+        purchaseOrders,
+        purchaseOrderItems,
+        purchaseReturns,
+        purchaseReturnItems,
+        bills,
+        billItems,
+        payments,
+        notifications,
+        settings,
+        holdBills,
+        holdBillItems,
+        auditLogs,
       },
     };
 
@@ -99,7 +131,7 @@ export class MaintenanceService {
 
   async restoreDatabase(backupObj: any) {
     if (!backupObj) {
-      throw new Error("Invalid backup data format.");
+      throw new Error('Invalid backup data format.');
     }
 
     let source = backupObj.data;
@@ -108,266 +140,288 @@ export class MaintenanceService {
     }
 
     if (!source) {
-      throw new Error("Invalid backup data payload.");
+      throw new Error('Invalid backup data payload.');
     }
 
     const {
-      categories, manufacturers, suppliers, customers, products, batches,
-      inventories, stockLedgers, stockAdjustments, purchaseOrders, purchaseOrderItems,
-      purchaseReturns, purchaseReturnItems, bills, billItems, payments,
-      notifications, settings,
-      holdBills, holdBillItems, auditLogs
+      categories,
+      manufacturers,
+      suppliers,
+      customers,
+      products,
+      batches,
+      inventories,
+      stockLedgers,
+      stockAdjustments,
+      purchaseOrders,
+      purchaseOrderItems,
+      purchaseReturns,
+      purchaseReturnItems,
+      bills,
+      billItems,
+      payments,
+      notifications,
+      settings,
+      holdBills,
+      holdBillItems,
+      auditLogs,
     } = source;
 
-    return this.prisma.$transaction(async (tx) => {
-      // Clean target tables in dependency-safe order
-      await tx.auditLog.deleteMany();
-      await tx.notification.deleteMany();
+    return this.prisma.$transaction(
+      async (tx) => {
+        // Clean target tables in dependency-safe order
+        await tx.auditLog.deleteMany();
+        await tx.notification.deleteMany();
 
-      await tx.holdBillItem.deleteMany();
-      await tx.holdBill.deleteMany();
+        await tx.holdBillItem.deleteMany();
+        await tx.holdBill.deleteMany();
 
-      await tx.payment.deleteMany();
-      await tx.billItem.deleteMany();
-      await tx.bill.deleteMany();
+        await tx.payment.deleteMany();
+        await tx.billItem.deleteMany();
+        await tx.bill.deleteMany();
 
-      await tx.purchaseReturnItem.deleteMany();
-      await tx.purchaseReturn.deleteMany();
+        await tx.purchaseReturnItem.deleteMany();
+        await tx.purchaseReturn.deleteMany();
 
-      await tx.purchaseOrderItem.deleteMany();
-      await tx.purchaseOrder.deleteMany();
+        await tx.purchaseOrderItem.deleteMany();
+        await tx.purchaseOrder.deleteMany();
 
-      await tx.stockLedger.deleteMany();
-      await tx.stockAdjustment.deleteMany();
-      await tx.inventory.deleteMany();
-      await tx.batch.deleteMany();
-      await tx.product.deleteMany();
+        await tx.stockLedger.deleteMany();
+        await tx.stockAdjustment.deleteMany();
+        await tx.inventory.deleteMany();
+        await tx.batch.deleteMany();
+        await tx.product.deleteMany();
 
-      await tx.customer.deleteMany();
-      await tx.supplier.deleteMany();
-      await tx.manufacturer.deleteMany();
-      await tx.category.deleteMany();
-      await tx.systemSettings.deleteMany();
+        await tx.customer.deleteMany();
+        await tx.supplier.deleteMany();
+        await tx.manufacturer.deleteMany();
+        await tx.category.deleteMany();
+        await tx.systemSettings.deleteMany();
 
-      // Seed core configs
-      if (categories && categories.length > 0) {
-        await tx.category.createMany({ data: categories });
-      }
-      if (manufacturers && manufacturers.length > 0) {
-        await tx.manufacturer.createMany({ data: manufacturers });
-      }
-      if (suppliers && suppliers.length > 0) {
-        await tx.supplier.createMany({ data: suppliers });
-      }
-      if (customers && customers.length > 0) {
-        await tx.customer.createMany({ data: customers });
-      }
+        // Seed core configs
+        if (categories && categories.length > 0) {
+          await tx.category.createMany({ data: categories });
+        }
+        if (manufacturers && manufacturers.length > 0) {
+          await tx.manufacturer.createMany({ data: manufacturers });
+        }
+        if (suppliers && suppliers.length > 0) {
+          await tx.supplier.createMany({ data: suppliers });
+        }
+        if (customers && customers.length > 0) {
+          await tx.customer.createMany({ data: customers });
+        }
 
-      // Seed products & batches
-      if (products && products.length > 0) {
-        await tx.product.createMany({ data: products });
-      }
-      if (batches && batches.length > 0) {
-        await tx.batch.createMany({ data: batches });
-      }
-      if (inventories && inventories.length > 0) {
-        await tx.inventory.createMany({ data: inventories });
-      }
+        // Seed products & batches
+        if (products && products.length > 0) {
+          await tx.product.createMany({ data: products });
+        }
+        if (batches && batches.length > 0) {
+          await tx.batch.createMany({ data: batches });
+        }
+        if (inventories && inventories.length > 0) {
+          await tx.inventory.createMany({ data: inventories });
+        }
 
-      // Seed inventory history & details
-      if (stockLedgers && stockLedgers.length > 0) {
-        await tx.stockLedger.createMany({ data: stockLedgers });
-      }
-      if (stockAdjustments && stockAdjustments.length > 0) {
-        await tx.stockAdjustment.createMany({ data: stockAdjustments });
-      }
+        // Seed inventory history & details
+        if (stockLedgers && stockLedgers.length > 0) {
+          await tx.stockLedger.createMany({ data: stockLedgers });
+        }
+        if (stockAdjustments && stockAdjustments.length > 0) {
+          await tx.stockAdjustment.createMany({ data: stockAdjustments });
+        }
 
-      // Seed purchases
-      if (purchaseOrders && purchaseOrders.length > 0) {
-        await tx.purchaseOrder.createMany({ data: purchaseOrders });
-      }
-      if (purchaseOrderItems && purchaseOrderItems.length > 0) {
-        await tx.purchaseOrderItem.createMany({ data: purchaseOrderItems });
-      }
-      if (purchaseReturns && purchaseReturns.length > 0) {
-        await tx.purchaseReturn.createMany({ data: purchaseReturns });
-      }
-      if (purchaseReturnItems && purchaseReturnItems.length > 0) {
-        await tx.purchaseReturnItem.createMany({ data: purchaseReturnItems });
-      }
+        // Seed purchases
+        if (purchaseOrders && purchaseOrders.length > 0) {
+          await tx.purchaseOrder.createMany({ data: purchaseOrders });
+        }
+        if (purchaseOrderItems && purchaseOrderItems.length > 0) {
+          await tx.purchaseOrderItem.createMany({ data: purchaseOrderItems });
+        }
+        if (purchaseReturns && purchaseReturns.length > 0) {
+          await tx.purchaseReturn.createMany({ data: purchaseReturns });
+        }
+        if (purchaseReturnItems && purchaseReturnItems.length > 0) {
+          await tx.purchaseReturnItem.createMany({ data: purchaseReturnItems });
+        }
 
-      // Seed bills & payments
-      if (bills && bills.length > 0) {
-        await tx.bill.createMany({ data: bills });
-      }
-      if (billItems && billItems.length > 0) {
-        await tx.billItem.createMany({ data: billItems });
-      }
-      if (payments && payments.length > 0) {
-        await tx.payment.createMany({ data: payments });
-      }
+        // Seed bills & payments
+        if (bills && bills.length > 0) {
+          await tx.bill.createMany({ data: bills });
+        }
+        if (billItems && billItems.length > 0) {
+          await tx.billItem.createMany({ data: billItems });
+        }
+        if (payments && payments.length > 0) {
+          await tx.payment.createMany({ data: payments });
+        }
 
-      // Seed hold bills
-      if (holdBills && holdBills.length > 0) {
-        await tx.holdBill.createMany({ data: holdBills });
-      }
-      if (holdBillItems && holdBillItems.length > 0) {
-        await tx.holdBillItem.createMany({ data: holdBillItems });
-      }
+        // Seed hold bills
+        if (holdBills && holdBills.length > 0) {
+          await tx.holdBill.createMany({ data: holdBills });
+        }
+        if (holdBillItems && holdBillItems.length > 0) {
+          await tx.holdBillItem.createMany({ data: holdBillItems });
+        }
 
-      // Seed metadata tables
-      if (notifications && notifications.length > 0) {
-        await tx.notification.createMany({ data: notifications });
-      }
-      if (auditLogs && auditLogs.length > 0) {
-        await tx.auditLog.createMany({ data: auditLogs });
-      }
+        // Seed metadata tables
+        if (notifications && notifications.length > 0) {
+          await tx.notification.createMany({ data: notifications });
+        }
+        if (auditLogs && auditLogs.length > 0) {
+          await tx.auditLog.createMany({ data: auditLogs });
+        }
 
-      // Restore settings
-      if (settings && settings.length > 0) {
-        await tx.systemSettings.createMany({ data: settings });
-      }
+        // Restore settings
+        if (settings && settings.length > 0) {
+          await tx.systemSettings.createMany({ data: settings });
+        }
 
-      return { status: 'RESTORE_SUCCESSFUL' };
-    }, { timeout: 60000, maxWait: 10000 });
+        return { status: 'RESTORE_SUCCESSFUL' };
+      },
+      { timeout: 60000, maxWait: 10000 },
+    );
   }
 
   async resetDatabase(target: string) {
-    return this.prisma.$transaction(async (tx) => {
-      switch (target) {
-        case 'sales':
-          await tx.payment.deleteMany();
-          await tx.billItem.deleteMany();
-          await tx.bill.deleteMany();
-          break;
+    return this.prisma.$transaction(
+      async (tx) => {
+        switch (target) {
+          case 'sales':
+            await tx.payment.deleteMany();
+            await tx.billItem.deleteMany();
+            await tx.bill.deleteMany();
+            break;
 
-        case 'purchases':
-          await tx.purchaseReturnItem.deleteMany();
-          await tx.purchaseReturn.deleteMany();
-          await tx.purchaseOrderItem.deleteMany();
-          await tx.purchaseOrder.deleteMany();
-          break;
+          case 'purchases':
+            await tx.purchaseReturnItem.deleteMany();
+            await tx.purchaseReturn.deleteMany();
+            await tx.purchaseOrderItem.deleteMany();
+            await tx.purchaseOrder.deleteMany();
+            break;
 
-        case 'products':
-          // Clean sales & hold bills first (since they point to batches/products)
-          await tx.auditLog.deleteMany();
-          await tx.payment.deleteMany();
-          await tx.billItem.deleteMany();
-          await tx.bill.deleteMany();
-          
-          await tx.holdBillItem.deleteMany();
-          await tx.holdBill.deleteMany();
+          case 'products':
+            // Clean sales & hold bills first (since they point to batches/products)
+            await tx.auditLog.deleteMany();
+            await tx.payment.deleteMany();
+            await tx.billItem.deleteMany();
+            await tx.bill.deleteMany();
 
-          await tx.purchaseReturnItem.deleteMany();
-          await tx.purchaseReturn.deleteMany();
-          await tx.purchaseOrderItem.deleteMany();
-          await tx.purchaseOrder.deleteMany();
+            await tx.holdBillItem.deleteMany();
+            await tx.holdBill.deleteMany();
 
-          await tx.drugScheduleRegister.deleteMany();
+            await tx.purchaseReturnItem.deleteMany();
+            await tx.purchaseReturn.deleteMany();
+            await tx.purchaseOrderItem.deleteMany();
+            await tx.purchaseOrder.deleteMany();
 
-          // Now clean inventory/products
-          await tx.stockLedger.deleteMany();
-          await tx.stockAdjustment.deleteMany();
-          await tx.inventory.deleteMany();
-          await tx.batch.deleteMany();
-          await tx.product.deleteMany();
-          await tx.category.deleteMany();
-          await tx.manufacturer.deleteMany();
-          break;
+            await tx.drugScheduleRegister.deleteMany();
 
-        case 'contacts':
-          // Disconnect bills & hold bills from customer
-          await tx.bill.updateMany({
-            data: { customerId: null }
-          });
-          await tx.holdBill.updateMany({
-            data: { customerId: null }
-          });
+            // Now clean inventory/products
+            await tx.stockLedger.deleteMany();
+            await tx.stockAdjustment.deleteMany();
+            await tx.inventory.deleteMany();
+            await tx.batch.deleteMany();
+            await tx.product.deleteMany();
+            await tx.category.deleteMany();
+            await tx.manufacturer.deleteMany();
+            break;
 
-          // Delete purchase returns and POs since they depend on suppliers
-          await tx.purchaseReturnItem.deleteMany();
-          await tx.purchaseReturn.deleteMany();
-          await tx.purchaseOrderItem.deleteMany();
-          await tx.purchaseOrder.deleteMany();
+          case 'contacts':
+            // Disconnect bills & hold bills from customer
+            await tx.bill.updateMany({
+              data: { customerId: null },
+            });
+            await tx.holdBill.updateMany({
+              data: { customerId: null },
+            });
 
-          // Now delete contacts
-          await tx.customer.deleteMany();
-          await tx.doctor.deleteMany();
-          await tx.supplier.deleteMany();
-          break;
+            // Delete purchase returns and POs since they depend on suppliers
+            await tx.purchaseReturnItem.deleteMany();
+            await tx.purchaseReturn.deleteMany();
+            await tx.purchaseOrderItem.deleteMany();
+            await tx.purchaseOrder.deleteMany();
 
-        case 'drugRegister':
-          await tx.drugScheduleRegister.deleteMany();
-          break;
+            // Now delete contacts
+            await tx.customer.deleteMany();
+            await tx.doctor.deleteMany();
+            await tx.supplier.deleteMany();
+            break;
 
-        case 'holdBills':
-          await tx.holdBillItem.deleteMany();
-          await tx.holdBill.deleteMany();
-          break;
+          case 'drugRegister':
+            await tx.drugScheduleRegister.deleteMany();
+            break;
 
-        case 'all':
-        default:
-          // 1. Clean transactional and log tables
-          await tx.auditLog.deleteMany();
-          await tx.notification.deleteMany();
+          case 'holdBills':
+            await tx.holdBillItem.deleteMany();
+            await tx.holdBill.deleteMany();
+            break;
 
-          await tx.holdBillItem.deleteMany();
-          await tx.holdBill.deleteMany();
+          case 'all':
+          default:
+            // 1. Clean transactional and log tables
+            await tx.auditLog.deleteMany();
+            await tx.notification.deleteMany();
 
-          await tx.payment.deleteMany();
-          await tx.billItem.deleteMany();
-          await tx.bill.deleteMany();
+            await tx.holdBillItem.deleteMany();
+            await tx.holdBill.deleteMany();
 
-          await tx.purchaseReturnItem.deleteMany();
-          await tx.purchaseReturn.deleteMany();
+            await tx.payment.deleteMany();
+            await tx.billItem.deleteMany();
+            await tx.bill.deleteMany();
 
-          await tx.purchaseOrderItem.deleteMany();
-          await tx.purchaseOrder.deleteMany();
+            await tx.purchaseReturnItem.deleteMany();
+            await tx.purchaseReturn.deleteMany();
 
-          // 2. Clean inventory tables
-          await tx.stockLedger.deleteMany();
-          await tx.stockAdjustment.deleteMany();
-          await tx.inventory.deleteMany();
-          await tx.batch.deleteMany();
-          await tx.product.deleteMany();
+            await tx.purchaseOrderItem.deleteMany();
+            await tx.purchaseOrder.deleteMany();
 
-          // 3. Clean registries
-          await tx.customer.deleteMany();
-          await tx.supplier.deleteMany();
-          await tx.manufacturer.deleteMany();
-          await tx.category.deleteMany();
-          await tx.systemSettings.deleteMany();
-          
-          // Clean new custom tables
-          await tx.doctor.deleteMany();
-          await tx.drugScheduleRegister.deleteMany();
+            // 2. Clean inventory tables
+            await tx.stockLedger.deleteMany();
+            await tx.stockAdjustment.deleteMany();
+            await tx.inventory.deleteMany();
+            await tx.batch.deleteMany();
+            await tx.product.deleteMany();
 
-          // 4. Seed default system settings
-          await tx.systemSettings.create({
-            data: {
-              id: 'singleton',
-              storeName: 'Medingen Pharmacy',
-              address: 'Default Store Address',
-              phone: '9876543210',
-              email: 'admin@medingen.com',
-              gstin: '',
-              invoicePrefix: 'INV-',
-              poPrefix: 'PO-',
-              printerType: '80mm',
-              backupInterval: 'DAILY'
-            }
-          });
+            // 3. Clean registries
+            await tx.customer.deleteMany();
+            await tx.supplier.deleteMany();
+            await tx.manufacturer.deleteMany();
+            await tx.category.deleteMany();
+            await tx.systemSettings.deleteMany();
 
-          // 5. Clean users other than admin
-          await tx.user.deleteMany({
-            where: {
-              username: { not: 'admin' }
-            }
-          });
-          break;
-      }
+            // Clean new custom tables
+            await tx.doctor.deleteMany();
+            await tx.drugScheduleRegister.deleteMany();
 
-      return { status: 'RESET_SUCCESSFUL', target };
-    }, { timeout: 30000 });
+            // 4. Seed default system settings
+            await tx.systemSettings.create({
+              data: {
+                id: 'singleton',
+                storeName: 'Medingen Pharmacy',
+                address: 'Default Store Address',
+                phone: '9876543210',
+                email: 'admin@medingen.com',
+                gstin: '',
+                invoicePrefix: 'INV-',
+                poPrefix: 'PO-',
+                printerType: '80mm',
+                backupInterval: 'DAILY',
+              },
+            });
+
+            // 5. Clean users other than admin
+            await tx.user.deleteMany({
+              where: {
+                username: { not: 'admin' },
+              },
+            });
+            break;
+        }
+
+        return { status: 'RESET_SUCCESSFUL', target };
+      },
+      { timeout: 30000 },
+    );
   }
 }

@@ -24,8 +24,7 @@ export class CleanupWorker extends BaseWorker {
     });
 
     this.logger.log(
-      `Database cleanup completed. Audit logs purged: ${auditResult.count}.`
+      `Database cleanup completed. Audit logs purged: ${auditResult.count}.`,
     );
   }
 }
-

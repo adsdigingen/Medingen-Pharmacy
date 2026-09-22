@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsString, IsEnum, IsBoolean, IsOptional } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsEnum,
+  IsBoolean,
+  IsOptional,
+} from 'class-validator';
 import { Role } from '@prisma/client';
 
 export class CreateUserDto {
@@ -37,4 +43,3 @@ export class LoginDto {
   @IsNotEmpty()
   password: string;
 }
-

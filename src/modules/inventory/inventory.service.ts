@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdjustmentDto } from './dto/create-adjustment.dto';
 import { SyncStatus } from '@prisma/client';
@@ -14,7 +18,12 @@ export class InventoryService {
     private readonly repo: InventoryRepository,
   ) {}
 
-  async findAll(query: { search?: string; lowStock?: string; page?: number; limit?: number }) {
+  async findAll(query: {
+    search?: string;
+    lowStock?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 10);
     const skip = (page - 1) * limit;
@@ -44,7 +53,9 @@ export class InventoryService {
 
     let filtered = inventories;
     if (query.lowStock === 'true') {
-      filtered = inventories.filter((inv) => inv.availableQty <= inv.product.minStockLevel);
+      filtered = inventories.filter(
+        (inv) => inv.availableQty <= inv.product.minStockLevel,
+      );
     }
 
     const total = filtered.length;
@@ -59,7 +70,12 @@ export class InventoryService {
     };
   }
 
-  async findLedger(query: { productId?: string; batchId?: string; page?: number; limit?: number }) {
+  async findLedger(query: {
+    productId?: string;
+    batchId?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 10);
     const skip = (page - 1) * limit;
@@ -109,7 +125,7 @@ export class InventoryService {
       } else if (type === 'DECREASE') {
         if (batch.availableQty < quantity) {
           throw new BadRequestException(
-            `Cannot decrease stock by ${quantity}. Available quantity is only ${batch.availableQty}.`
+            `Cannot decrease stock by ${quantity}. Available quantity is only ${batch.availableQty}.`,
           );
         }
         newAvailableQty -= quantity;
@@ -117,7 +133,9 @@ export class InventoryService {
           newDamagedQty += quantity;
         }
       } else {
-        throw new BadRequestException(`Invalid adjustment type: "${type}". Must be INCREASE or DECREASE.`);
+        throw new BadRequestException(
+          `Invalid adjustment type: "${type}". Must be INCREASE or DECREASE.`,
+        );
       }
 
       // Determine status
@@ -219,7 +237,13 @@ export class InventoryService {
     if (result) {
       this.eventEmitter.emit(
         'inventory.adjusted',
-        new StockAdjustedEvent(batchId, result.batch.productId, type, quantity, reason),
+        new StockAdjustedEvent(
+          batchId,
+          result.batch.productId,
+          type,
+          quantity,
+          reason,
+        ),
       );
     }
 

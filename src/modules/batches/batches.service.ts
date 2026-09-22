@@ -11,7 +11,13 @@ export class BatchesService {
     private readonly repo: BatchRepository,
   ) {}
 
-  async findAll(query: { productId?: string; status?: string; search?: string; page?: number; limit?: number }) {
+  async findAll(query: {
+    productId?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.max(1, query.limit ?? 10);
     const skip = (page - 1) * limit;
@@ -31,7 +37,11 @@ export class BatchesService {
     if (query.search) {
       where.OR = [
         { batchNumber: { contains: query.search.trim(), mode: 'insensitive' } },
-        { product: { name: { contains: query.search.trim(), mode: 'insensitive' } } },
+        {
+          product: {
+            name: { contains: query.search.trim(), mode: 'insensitive' },
+          },
+        },
       ];
     }
 
@@ -49,7 +59,11 @@ export class BatchesService {
     const now = new Date();
     const updatedItems = await Promise.all(
       items.map(async (item) => {
-        if (item.expiryDate < now && item.status !== 'EXPIRED' && item.status !== 'EXHAUSTED') {
+        if (
+          item.expiryDate < now &&
+          item.status !== 'EXPIRED' &&
+          item.status !== 'EXHAUSTED'
+        ) {
           // Update status in background to keep database synced
           const updated = await this.repo.update(item.id, {
             status: 'EXPIRED',
@@ -59,7 +73,7 @@ export class BatchesService {
           return updated;
         }
         return item;
-      })
+      }),
     );
 
     return {
@@ -85,10 +99,19 @@ export class BatchesService {
     const batch = await this.findOne(id);
 
     return this.repo.update(id, {
-      purchasePrice: updateBatchDto.purchasePrice !== undefined ? updateBatchDto.purchasePrice : batch.purchasePrice,
-      sellingPrice: updateBatchDto.sellingPrice !== undefined ? updateBatchDto.sellingPrice : batch.sellingPrice,
+      purchasePrice:
+        updateBatchDto.purchasePrice !== undefined
+          ? updateBatchDto.purchasePrice
+          : batch.purchasePrice,
+      sellingPrice:
+        updateBatchDto.sellingPrice !== undefined
+          ? updateBatchDto.sellingPrice
+          : batch.sellingPrice,
       mrp: updateBatchDto.mrp !== undefined ? updateBatchDto.mrp : batch.mrp,
-      status: updateBatchDto.status !== undefined ? updateBatchDto.status : batch.status,
+      status:
+        updateBatchDto.status !== undefined
+          ? updateBatchDto.status
+          : batch.status,
       syncStatus: SyncStatus.PENDING,
       updatedAt: new Date(),
     });

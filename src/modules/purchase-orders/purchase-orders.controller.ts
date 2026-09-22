@@ -1,6 +1,20 @@
-import { Controller, Get, Post, Body, Param, Delete, Query, Put, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Query,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { PurchaseOrdersService } from './purchase-orders.service';
-import { CreatePurchaseOrderDto, UpdatePurchaseOrderStatusDto, CreateReturnDto } from './dto/create-po.dto';
+import {
+  CreatePurchaseOrderDto,
+  UpdatePurchaseOrderStatusDto,
+  CreateReturnDto,
+} from './dto/create-po.dto';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -33,10 +47,7 @@ export class PurchaseOrdersController {
   }
 
   @Get('returns')
-  getReturns(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
+  getReturns(@Query('page') page?: string, @Query('limit') limit?: string) {
     return this.purchaseOrdersService.getReturns({
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
@@ -54,10 +65,7 @@ export class PurchaseOrdersController {
   }
 
   @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() createPoDto: CreatePurchaseOrderDto,
-  ) {
+  update(@Param('id') id: string, @Body() createPoDto: CreatePurchaseOrderDto) {
     return this.purchaseOrdersService.update(id, createPoDto);
   }
 

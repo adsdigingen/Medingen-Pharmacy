@@ -8,11 +8,20 @@ export class InventoryRepository extends BaseRepository {
     super(prisma);
   }
 
-  async findMany(args: { where: any; include?: any; orderBy?: any }): Promise<any[]> {
+  async findMany(args: {
+    where: any;
+    include?: any;
+    orderBy?: any;
+  }): Promise<any[]> {
     return this.prisma.inventory.findMany(args);
   }
 
-  async findLedger(args: { where: any; skip?: number; take?: number; orderBy?: any }) {
+  async findLedger(args: {
+    where: any;
+    skip?: number;
+    take?: number;
+    orderBy?: any;
+  }) {
     return this.prisma.stockLedger.findMany({
       ...args,
       include: {

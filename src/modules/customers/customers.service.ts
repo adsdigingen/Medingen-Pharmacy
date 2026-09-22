@@ -1,5 +1,9 @@
 import { UpdateCustomerDto } from './dto/update-customer.dto';
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { SyncStatus } from '@prisma/client';
@@ -21,7 +25,9 @@ export class CustomersService {
     });
 
     if (existing) {
-      throw new ConflictException(`Customer with mobile number "${createCustomerDto.mobile}" already exists.`);
+      throw new ConflictException(
+        `Customer with mobile number "${createCustomerDto.mobile}" already exists.`,
+      );
     }
 
     const result = await this.repo.create({
@@ -103,15 +109,23 @@ export class CustomersService {
         },
       });
       if (existing) {
-        throw new ConflictException(`Customer with mobile number "${mobile}" already exists.`);
+        throw new ConflictException(
+          `Customer with mobile number "${mobile}" already exists.`,
+        );
       }
       customer.mobile = mobile;
     }
 
     return this.repo.update(id, {
-      name: updateCustomerDto.name !== undefined ? updateCustomerDto.name.trim() : customer.name,
+      name:
+        updateCustomerDto.name !== undefined
+          ? updateCustomerDto.name.trim()
+          : customer.name,
       mobile: customer.mobile,
-      creditBalance: updateCustomerDto.creditBalance !== undefined ? updateCustomerDto.creditBalance : customer.creditBalance,
+      creditBalance:
+        updateCustomerDto.creditBalance !== undefined
+          ? updateCustomerDto.creditBalance
+          : customer.creditBalance,
       syncStatus: SyncStatus.PENDING,
       updatedAt: new Date(),
     });

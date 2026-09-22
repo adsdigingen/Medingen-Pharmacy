@@ -16,18 +16,11 @@ export class DrugScheduleRegisterRepository {
     return this.prisma.drugScheduleRegister.findMany(args);
   }
 
-  async findUnique(args: {
-    where: { id: string };
-    include?: any;
-  }) {
+  async findUnique(args: { where: { id: string }; include?: any }) {
     return this.prisma.drugScheduleRegister.findUnique(args);
   }
 
-  async findFirst(args: {
-    where?: any;
-    include?: any;
-    orderBy?: any;
-  }) {
+  async findFirst(args: { where?: any; include?: any; orderBy?: any }) {
     return this.prisma.drugScheduleRegister.findFirst(args);
   }
 

@@ -70,9 +70,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           default:
             message = `Database error: ${prismaError.code}`;
         }
-      } else if (
-        exception.constructor.name === 'PrismaClientValidationError'
-      ) {
+      } else if (exception.constructor.name === 'PrismaClientValidationError') {
         status = HttpStatus.BAD_REQUEST;
         message = 'Invalid query parameters';
         errorCode = 'DATABASE_VALIDATION_ERROR';

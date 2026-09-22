@@ -17,7 +17,11 @@ export class ReportsController {
     @Query('endDate') endDate?: string,
     @Query('paymentMethod') paymentMethod?: string,
   ) {
-    return this.reportsService.getSalesReport({ startDate, endDate, paymentMethod });
+    return this.reportsService.getSalesReport({
+      startDate,
+      endDate,
+      paymentMethod,
+    });
   }
 
   @Get('purchases')
@@ -26,7 +30,11 @@ export class ReportsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.reportsService.getPurchaseReport({ supplierId, startDate, endDate });
+    return this.reportsService.getPurchaseReport({
+      supplierId,
+      startDate,
+      endDate,
+    });
   }
 
   @Get('inventory')

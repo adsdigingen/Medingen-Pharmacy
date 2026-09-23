@@ -1356,6 +1356,17 @@ export class ProductsService {
     }
 
     const aliasDict = {
+      productId: [
+        'product id',
+        'product_id',
+        'productid',
+        'item id',
+        'item_id',
+        'itemid',
+        'prod id',
+        'prod_id',
+        'id',
+      ],
       name: [
         'product name',
         'brand name',
@@ -1504,8 +1515,14 @@ export class ProductsService {
         'online selling price',
         'online selling rate',
         'online price',
+        'online_price',
+        'onlineprice',
         'onlinesellingprice',
         'online rate',
+        'web price',
+        'web selling price',
+        'ecommerce price',
+        'online',
       ],
       wholesalePrice: [
         'wholesale price',
@@ -1721,33 +1738,37 @@ export class ProductsService {
         rowErrors.push('Product Name is required.');
       }
 
-      const mrp = parseFloat(mapped.mrp);
-      const cost = parseFloat(mapped.purchasePrice);
-
-      if (
+      const mrpRaw =
         mapped.mrp !== null &&
         mapped.mrp !== undefined &&
         mapped.mrp !== ''
-      ) {
+          ? mapped.mrp
+          : null;
+      const mrp = mrpRaw !== null ? parseFloat(mrpRaw) : NaN;
+
+      if (mrpRaw !== null) {
         if (isNaN(mrp)) rowErrors.push('MRP must be numeric.');
         else if (mrp < 0) rowErrors.push('MRP cannot be negative.');
-      } else {
-        rowErrors.push('MRP is required.');
       }
 
-      if (
+      const costRaw =
         mapped.purchasePrice !== null &&
         mapped.purchasePrice !== undefined &&
         mapped.purchasePrice !== ''
-      ) {
-        if (isNaN(cost)) rowErrors.push('Purchase Price must be numeric.');
-        else if (cost < 0) rowErrors.push('Purchase Price cannot be negative.');
-      } else {
-        rowErrors.push('Purchase Price is required.');
-      }
+          ? mapped.purchasePrice
+          : mapped.cost !== null &&
+            mapped.cost !== undefined &&
+            mapped.cost !== ''
+          ? mapped.cost
+          : null;
+      const cost = costRaw !== null ? parseFloat(costRaw) : NaN;
 
-      if (!isNaN(mrp) && !isNaN(cost) && mrp >= 0 && cost >= 0) {
-        if (mrp < cost) {
+      if (costRaw !== null) {
+        if (isNaN(cost)) {
+          rowErrors.push('Purchase Price must be numeric.');
+        } else if (cost < 0) {
+          rowErrors.push('Purchase Price cannot be negative.');
+        } else if (!isNaN(mrp) && mrp > 0 && cost > 0 && mrp < cost) {
           rowErrors.push(
             'MRP must be greater than or equal to Purchase Price.',
           );
@@ -1775,19 +1796,28 @@ export class ProductsService {
             String(mapped.roundOff).toLowerCase() === 'true' ||
             mapped.roundOff === true
           : true;
+
+      const onlinePriceRaw =
+        mapped.onlineSellingPrice !== null &&
+        mapped.onlineSellingPrice !== undefined &&
+        mapped.onlineSellingPrice !== ''
+          ? mapped.onlineSellingPrice
+          : mapped.onlinePrice !== null &&
+            mapped.onlinePrice !== undefined &&
+            mapped.onlinePrice !== ''
+          ? mapped.onlinePrice
+          : null;
+
       const offlineAutoCalculate =
         mapped.offlineSellingPrice === null ||
         mapped.offlineSellingPrice === undefined ||
         mapped.offlineSellingPrice === '';
-      const onlineAutoCalculate =
-        mapped.onlineSellingPrice === null ||
-        mapped.onlineSellingPrice === undefined ||
-        mapped.onlineSellingPrice === '';
+      const onlineAutoCalculate = onlinePriceRaw === null;
 
       let calculatedOfflinePrice = 0.0;
       let calculatedOnlinePrice = 0.0;
 
-      if (!isNaN(cost) && cost >= 0) {
+      if (!isNaN(cost) && cost > 0) {
         if (offlineAutoCalculate) {
           const calc = cost * (1 + offlineMarkup / 100);
           calculatedOfflinePrice = roundOff
@@ -1803,7 +1833,7 @@ export class ProductsService {
             ? Math.round(calc)
             : parseFloat(calc.toFixed(2));
         } else {
-          calculatedOnlinePrice = parseFloat(mapped.onlineSellingPrice);
+          calculatedOnlinePrice = parseFloat(onlinePriceRaw);
         }
 
         if (!isNaN(calculatedOfflinePrice)) {
@@ -1824,6 +1854,40 @@ export class ProductsService {
             );
           }
           if (!isNaN(mrp) && mrp > 0 && calculatedOnlinePrice > mrp) {
+            rowErrors.push('Online Selling Price exceeds MRP.');
+          }
+        }
+      } else {
+        if (!offlineAutoCalculate) {
+          calculatedOfflinePrice = parseFloat(mapped.offlineSellingPrice);
+          if (
+            !isNaN(calculatedOfflinePrice) &&
+            !isNaN(mrp) &&
+            mrp > 0 &&
+            calculatedOfflinePrice > mrp
+          ) {
+            rowErrors.push('Offline Selling Price exceeds MRP.');
+          }
+        } else if (mapped.sellingPrice) {
+          calculatedOfflinePrice = parseFloat(mapped.sellingPrice);
+          if (
+            !isNaN(calculatedOfflinePrice) &&
+            !isNaN(mrp) &&
+            mrp > 0 &&
+            calculatedOfflinePrice > mrp
+          ) {
+            rowErrors.push('Offline Selling Price exceeds MRP.');
+          }
+        }
+
+        if (!onlineAutoCalculate) {
+          calculatedOnlinePrice = parseFloat(onlinePriceRaw);
+          if (
+            !isNaN(calculatedOnlinePrice) &&
+            !isNaN(mrp) &&
+            mrp > 0 &&
+            calculatedOnlinePrice > mrp
+          ) {
             rowErrors.push('Online Selling Price exceeds MRP.');
           }
         }
@@ -1910,8 +1974,9 @@ export class ProductsService {
           rowErrors.push('Minimum Stock cannot be negative.');
       }
 
+      const productId = String(mapped.productId || '').trim();
       const barcode = String(mapped.barcode || '').trim();
-      const sku = String(mapped.sku || '').trim();
+      const sku = String(mapped.sku || '').trim() || (productId || '');
 
       if (barcode) {
         if (seenBarcodes.has(barcode)) {
@@ -1929,7 +1994,12 @@ export class ProductsService {
       let status = 'New Product';
       let existing = null;
 
-      if (barcode) {
+      if (productId) {
+        existing = dbProducts.find(
+          (p) => p.id === productId || (p.sku && p.sku === productId),
+        );
+      }
+      if (!existing && barcode) {
         existing = dbProducts.find((p) => p.barcode === barcode);
       }
       if (!existing && sku) {
@@ -1968,6 +2038,7 @@ export class ProductsService {
 
       resultRows.push({
         rowNum,
+        productId: productId || undefined,
         name,
         genericName: String(mapped.genericName || '').trim(),
         brandName: String(mapped.brandName || '').trim(),
@@ -2150,8 +2221,13 @@ export class ProductsService {
             const brandName = row.brandName
               ? String(row.brandName).trim()
               : null;
+            const productId = row.productId
+              ? String(row.productId).trim()
+              : null;
             const barcode = row.barcode ? String(row.barcode).trim() : null;
-            const sku = row.sku ? String(row.sku).trim() : null;
+            const sku = row.sku
+              ? String(row.sku).trim()
+              : productId || null;
             const hsnCode = row.hsnCode ? String(row.hsnCode).trim() : null;
             const rackLocation = row.rackLocation
               ? String(row.rackLocation).trim()
@@ -2224,10 +2300,19 @@ export class ProductsService {
               row.onlineMarkup !== undefined
                 ? parseFloat(row.onlineMarkup)
                 : 85.0;
-            const onlineSellingPrice =
-              row.onlineSellingPrice !== undefined
+            const onlinePriceVal =
+              row.onlineSellingPrice !== undefined &&
+              row.onlineSellingPrice !== null &&
+              row.onlineSellingPrice !== ''
                 ? parseFloat(row.onlineSellingPrice)
+                : row.onlinePrice !== undefined &&
+                  row.onlinePrice !== null &&
+                  row.onlinePrice !== ''
+                ? parseFloat(row.onlinePrice)
                 : 0.0;
+            const onlineSellingPrice = isNaN(onlinePriceVal)
+              ? 0.0
+              : onlinePriceVal;
             const onlineAutoCalculate =
               row.onlineAutoCalculate !== undefined
                 ? !!row.onlineAutoCalculate
@@ -2266,7 +2351,24 @@ export class ProductsService {
               : null;
 
             let existingProduct = null;
-            if (barcode) {
+            let isUuid = false;
+            if (productId) {
+              isUuid =
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                  productId,
+                );
+              if (isUuid) {
+                existingProduct = await tx.product.findFirst({
+                  where: { id: productId, deletedAt: null },
+                });
+              }
+              if (!existingProduct) {
+                existingProduct = await tx.product.findFirst({
+                  where: { sku: productId, deletedAt: null },
+                });
+              }
+            }
+            if (!existingProduct && barcode) {
               existingProduct = await tx.product.findFirst({
                 where: { barcode, deletedAt: null },
               });
@@ -2549,6 +2651,7 @@ export class ProductsService {
             } else {
               await tx.product.create({
                 data: {
+                  ...(isUuid && productId ? { id: productId } : {}),
                   name,
                   genericName,
                   brandName,

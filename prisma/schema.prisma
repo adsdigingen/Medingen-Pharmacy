@@ -409,10 +409,13 @@ model Bill {
   cancelReason   String?     @map("cancel_reason")
   invoiceType    String      @default("TAX") @map("invoice_type") // TAX, RETAIL
   doctorName     String?     @map("doctor_name")
+  source         String      @default("POS")
+  externalOrderId String?    @map("external_order_id")
   
   billItems      BillItem[]
   payments       Payment[]
   drugScheduleEntries DrugScheduleRegister[]
+  medingenRequests MedingenBillRequest[]
   deletedAt      DateTime?   @map("deleted_at")
   
   createdAt      DateTime    @default(now()) @map("created_at")
@@ -420,10 +423,12 @@ model Bill {
   syncedAt       DateTime?   @map("synced_at")
   syncStatus     SyncStatus  @default(PENDING) @map("sync_status")
 
+  @@unique([source, externalOrderId])
   @@index([customerId])
   @@index([status])
   @@index([createdAt])
   @@index([paymentMethod])
+  @@index([externalOrderId])
   @@map("bills")
 }
 
@@ -683,4 +688,39 @@ model CounterSaleItem {
   syncedAt      DateTime?   @map("synced_at")
 
   @@map("counter_sale_items")
+}
+
+model MedingenBillRequest {
+  id              String    @id @default(uuid()) @db.Uuid
+  externalOrderId String    @map("external_order_id")
+  status          String    @default("RECEIVED") // RECEIVED, PROCESSING, SUCCESS, FAILED
+  billId          String?   @map("bill_id") @db.Uuid
+  bill            Bill?     @relation(fields: [billId], references: [id], onDelete: SetNull)
+  requestId       String?   @map("request_id")
+  errorCode       String?   @map("error_code")
+  errorMessage    String?   @map("error_message")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  processedAt     DateTime? @map("processed_at")
+
+  @@index([externalOrderId])
+  @@index([status])
+  @@map("medingen_bill_requests")
+}
+
+model ApiKey {
+  id         String    @id @default(uuid()) @db.Uuid
+  name       String    @default("Medingen Platform Key")
+  keyPrefix  String    @map("key_prefix")
+  keyHash    String    @unique @map("key_hash")
+  status     String    @default("ACTIVE") // ACTIVE, REVOKED
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
+  expiresAt  DateTime? @map("expires_at")
+  createdBy  String?   @map("created_by")
+
+  @@index([keyPrefix])
+  @@index([status])
+  @@map("api_keys")
 }

@@ -7,6 +7,25 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { validateEnvironment } from './config/env.validation';
 import { json, urlencoded } from 'express';
 import { Logger } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Load environment variables automatically
+const potentialEnvPaths = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), 'backend/.env'),
+  path.resolve(__dirname, '../.env'),
+];
+
+for (const envPath of potentialEnvPaths) {
+  if (fs.existsSync(envPath)) {
+    try {
+      process.loadEnvFile(envPath);
+    } catch {
+      // already loaded or parse ignore
+    }
+  }
+}
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');

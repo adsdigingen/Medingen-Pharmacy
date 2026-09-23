@@ -6,19 +6,18 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 
-@UseGuards(AuthGuard, RolesGuard)
 @Controller('system-settings')
 export class SystemSettingsController {
   constructor(private readonly settingsService: SystemSettingsService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.PHARMACIST)
   getSettings() {
     return this.settingsService.getSettings();
   }
 
-  @Put()
+  @UseGuards(AuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @Put()
   update(@Body() dto: UpdateSettingsDto) {
     return this.settingsService.update(dto);
   }

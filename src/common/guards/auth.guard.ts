@@ -24,6 +24,7 @@ export class AuthGuard implements CanActivate {
     if (
       !request.url ||
       request.url === '/' ||
+      (request.method === 'GET' && request.url.startsWith('/system-settings')) ||
       publicPaths.some(
         (p) => request.url.startsWith(p) || request.url.includes(p),
       )

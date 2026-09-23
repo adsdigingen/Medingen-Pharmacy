@@ -91,6 +91,14 @@ export class CheckoutBillDto {
   @IsString()
   @IsOptional()
   doctorName?: string;
+
+  @IsString()
+  @IsOptional()
+  source?: string;
+
+  @IsString()
+  @IsOptional()
+  externalOrderId?: string;
 }
 
 export class HoldBillDto {

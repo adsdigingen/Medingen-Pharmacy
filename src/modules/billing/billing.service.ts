@@ -231,6 +231,8 @@ export class BillingService {
           cashierId: '00000000-0000-0000-0000-000000000000', // default cash desk uuid
           syncStatus: SyncStatus.PENDING,
           doctorName: dto.doctorName || null,
+          source: dto.source || 'POS',
+          externalOrderId: dto.externalOrderId || null,
           billItems: {
             create: billItemsToCreate,
           },

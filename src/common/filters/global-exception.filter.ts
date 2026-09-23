@@ -92,11 +92,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       this.logger.error('Unknown exception type:', exception);
     }
 
+    const extraFields =
+      exception instanceof HttpException &&
+      typeof (exception.getResponse() as any) === 'object'
+        ? (exception.getResponse() as any)
+        : {};
+
     const errorResponse = {
       success: false,
       message,
       errorCode,
       ...(errors ? { errors } : {}),
+      ...extraFields,
       timestamp,
       requestId,
       path: request.url,

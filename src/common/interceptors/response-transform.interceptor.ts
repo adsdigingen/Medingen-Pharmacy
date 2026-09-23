@@ -66,6 +66,23 @@ export class ResponseTransformInterceptor<T> implements NestInterceptor<
           };
         }
 
+        // Detect integration direct response shape (e.g. Medingen bill creation or settings)
+        if (
+          data &&
+          typeof data === 'object' &&
+          (('orderId' in data && 'invoiceId' in data) ||
+            'configured' in data ||
+            'apiKey' in data ||
+            (typeof data.message === 'string' &&
+              data.message.toLowerCase().includes('api key')))
+        ) {
+          return {
+            ...data,
+            timestamp,
+            requestId,
+          };
+        }
+
         return {
           success: true,
           message: 'OK',

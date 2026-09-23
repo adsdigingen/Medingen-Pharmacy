@@ -6,6 +6,8 @@ export interface EnvironmentConfig {
   JWT_EXPIRATION_SECONDS: number;
   CORS_ORIGIN?: string;
   CLOUD_API_URL?: string;
+  MEDINGEN_BILLING_API_KEY?: string;
+  MEDINGEN_API_KEY?: string;
 }
 
 /**
@@ -92,5 +94,11 @@ export function validateEnvironment(): EnvironmentConfig {
       : jwtExpirationSeconds,
     CORS_ORIGIN: corsOrigin,
     CLOUD_API_URL: cloudApiUrl,
+    MEDINGEN_BILLING_API_KEY: (
+      process.env.MEDINGEN_BILLING_API_KEY || process.env.MEDINGEN_API_KEY
+    )?.trim(),
+    MEDINGEN_API_KEY: (
+      process.env.MEDINGEN_BILLING_API_KEY || process.env.MEDINGEN_API_KEY
+    )?.trim(),
   };
 }

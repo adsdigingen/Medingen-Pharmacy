@@ -21,6 +21,7 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { DrugScheduleRegisterModule } from './modules/drug-schedule-register/drug-schedule-register.module';
 import { CounterModule } from './modules/counter/counter.module';
+import { MedingenIntegrationModule } from './modules/medingen-integration/medingen-integration.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { DomainModule } from './common/domain/domain.module';
@@ -57,6 +58,7 @@ import { DiagnosticsModule } from './modules/diagnostics/diagnostics.module';
     ReportsModule,
     DrugScheduleRegisterModule,
     CounterModule,
+    MedingenIntegrationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

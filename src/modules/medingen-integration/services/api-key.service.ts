@@ -78,20 +78,26 @@ export class ApiKeyService {
    */
   async getStatus(): Promise<ApiKeyStatusResponse> {
     // 1. Check for most recently modified key in database
-    const latestKey = await this.prisma.apiKey.findFirst({
-      orderBy: { updatedAt: 'desc' },
-    });
+    try {
+      const latestKey = await this.prisma.apiKey.findFirst({
+        orderBy: { updatedAt: 'desc' },
+      });
 
-    if (latestKey) {
-      return {
-        configured: true,
-        status: latestKey.status as 'ACTIVE' | 'REVOKED',
-        keyPrefix: latestKey.keyPrefix,
-        createdAt: latestKey.createdAt.toISOString(),
-        lastUsedAt: latestKey.lastUsedAt ? latestKey.lastUsedAt.toISOString() : null,
-        endpoint: ApiKeyService.ENDPOINT,
-        authMethod: ApiKeyService.AUTH_METHOD,
-      };
+      if (latestKey) {
+        return {
+          configured: true,
+          status: latestKey.status as 'ACTIVE' | 'REVOKED',
+          keyPrefix: latestKey.keyPrefix,
+          createdAt: latestKey.createdAt.toISOString(),
+          lastUsedAt: latestKey.lastUsedAt ? latestKey.lastUsedAt.toISOString() : null,
+          endpoint: ApiKeyService.ENDPOINT,
+          authMethod: ApiKeyService.AUTH_METHOD,
+        };
+      }
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to query database for API key status (e.g. table not migrated yet): ${err.message}`,
+      );
     }
 
     // 2. Fallback check for environment-configured key
@@ -139,26 +145,37 @@ export class ApiKeyService {
 
     const now = new Date();
 
-    const createdRecord = await this.prisma.$transaction(async (tx) => {
-      // Revoke any previous active keys
-      await tx.apiKey.updateMany({
-        where: { status: 'ACTIVE' },
-        data: {
-          status: 'REVOKED',
-          revokedAt: now,
-        },
-      });
+    let createdRecord: ApiKey;
+    try {
+      createdRecord = await this.prisma.$transaction(async (tx) => {
+        // Revoke any previous active keys
+        await tx.apiKey.updateMany({
+          where: { status: 'ACTIVE' },
+          data: {
+            status: 'REVOKED',
+            revokedAt: now,
+          },
+        });
 
-      return tx.apiKey.create({
-        data: {
-          name: name || 'Medingen Platform Key',
-          keyPrefix,
-          keyHash,
-          status: 'ACTIVE',
-          createdBy: userId || null,
-        },
+        return tx.apiKey.create({
+          data: {
+            name: name || 'Medingen Platform Key',
+            keyPrefix,
+            keyHash,
+            status: 'ACTIVE',
+            createdBy: userId || null,
+          },
+        });
       });
-    });
+    } catch (dbErr: any) {
+      this.logger.error(`Database error while creating API key: ${dbErr.message}`);
+      if (dbErr?.code === 'P2021') {
+        throw new BadRequestException(
+          'Database tables for API integration are not initialized yet. Please run database migrations.',
+        );
+      }
+      throw dbErr;
+    }
 
     // Audit logging (never includes raw secret)
     try {
@@ -204,26 +221,36 @@ export class ApiKeyService {
 
     const now = new Date();
 
-    await this.prisma.$transaction(async (tx) => {
-      // Revoke active keys
-      await tx.apiKey.updateMany({
-        where: { status: 'ACTIVE' },
-        data: {
-          status: 'REVOKED',
-          revokedAt: now,
-        },
-      });
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Revoke active keys
+        await tx.apiKey.updateMany({
+          where: { status: 'ACTIVE' },
+          data: {
+            status: 'REVOKED',
+            revokedAt: now,
+          },
+        });
 
-      return tx.apiKey.create({
-        data: {
-          name: 'Medingen Platform Key (Regenerated)',
-          keyPrefix,
-          keyHash,
-          status: 'ACTIVE',
-          createdBy: userId || null,
-        },
+        return tx.apiKey.create({
+          data: {
+            name: 'Medingen Platform Key (Regenerated)',
+            keyPrefix,
+            keyHash,
+            status: 'ACTIVE',
+            createdBy: userId || null,
+          },
+        });
       });
-    });
+    } catch (dbErr: any) {
+      this.logger.error(`Database error while regenerating API key: ${dbErr.message}`);
+      if (dbErr?.code === 'P2021') {
+        throw new BadRequestException(
+          'Database tables for API integration are not initialized yet. Please run database migrations.',
+        );
+      }
+      throw dbErr;
+    }
 
     // Audit logging
     try {
@@ -259,9 +286,20 @@ export class ApiKeyService {
    * Future requests with this key will fail with 401.
    */
   async revokeKey(userId?: string, username?: string): Promise<ApiKeyRevokedResponse> {
-    const activeKey = await this.prisma.apiKey.findFirst({
-      where: { status: 'ACTIVE' },
-    });
+    let activeKey: ApiKey | null = null;
+    try {
+      activeKey = await this.prisma.apiKey.findFirst({
+        where: { status: 'ACTIVE' },
+      });
+    } catch (dbErr: any) {
+      this.logger.error(`Database error while finding active API key: ${dbErr.message}`);
+      if (dbErr?.code === 'P2021') {
+        throw new BadRequestException(
+          'Database tables for API integration are not initialized yet. Please run database migrations.',
+        );
+      }
+      throw dbErr;
+    }
 
     if (!activeKey) {
       throw new BadRequestException('No active Medingen API key found to revoke');
@@ -269,13 +307,18 @@ export class ApiKeyService {
 
     const now = new Date();
 
-    await this.prisma.apiKey.updateMany({
-      where: { status: 'ACTIVE' },
-      data: {
-        status: 'REVOKED',
-        revokedAt: now,
-      },
-    });
+    try {
+      await this.prisma.apiKey.updateMany({
+        where: { status: 'ACTIVE' },
+        data: {
+          status: 'REVOKED',
+          revokedAt: now,
+        },
+      });
+    } catch (dbErr: any) {
+      this.logger.error(`Database error while revoking API key: ${dbErr.message}`);
+      throw dbErr;
+    }
 
     // Audit logging
     try {
@@ -315,34 +358,39 @@ export class ApiKeyService {
 
     const computedHash = this.hashKey(rawToken);
 
-    const record = await this.prisma.apiKey.findUnique({
-      where: { keyHash: computedHash },
-    });
-
-    if (!record) {
-      return null; // Not in DB, may fallback to env
-    }
-
-    if (record.status !== 'ACTIVE') {
-      this.logger.warn(`Rejected Medingen API request: Key ${record.keyPrefix} is ${record.status}`);
-      return false;
-    }
-
-    if (record.expiresAt && record.expiresAt < new Date()) {
-      this.logger.warn(`Rejected Medingen API request: Key ${record.keyPrefix} is expired`);
-      return false;
-    }
-
-    // Update lastUsedAt asynchronously
-    this.prisma.apiKey
-      .update({
-        where: { id: record.id },
-        data: { lastUsedAt: new Date() },
-      })
-      .catch((err: any) => {
-        this.logger.warn(`Failed to update lastUsedAt for key ${record.keyPrefix}: ${err.message}`);
+    try {
+      const record = await this.prisma.apiKey.findUnique({
+        where: { keyHash: computedHash },
       });
 
-    return true;
+      if (!record) {
+        return null; // Not in DB, may fallback to env
+      }
+
+      if (record.status !== 'ACTIVE') {
+        this.logger.warn(`Rejected Medingen API request: Key ${record.keyPrefix} is ${record.status}`);
+        return false;
+      }
+
+      if (record.expiresAt && record.expiresAt < new Date()) {
+        this.logger.warn(`Rejected Medingen API request: Key ${record.keyPrefix} is expired`);
+        return false;
+      }
+
+      // Update lastUsedAt asynchronously
+      this.prisma.apiKey
+        .update({
+          where: { id: record.id },
+          data: { lastUsedAt: new Date() },
+        })
+        .catch((err: any) => {
+          this.logger.warn(`Failed to update lastUsedAt for key ${record.keyPrefix}: ${err.message}`);
+        });
+
+      return true;
+    } catch (err: any) {
+      this.logger.warn(`Database check failed during API key validation: ${err.message}`);
+      return null;
+    }
   }
 }
